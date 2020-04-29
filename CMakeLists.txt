@@ -213,11 +213,11 @@ endif()
 file(GLOB sources ${CMAKE_CURRENT_LIST_DIR}/src/*.c)
 #add also .cpp files
 list(APPEND sources
-  ${CMAKE_CURRENT_LIST_DIR}/src/http_stream.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/src/utils.cpp
   ${CMAKE_CURRENT_LIST_DIR}/src/image_opencv.cpp
 )
-#remove darknet.c file which is necessary only for the executable, not for the lib
-list(REMOVE_ITEM sources ${CMAKE_CURRENT_LIST_DIR}/src/darknet.c)
+#remove darknet.cpp file which is necessary only for the executable, not for the lib
+list(REMOVE_ITEM sources ${CMAKE_CURRENT_LIST_DIR}/src/darknet.cpp)
 #remove windows only files
 if(NOT WIN32)
   list(REMOVE_ITEM sources
@@ -246,9 +246,9 @@ if(BUILD_AS_CPP)
   set_target_properties(libdarknet PROPERTIES LINKER_LANGUAGE CXX)
 endif()
 
-add_executable(darknet ${CMAKE_CURRENT_LIST_DIR}/src/darknet.c ${sources} ${headers} ${cuda_sources})
+add_executable(darknet ${CMAKE_CURRENT_LIST_DIR}/src/darknet.cpp ${sources} ${headers} ${cuda_sources})
 if(BUILD_AS_CPP)
-  set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/src/darknet.c PROPERTIES LANGUAGE CXX)
+  set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/src/darknet.cpp PROPERTIES LANGUAGE CXX)
   set_target_properties(darknet PROPERTIES LINKER_LANGUAGE CXX)
 endif()
 
