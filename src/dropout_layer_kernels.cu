@@ -126,19 +126,16 @@ __global__ void yoloswag420blazeit360noscope(
   if (id < size) input[id] = (rand[id] < prob) ? 0 : input[id] * scale;
 }
 
-void forward_dropout_layer_gpu(dropout_layer l, network_state state)
+void forward_dropout_layer_gpu(dropout_layer l, NetworkState state)
 {
   if (!state.train) return;
-  int iteration_num = get_current_iteration(
-      state.net);  // (*state.net.seen) /
-                   // (state.net.batch*state.net.subdivisions);
-  // if (iteration_num < state.net.burn_in) return;
+  int iteration_num = GetCurrentIteration(state.net);
 
   // We gradually increase the block size and the probability of dropout -
   // during the first half of the training
   float multiplier = 1.0;
-  if (iteration_num < (state.net.max_batches * 0.85))
-    multiplier = (iteration_num / (float)(state.net.max_batches * 0.85));
+  if (iteration_num < (state.net->max_batches * 0.85))
+    multiplier = (iteration_num / (float)(state.net->max_batches * 0.85));
 
   // dropblock
   if (l.dropblock)
@@ -200,7 +197,7 @@ void forward_dropout_layer_gpu(dropout_layer l, network_state state)
   }
 }
 
-void backward_dropout_layer_gpu(dropout_layer l, network_state state)
+void backward_dropout_layer_gpu(dropout_layer l, NetworkState state)
 {
   if (!state.delta) return;
   // int iteration_num = get_current_iteration(state.net); //(*state.net.seen) /
@@ -212,12 +209,12 @@ void backward_dropout_layer_gpu(dropout_layer l, network_state state)
   // dropblock
   if (l.dropblock)
   {
-    int iteration_num = get_current_iteration(
+    int iteration_num = GetCurrentIteration(
         state.net);  //(*state.net.seen) /
                      //(state.net.batch*state.net.subdivisions);
     float multiplier = 1.0;
-    if (iteration_num < (state.net.max_batches * 0.85))
-      multiplier = (iteration_num / (float)(state.net.max_batches * 0.85));
+    if (iteration_num < (state.net->max_batches * 0.85))
+      multiplier = (iteration_num / (float)(state.net->max_batches * 0.85));
 
     int block_width = l.dropblock_size_abs * multiplier;
     int block_height = l.dropblock_size_abs * multiplier;

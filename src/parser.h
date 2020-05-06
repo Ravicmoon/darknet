@@ -6,14 +6,15 @@
 extern "C" {
 #endif
 
-network parse_network_cfg(char* filename);
-network parse_network_cfg_custom(char* filename, int batch, int time_steps);
-void save_network(network net, char* filename);
-void save_weights(network net, char* filename);
-void save_weights_upto(network net, char* filename, int cutoff);
-void save_weights_double(network net, char* filename);
-void load_weights(network* net, char* filename);
-void load_weights_upto(network* net, char* filename, int cutoff);
+void ParseNetworkCfg(Network* net, char const* filename);
+void ParseNetworkCfgCustom(
+    Network* net, char const* filename, int batch, int time_steps);
+void save_network(Network net, char* filename);
+void save_weights(Network net, char* filename);
+void save_weights_upto(Network net, char* filename, int cutoff);
+void save_weights_double(Network net, char* filename);
+void LoadWeights(Network* net, char const* filename);
+void LoadWeightsUpTo(Network* net, char const* filename, int cutoff);
 
 #ifdef __cplusplus
 }

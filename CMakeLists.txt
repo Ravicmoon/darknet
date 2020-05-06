@@ -42,6 +42,8 @@ set(INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib CACHE PATH "Path where lib will 
 set(INSTALL_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include CACHE PATH "Path where headers will be installed")
 set(INSTALL_CMAKE_DIR ${CMAKE_INSTALL_PREFIX}/share CACHE PATH "Path where cmake configs will be installed")
 
+find_package(gflags REQUIRED)
+
 if(${CMAKE_VERSION} VERSION_LESS "3.9.0")
   message(WARNING "To build with CUDA support you need CMake 3.9.0+")
   set(ENABLE_CUDA "FALSE" CACHE BOOL "Enable CUDA support" FORCE)
@@ -265,6 +267,9 @@ target_include_directories(libdarknet PUBLIC
 
 target_compile_definitions(darknet PRIVATE -DUSE_CMAKE_LIBS)
 target_compile_definitions(libdarknet PRIVATE -DUSE_CMAKE_LIBS)
+
+target_include_directories(darknet PUBLIC ${GFLAGS_INCLUDE_DIRS})
+target_link_libraries(darknet PUBLIC ${GFLAGS_LIBRARIES})
 
 if(CUDNN_FOUND)
   target_link_libraries(darknet PRIVATE CuDNN::CuDNN)

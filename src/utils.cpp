@@ -75,7 +75,7 @@ int* read_map(char* filename)
   int* map = 0;
   char* str;
   FILE* file = fopen(filename, "r");
-  if (!file) file_error(filename);
+  if (!file) FileError(filename);
   while ((str = fgetl(file)))
   {
     ++n;
@@ -186,9 +186,9 @@ char* find_char_arg(int argc, char** argv, char* arg, char* def)
   return def;
 }
 
-char* basecfg(char* cfgfile)
+char* BaseCfg(char const* cfg_file)
 {
-  char* c = cfgfile;
+  char* c = (char*)cfg_file;
   char* next;
   while ((next = strchr(c, '/')))
   {
@@ -386,7 +386,7 @@ void realloc_error()
   exit(EXIT_FAILURE);
 }
 
-void file_error(char* s)
+void FileError(char const* s)
 {
   fprintf(stderr, "Couldn't open file: %s\n", s);
   exit(EXIT_FAILURE);
@@ -396,14 +396,14 @@ list* split_str(char* s, char delim)
 {
   size_t i;
   size_t len = strlen(s);
-  list* l = make_list();
-  list_insert(l, s);
+  list* l = MakeList();
+  InsertList(l, s);
   for (i = 0; i < len; ++i)
   {
     if (s[i] == delim)
     {
       s[i] = '\0';
-      list_insert(l, &(s[i + 1]));
+      InsertList(l, &(s[i + 1]));
     }
   }
   return l;
@@ -572,7 +572,7 @@ char* copy_string(char* s)
 
 list* parse_csv_line(char* line)
 {
-  list* l = make_list();
+  list* l = MakeList();
   char *c, *p;
   int in = 0;
   for (c = line, p = line; *c != '\0'; ++c)
@@ -582,11 +582,11 @@ list* parse_csv_line(char* line)
     else if (*c == ',' && !in)
     {
       *c = '\0';
-      list_insert(l, copy_string(p));
+      InsertList(l, copy_string(p));
       p = c + 1;
     }
   }
-  list_insert(l, copy_string(p));
+  InsertList(l, copy_string(p));
   return l;
 }
 

@@ -21,8 +21,8 @@ typedef void* write_cv;
 
 // cv::Mat
 mat_cv* load_image_mat_cv(const char* filename, int flag);
-image load_image_cv(char* filename, int channels);
-image load_image_resize(char* filename, int w, int h, int c, image* im);
+Image load_image_cv(char* filename, int channels);
+Image load_image_resize(char* filename, int w, int h, int c, Image* im);
 int get_width_mat(mat_cv* mat);
 int get_height_mat(mat_cv* mat);
 void release_mat(mat_cv** mat);
@@ -42,7 +42,7 @@ void release_mat(mat_cv** mat);
 // IplImage *mat_to_ipl(cv::Mat mat)
 // Mat image_to_mat(image img)
 // image mat_to_image(cv::Mat mat)
-image mat_to_image_cv(mat_cv* mat);
+Image mat_to_image_cv(mat_cv* mat);
 
 // Window
 void create_window_cv(
@@ -51,7 +51,7 @@ void destroy_all_windows_cv();
 int wait_key_cv(int delay);
 int wait_until_press_key_cv();
 void make_window(char* name, int w, int h, int fullscreen);
-void show_image_cv(image p, const char* name);
+void show_image_cv(Image p, const char* name);
 // void show_image_cv_ipl(mat_cv *disp, const char *name);
 void show_image_mat(mat_cv* mat_ptr, const char* name);
 
@@ -79,10 +79,10 @@ int set_capture_property_cv(cap_cv* cap, int property_id, double value);
 int set_capture_position_frame_cv(cap_cv* cap, int index);
 
 // ... Video Capture
-image get_image_from_stream_cpp(cap_cv* cap);
-image get_image_from_stream_resize(
+Image get_image_from_stream_cpp(cap_cv* cap);
+Image get_image_from_stream_resize(
     cap_cv* cap, int w, int h, int c, mat_cv** in_img, int dont_close);
-image get_image_from_stream_letterbox(
+Image get_image_from_stream_letterbox(
     cap_cv* cap, int w, int h, int c, mat_cv** in_img, int dont_close);
 
 // Image Saving
@@ -90,8 +90,8 @@ void save_cv_png(mat_cv* img, const char* name);
 void save_cv_jpg(mat_cv* img, const char* name);
 
 // Draw Detection
-void draw_detections_cv_v3(mat_cv* show_img, detection* dets, int num,
-    float thresh, char** names, image** alphabet, int classes, int ext_output);
+void draw_detections_cv_v3(mat_cv* show_img, Detection* dets, int num,
+    float thresh, char** names, Image** alphabet, int classes, int ext_output);
 
 // Draw Loss & Accuracy chart
 mat_cv* draw_train_chart(char* windows_name, float max_img_loss,
@@ -103,18 +103,18 @@ void draw_train_loss(char* windows_name, mat_cv* img, int img_size,
     double time_remaining);
 
 // Data augmentation
-image image_data_augmentation(mat_cv* mat, int w, int h, int pleft, int ptop,
+Image image_data_augmentation(mat_cv* mat, int w, int h, int pleft, int ptop,
     int swidth, int sheight, int flip, float dhue, float dsat, float dexp,
     int gaussian_noise, int blur, int num_boxes, float* truth);
 
 // blend two images with (alpha and beta)
-void blend_images_cv(image new_img, float alpha, image old_img, float beta);
+void blend_images_cv(Image new_img, float alpha, Image old_img, float beta);
 
 // bilateralFilter bluring
-image blur_image(image src_img, int ksize);
+Image blur_image(Image src_img, int ksize);
 
 // draw objects for Adversarial attacks
-void cv_draw_object(image sized, float* truth_cpu, int max_boxes, int num_truth,
+void cv_draw_object(Image sized, float* truth_cpu, int max_boxes, int num_truth,
     int* it_num_set, float* lr_set, int* boxonly, int classes, char** names);
 
 // Show Anchors

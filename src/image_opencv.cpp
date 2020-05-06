@@ -93,8 +93,8 @@ extern "C" {
 // ====================================================================
 // cv::Mat
 // ====================================================================
-image mat_to_image(cv::Mat mat);
-cv::Mat image_to_mat(image img);
+Image mat_to_image(cv::Mat mat);
+cv::Mat image_to_mat(Image img);
 //    image ipl_to_image(mat_cv* src);
 //    mat_cv *image_to_ipl(image img);
 //    cv::Mat ipl_to_mat(IplImage *ipl);
@@ -169,7 +169,7 @@ cv::Mat load_image_mat(char* filename, int channels)
 }
 // ----------------------------------------
 
-extern "C" image load_image_cv(char* filename, int channels)
+extern "C" Image load_image_cv(char* filename, int channels)
 {
   cv::Mat mat = load_image_mat(filename, channels);
 
@@ -181,10 +181,10 @@ extern "C" image load_image_cv(char* filename, int channels)
 }
 // ----------------------------------------
 
-extern "C" image load_image_resize(
-    char* filename, int w, int h, int c, image* im)
+extern "C" Image load_image_resize(
+    char* filename, int w, int h, int c, Image* im)
 {
-  image out;
+  Image out;
   try
   {
     cv::Mat loaded_image = load_image_mat(filename, c);
@@ -327,7 +327,7 @@ return ipl;
 // ----------------------------------------
 */
 
-extern "C" cv::Mat image_to_mat(image img)
+extern "C" cv::Mat image_to_mat(Image img)
 {
   int channels = img.c;
   int width = img.w;
@@ -350,12 +350,12 @@ extern "C" cv::Mat image_to_mat(image img)
 }
 // ----------------------------------------
 
-extern "C" image mat_to_image(cv::Mat mat)
+extern "C" Image mat_to_image(cv::Mat mat)
 {
   int w = mat.cols;
   int h = mat.rows;
   int c = mat.channels();
-  image im = make_image(w, h, c);
+  Image im = make_image(w, h, c);
   unsigned char* data = (unsigned char*)mat.data;
   int step = mat.step;
   for (int y = 0; y < h; ++y)
@@ -375,7 +375,7 @@ extern "C" image mat_to_image(cv::Mat mat)
   return im;
 }
 
-image mat_to_image_cv(mat_cv* mat) { return mat_to_image(*(cv::Mat*)mat); }
+Image mat_to_image_cv(mat_cv* mat) { return mat_to_image(*(cv::Mat*)mat); }
 
 // ====================================================================
 // Window
@@ -460,18 +460,18 @@ extern "C" void make_window(char* name, int w, int h, int fullscreen)
 }
 // ----------------------------------------
 
-static float get_pixel(image m, int x, int y, int c)
+static float get_pixel(Image m, int x, int y, int c)
 {
   assert(x < m.w && y < m.h && c < m.c);
   return m.data[c * m.h * m.w + y * m.w + x];
 }
 // ----------------------------------------
 
-extern "C" void show_image_cv(image p, const char* name)
+extern "C" void show_image_cv(Image p, const char* name)
 {
   try
   {
-    image copy = copy_image(p);
+    Image copy = copy_image(p);
     constrain_image(copy);
 
     cv::Mat mat = image_to_mat(copy);
@@ -788,7 +788,7 @@ extern "C" int set_capture_position_frame_cv(cap_cv* cap, int index)
 // ... Video Capture
 // ====================================================================
 
-extern "C" image get_image_from_stream_cpp(cap_cv* cap)
+extern "C" Image get_image_from_stream_cpp(cap_cv* cap)
 {
   cv::Mat* src = NULL;
   static int once = 1;
@@ -807,7 +807,7 @@ extern "C" image get_image_from_stream_cpp(cap_cv* cap)
     src = (cv::Mat*)get_capture_frame_cv(cap);
 
   if (!src) return make_empty_image(0, 0, 0);
-  image im = mat_to_image(*src);
+  Image im = mat_to_image(*src);
   rgbgr_image(im);
   if (src) delete src;
   return im;
@@ -845,7 +845,7 @@ extern "C" int wait_for_stream(cap_cv* cap, cv::Mat* src, int dont_close)
 }
 // ----------------------------------------
 
-extern "C" image get_image_from_stream_resize(
+extern "C" Image get_image_from_stream_resize(
     cap_cv* cap, int w, int h, int c, mat_cv** in_img, int dont_close)
 {
   c = c ? c : 3;
@@ -873,7 +873,7 @@ extern "C" image get_image_from_stream_resize(
   cv::Mat new_img = cv::Mat(h, w, CV_8UC(c));
   cv::resize(*src, new_img, new_img.size(), 0, 0, cv::INTER_LINEAR);
   if (c > 1) cv::cvtColor(new_img, new_img, cv::COLOR_RGB2BGR);
-  image im = mat_to_image(new_img);
+  Image im = mat_to_image(new_img);
 
   // show_image_cv(im, "im");
   // show_image_mat(*in_img, "in_img");
@@ -881,7 +881,7 @@ extern "C" image get_image_from_stream_resize(
 }
 // ----------------------------------------
 
-extern "C" image get_image_from_stream_letterbox(
+extern "C" Image get_image_from_stream_letterbox(
     cap_cv* cap, int w, int h, int c, mat_cv** in_img, int dont_close)
 {
   c = c ? c : 3;
@@ -910,8 +910,8 @@ extern "C" image get_image_from_stream_letterbox(
       cv::INTER_LINEAR);
 
   if (c > 1) cv::cvtColor(*src, *src, cv::COLOR_RGB2BGR);
-  image tmp = mat_to_image(*src);
-  image im = letterbox_image(tmp, w, h);
+  Image tmp = mat_to_image(*src);
+  Image im = letterbox_image(tmp, w, h);
   free_image(tmp);
   release_mat((mat_cv**)&src);
 
@@ -964,8 +964,8 @@ extern "C" void save_cv_jpg(mat_cv* img_src, const char* name)
 // ====================================================================
 // Draw Detection
 // ====================================================================
-extern "C" void draw_detections_cv_v3(mat_cv* mat, detection* dets, int num,
-    float thresh, char** names, image** alphabet, int classes, int ext_output)
+extern "C" void draw_detections_cv_v3(mat_cv* mat, Detection* dets, int num,
+    float thresh, char** names, Image** alphabet, int classes, int ext_output)
 {
   try
   {
@@ -1322,11 +1322,11 @@ extern "C" void draw_train_loss(char* windows_name, mat_cv* img_src,
 // Data augmentation
 // ====================================================================
 
-extern "C" image image_data_augmentation(mat_cv* mat, int w, int h, int pleft,
+extern "C" Image image_data_augmentation(mat_cv* mat, int w, int h, int pleft,
     int ptop, int swidth, int sheight, int flip, float dhue, float dsat,
     float dexp, int gaussian_noise, int blur, int num_boxes, float* truth)
 {
-  image out;
+  Image out;
   try
   {
     cv::Mat img = *(cv::Mat*)mat;
@@ -1475,7 +1475,7 @@ extern "C" image image_data_augmentation(mat_cv* mat, int w, int h, int pleft,
 
 // blend two images with (alpha and beta)
 extern "C" void blend_images_cv(
-    image new_img, float alpha, image old_img, float beta)
+    Image new_img, float alpha, Image old_img, float beta)
 {
   cv::Mat new_mat(cv::Size(new_img.w, new_img.h), CV_32FC(new_img.c),
       new_img.data);  // , size_t step = AUTO_STEP)
@@ -1485,14 +1485,14 @@ extern "C" void blend_images_cv(
 }
 
 // bilateralFilter bluring
-extern "C" image blur_image(image src_img, int ksize)
+extern "C" Image blur_image(Image src_img, int ksize)
 {
   cv::Mat src = image_to_mat(src_img);
   cv::Mat dst;
   cv::Size kernel_size = cv::Size(ksize, ksize);
   cv::GaussianBlur(src, dst, kernel_size, 0);
   // cv::bilateralFilter(src, dst, ksize, 75, 75);
-  image dst_img = mat_to_image(dst);
+  Image dst_img = mat_to_image(dst);
   return dst_img;
 }
 
@@ -1538,7 +1538,7 @@ void callback_mouse_click(int event, int x, int y, int flags, void* user_data)
   }
 }
 
-extern "C" void cv_draw_object(image sized, float* truth_cpu, int max_boxes,
+extern "C" void cv_draw_object(Image sized, float* truth_cpu, int max_boxes,
     int num_truth, int* it_num_set, float* lr_set, int* boxonly, int classes,
     char** names)
 {

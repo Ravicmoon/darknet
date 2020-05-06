@@ -1,22 +1,23 @@
 #ifndef REORG_LAYER_H
 #define REORG_LAYER_H
 
-#include "image.h"
 #include "dark_cuda.h"
+#include "image.h"
 #include "layer.h"
 #include "network.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse);
-void resize_reorg_layer(layer *l, int w, int h);
-void forward_reorg_layer(const layer l, network_state state);
-void backward_reorg_layer(const layer l, network_state state);
+void resize_reorg_layer(layer* l, int w, int h);
+void forward_reorg_layer(const layer l, NetworkState state);
+void backward_reorg_layer(const layer l, NetworkState state);
 
 #ifdef GPU
-void forward_reorg_layer_gpu(layer l, network_state state);
-void backward_reorg_layer_gpu(layer l, network_state state);
+void forward_reorg_layer_gpu(layer l, NetworkState state);
+void backward_reorg_layer_gpu(layer l, NetworkState state);
 #endif
 
 #ifdef __cplusplus

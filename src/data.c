@@ -17,11 +17,11 @@ list* get_paths(char* filename)
 {
   char* path;
   FILE* file = fopen(filename, "r");
-  if (!file) file_error(filename);
-  list* lines = make_list();
+  if (!file) FileError(filename);
+  list* lines = MakeList();
   while ((path = fgetl(file)))
   {
-    list_insert(lines, path);
+    InsertList(lines, path);
   }
   fclose(file);
   return lines;
@@ -127,9 +127,9 @@ matrix load_image_paths_gray(char** paths, int n, int w, int h)
 
   for (i = 0; i < n; ++i)
   {
-    image im = load_image(paths[i], w, h, 3);
+    Image im = load_image(paths[i], w, h, 3);
 
-    image gray = grayscale_image(im);
+    Image gray = grayscale_image(im);
     free_image(im);
     im = gray;
 
@@ -149,7 +149,7 @@ matrix load_image_paths(char** paths, int n, int w, int h)
 
   for (i = 0; i < n; ++i)
   {
-    image im = load_image_color(paths[i], w, h);
+    Image im = load_image_color(paths[i], w, h);
     X.vals[i] = im.data;
     X.cols = im.h * im.w * im.c;
   }
@@ -169,18 +169,18 @@ matrix load_image_augment_paths(char** paths, int n, int use_flip, int min,
   for (i = 0; i < n; ++i)
   {
     int size = w > h ? w : h;
-    image im;
+    Image im;
     if (dontuse_opencv)
       im = load_image_stb_resize(paths[i], 0, 0, 3);
     else
       im = load_image_color(paths[i], 0, 0);
 
-    image crop = random_augment_image(im, angle, aspect, min, max, size);
+    Image crop = random_augment_image(im, angle, aspect, min, max, size);
     int flip = use_flip ? random_gen() % 2 : 0;
     if (flip) flip_image(crop);
     random_distort_image(crop, hue, saturation, exposure);
 
-    image sized = resize_image(crop, w, h);
+    Image sized = resize_image(crop, w, h);
 
     // show_image(im, "orig");
     // show_image(sized, "sized");
@@ -736,7 +736,7 @@ data load_data_region(int n, char** paths, int m, int w, int h, int size,
   d.y = make_matrix(n, k);
   for (i = 0; i < n; ++i)
   {
-    image orig = load_image_color(random_paths[i], 0, 0);
+    Image orig = load_image_color(random_paths[i], 0, 0);
 
     int oh = orig.h;
     int ow = orig.w;
@@ -756,12 +756,12 @@ data load_data_region(int n, char** paths, int m, int w, int h, int size,
     float sy = (float)sheight / oh;
 
     int flip = random_gen() % 2;
-    image cropped = crop_image(orig, pleft, ptop, swidth, sheight);
+    Image cropped = crop_image(orig, pleft, ptop, swidth, sheight);
 
     float dx = ((float)pleft / ow) / sx;
     float dy = ((float)ptop / oh) / sy;
 
-    image sized = resize_image(cropped, w, h);
+    Image sized = resize_image(cropped, w, h);
     if (flip) flip_image(sized);
     random_distort_image(sized, hue, saturation, exposure);
     d.X.vals[i] = sized.data;
@@ -791,8 +791,8 @@ data load_data_compare(int n, char** paths, int m, int classes, int w, int h)
   d.y = make_matrix(n, k);
   for (i = 0; i < n; ++i)
   {
-    image im1 = load_image_color(paths[i * 2], w, h);
-    image im2 = load_image_color(paths[i * 2 + 1], w, h);
+    Image im1 = load_image_color(paths[i * 2], w, h);
+    Image im2 = load_image_color(paths[i * 2 + 1], w, h);
 
     d.X.vals[i] = (float*)xcalloc(d.X.cols, sizeof(float));
     memcpy(d.X.vals[i], im1.data, h * w * 3 * sizeof(float));
@@ -854,7 +854,7 @@ data load_data_swag(char** paths, int n, int classes, float jitter)
   int index = random_gen() % n;
   char* random_path = paths[index];
 
-  image orig = load_image_color(random_path, 0, 0);
+  Image orig = load_image_color(random_path, 0, 0);
   int h = orig.h;
   int w = orig.w;
 
@@ -885,12 +885,12 @@ data load_data_swag(char** paths, int n, int classes, float jitter)
   float sy = (float)sheight / h;
 
   int flip = random_gen() % 2;
-  image cropped = crop_image(orig, pleft, ptop, swidth, sheight);
+  Image cropped = crop_image(orig, pleft, ptop, swidth, sheight);
 
   float dx = ((float)pleft / w) / sx;
   float dy = ((float)ptop / h) / sy;
 
-  image sized = resize_image(cropped, w, h);
+  Image sized = resize_image(cropped, w, h);
   if (flip) flip_image(sized);
   d.X.vals[0] = sized.data;
 
@@ -1201,7 +1201,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
       if ((min_w_h / 8) < blur && blur > 1)
         blur = min_w_h / 8;  // disable blur if one of the objects is too small
 
-      image ai = image_data_augmentation(src, w, h, pleft, ptop, swidth,
+      Image ai = image_data_augmentation(src, w, h, pleft, ptop, swidth,
           sheight, flip, dhue, dsat, dexp, gaussian_noise, blur, boxes, truth);
 
       if (use_mixup == 0)
@@ -1218,7 +1218,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
         }
         else if (i_mixup == 1)
         {
-          image old_img = make_empty_image(w, h, c);
+          Image old_img = make_empty_image(w, h, c);
           old_img.data = d.X.vals[i];
           // show_image(ai, "new");
           // show_image(old_img, "old");
@@ -1233,7 +1233,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
       {
         if (i_mixup == 0)
         {
-          image tmp_img = make_image(w, h, c);
+          Image tmp_img = make_image(w, h, c);
           d.X.vals[i] = tmp_img.data;
         }
 
@@ -1300,7 +1300,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
 
       if (show_imgs && i_mixup == use_mixup)  // delete i_mixup
       {
-        image tmp_ai = copy_image(ai);
+        Image tmp_ai = copy_image(ai);
         char buff[1000];
         // sprintf(buff, "aug_%d_%d_%s_%d", random_index, i,
         // basecfg((char*)filename), random_gen());
@@ -1506,7 +1506,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
       if (show_imgs)  // && i_mixup)
       {
         char buff[1000];
-        sprintf(buff, "aug_%d_%d_%s_%d", random_index, i, basecfg(filename),
+        sprintf(buff, "aug_%d_%d_%s_%d", random_index, i, BaseCfg(filename),
             random_gen());
 
         int t;
@@ -1817,11 +1817,11 @@ data load_data_super(char** paths, int n, int m, int w, int h, int scale)
 
   for (i = 0; i < n; ++i)
   {
-    image im = load_image_color(paths[i], 0, 0);
-    image crop = random_crop_image(im, w * scale, h * scale);
+    Image im = load_image_color(paths[i], 0, 0);
+    Image crop = random_crop_image(im, w * scale, h * scale);
     int flip = random_gen() % 2;
     if (flip) flip_image(crop);
-    image resize = resize_image(crop, w, h);
+    Image resize = resize_image(crop, w, h);
     d.X.vals[i] = resize.data;
     d.y.vals[i] = crop.data;
     free_image(im);
@@ -2004,11 +2004,11 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
     {
       if (random_gen() % 2)
       {
-        image im = make_empty_image(w, h, 3);
+        Image im = make_empty_image(w, h, 3);
         im.data = d.X.vals[i];
         int ksize = use_blur;
         if (use_blur == 1) ksize = 17;
-        image blurred = blur_image(im, ksize);
+        Image blurred = blur_image(im, ksize);
         free_image(im);
         d.X.vals[i] = blurred.data;
         // if (i == 0) {
@@ -2026,10 +2026,10 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
     int i, j;
     for (i = 0; i < d.X.rows; ++i)
     {
-      image im = make_empty_image(w, h, 3);
+      Image im = make_empty_image(w, h, 3);
       im.data = d.X.vals[i];
       char buff[1000];
-      sprintf(buff, "aug_%d_%s_%d", i, basecfg((char*)paths[i]), random_gen());
+      sprintf(buff, "aug_%d_%s_%d", i, BaseCfg((char*)paths[i]), random_gen());
       save_image(im, buff);
 
       char buff_string[1000];
@@ -2145,7 +2145,7 @@ data load_cifar10_data(char* filename)
   d.y = y;
 
   FILE* fp = fopen(filename, "rb");
-  if (!fp) file_error(filename);
+  if (!fp) FileError(filename);
   for (i = 0; i < 10000; ++i)
   {
     unsigned char bytes[3073];
@@ -2215,7 +2215,7 @@ data load_all_cifar10()
     char buff[256];
     sprintf(buff, "data/cifar/cifar-10-batches-bin/data_batch_%d.bin", b + 1);
     FILE* fp = fopen(buff, "rb");
-    if (!fp) file_error(buff);
+    if (!fp) FileError(buff);
     for (i = 0; i < 10000; ++i)
     {
       unsigned char bytes[3073];
@@ -2243,7 +2243,7 @@ data load_go(char* filename)
   matrix y = make_matrix(3363059, 361);
   int row, col;
 
-  if (!fp) file_error(filename);
+  if (!fp) FileError(filename);
   char* label;
   int count = 0;
   while ((label = fgetl(fp)))

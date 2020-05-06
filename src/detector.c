@@ -17,16 +17,16 @@ typedef __compar_fn_t comparison_fn_t;
 #endif
 #endif
 
-void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
-    int ngpus, int clear, int dont_show, int calc_map, int show_imgs,
-    int benchmark_layers, char* chart_path)
+void TrainDetector(char const* data_file, char const* model_file,
+    char const* weights_file, int* gpus, int ngpus, int clear, int dont_show,
+    int calc_map, int show_imgs, int benchmark_layers, char* chart_path)
 {
-  list* options = read_data_cfg(datacfg);
-  char* train_images = option_find_str(options, "train", "data/train.txt");
-  char* valid_images = option_find_str(options, "valid", train_images);
-  char* backup_directory = option_find_str(options, "backup", "/backup/");
+  list* options = ReadDataCfg(data_file);
+  char* train_images = FindOptionStr(options, "train", "data/train.txt");
+  char* valid_images = FindOptionStr(options, "valid", train_images);
+  char* backup_directory = FindOptionStr(options, "backup", "/backup/");
 
-  network net_map;
+  Network net_map;
   if (calc_map)
   {
     FILE* valid_file = fopen(valid_images, "r");
@@ -35,7 +35,7 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
       printf(
           "\n Error: There is no %s file for mAP calculation!\n Don't use -map "
           "flag.\n Or set valid=%s in your %s file. \n",
-          valid_images, train_images, datacfg);
+          valid_images, train_images, data_file);
       getchar();
       exit(-1);
     }
@@ -44,14 +44,17 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
 
     cuda_set_device(gpus[0]);
     printf(" Prepare additional network for mAP calculation...\n");
-    net_map = parse_network_cfg_custom(cfgfile, 1, 1);
+    ParseNetworkCfgCustom(&net_map, model_file, 1, 1);
     net_map.benchmark_layers = benchmark_layers;
     const int net_classes = net_map.layers[net_map.n - 1].classes;
 
     int k;  // free memory unnecessary arrays
-    for (k = 0; k < net_map.n - 1; ++k) free_layer_custom(net_map.layers[k], 1);
+    for (k = 0; k < net_map.n - 1; ++k)
+    {
+      free_layer_custom(net_map.layers[k], 1);
+    }
 
-    char* name_list = option_find_str(options, "names", "data/names.list");
+    char* name_list = FindOptionStr(options, "names", "data/names.list");
     int names_size = 0;
     char** names = get_labels_custom(name_list, &names_size);
     if (net_classes != names_size)
@@ -59,17 +62,17 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
       printf(
           "\n Error: in the file %s number of names %d that isn't equal to "
           "classes=%d in the file %s \n",
-          name_list, names_size, net_classes, cfgfile);
+          name_list, names_size, net_classes, model_file);
       if (net_classes > names_size) getchar();
     }
     free_ptrs((void**)names, net_map.layers[net_map.n - 1].classes);
   }
 
   srand(time(0));
-  char* base = basecfg(cfgfile);
+  char* base = BaseCfg(model_file);
   printf("%s\n", base);
   float avg_loss = -1;
-  network* nets = (network*)xcalloc(ngpus, sizeof(network));
+  Network* nets = (Network*)xcalloc(ngpus, sizeof(Network));
 
   srand(time(0));
   int seed = rand();
@@ -80,11 +83,11 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
 #ifdef GPU
     cuda_set_device(gpus[k]);
 #endif
-    nets[k] = parse_network_cfg(cfgfile);
+    ParseNetworkCfg(&nets[k], model_file);
     nets[k].benchmark_layers = benchmark_layers;
-    if (weightfile)
+    if (weights_file)
     {
-      load_weights(&nets[k], weightfile);
+      LoadWeights(&nets[k], weights_file);
     }
     if (clear)
     {
@@ -94,7 +97,7 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
     nets[k].learning_rate *= ngpus;
   }
   srand(time(0));
-  network net = nets[0];
+  Network net = nets[0];
 
   const int actual_batch_size = net.batch * net.subdivisions;
   if (actual_batch_size == 1)
@@ -130,9 +133,9 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
   const int init_h = net.h;
   const int init_b = net.batch;
   int iter_save, iter_save_last, iter_map;
-  iter_save = get_current_iteration(net);
-  iter_save_last = get_current_iteration(net);
-  iter_map = get_current_iteration(net);
+  iter_save = GetCurrentIteration(&net);
+  iter_save_last = GetCurrentIteration(&net);
+  iter_map = GetCurrentIteration(&net);
   float mean_average_precision = -1;
   float best_map = mean_average_precision;
 
@@ -198,7 +201,7 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
   int count = 0;
   double time_remaining, avg_time = -1, alpha_time = 0.01;
 
-  while (get_current_iteration(net) < net.max_batches)
+  while (GetCurrentIteration(&net) < net.max_batches)
   {
     if (l.random && count++ % 10 == 0)
     {
@@ -220,7 +223,7 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
 
       // at the beginning (check if enough memory) and at the end (calc rolling
       // mean/variance)
-      if (avg_loss < 0 || get_current_iteration(net) > net.max_batches - 100)
+      if (avg_loss < 0 || GetCurrentIteration(&net) > net.max_batches - 100)
       {
         dim_w = max_dim_w;
         dim_h = max_dim_h;
@@ -242,9 +245,9 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
         {
           (*nets[k].seen) =
               init_b * net.subdivisions *
-              get_current_iteration(
-                  net);  // remove this line, when you will save to weights-file
-                         // both: seen & cur_iteration
+              GetCurrentIteration(
+                  &net);  // remove this line, when you will save to
+                          // weights-file both: seen & cur_iteration
           nets[k].batch = dim_b;
           int j;
           for (j = 0; j < nets[k].n; ++j) nets[k].layers[j].batch = dim_b;
@@ -273,10 +276,10 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
     train = buffer;
     if (net.track)
     {
-      net.sequential_subdivisions = get_current_seq_subdivisions(net);
+      net.sequential_subdivisions = GetCurrentSeqSubdivisions(&net);
       args.threads = net.sequential_subdivisions * ngpus;
       printf(" sequential_subdivisions = %d, sequence = %d \n",
-          net.sequential_subdivisions, get_sequence_value(net));
+          net.sequential_subdivisions, GetSequenceValue(&net));
     }
     load_thread = load_data(args);
 
@@ -292,21 +295,20 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
     if (ngpus == 1)
     {
       int wait_key = (dont_show) ? 0 : 1;
-      loss = train_network_waitkey(net, train, wait_key);
+      loss = TrainNetworkWaitKey(&net, train, wait_key);
     }
     else
     {
-      loss = train_networks(nets, ngpus, train, 4);
+      loss = TrainNetworks(nets, ngpus, train, 4);
     }
 #else
-    loss = train_network(net, train);
+    loss = TrainNetwork(net, train);
 #endif
     if (avg_loss < 0 || avg_loss != avg_loss)
       avg_loss = loss;  // if(-inf or nan)
     avg_loss = avg_loss * .9 + loss * .1;
 
-    const int iteration = get_current_iteration(net);
-    // i = get_current_batch(net);
+    const int iteration = GetCurrentIteration(&net);
 
     int calc_map_for_each =
         4 * train_images_num /
@@ -336,7 +338,7 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
     printf(
         "\n %d: %f, %f avg loss, %f rate, %lf seconds, %d images, %f hours "
         "left\n",
-        iteration, loss, avg_loss, get_current_rate(net),
+        iteration, loss, avg_loss, GetCurrentRate(&net),
         (what_time_is_it_now() - time), iteration * imgs, avg_time);
 
     int draw_precision = 0;
@@ -378,12 +380,9 @@ void train_detector(char* datacfg, char* cfgfile, char* weightfile, int* gpus,
 
       copy_weights_net(net, &net_map);
 
-      // combine Training and Validation networks
-      // network net_combined = combine_train_valid_networks(net, net_map);
-
       iter_map = iteration;
       mean_average_precision =
-          validate_detector_map(datacfg, cfgfile, weightfile, 0.25, 0.5, 0,
+          ValidateDetector(data_file, model_file, weights_file, 0.25, 0.5, 0,
               net.letter_box, &net_map);  // &net_combined);
       printf("\n mean_average_precision (mAP@0.5) = %f \n",
           mean_average_precision);
@@ -496,15 +495,15 @@ int detections_comparator(const void* pa, const void* pb)
   return 0;
 }
 
-float validate_detector_map(char* datacfg, char* cfgfile, char* weightfile,
-    float thresh_calc_avg_iou, const float iou_thresh, const int map_points,
-    int letter_box, network* existing_net)
+float ValidateDetector(char const* data_file, char const* model_file,
+    char const* weights_file, float thresh_calc_avg_iou, const float iou_thresh,
+    const int map_points, int letter_box, Network* existing_net)
 {
   int j;
-  list* options = read_data_cfg(datacfg);
-  char* valid_images = option_find_str(options, "valid", "data/train.txt");
-  char* difficult_valid_images = option_find_str(options, "difficult", NULL);
-  char* name_list = option_find_str(options, "names", "data/names.list");
+  list* options = ReadDataCfg(data_file);
+  char* valid_images = FindOptionStr(options, "valid", "data/train.txt");
+  char* difficult_valid_images = FindOptionStr(options, "difficult", NULL);
+  char* name_list = FindOptionStr(options, "names", "data/names.list");
   int names_size = 0;
   char** names =
       get_labels_custom(name_list, &names_size);  // get_labels(name_list);
@@ -513,25 +512,25 @@ float validate_detector_map(char* datacfg, char* cfgfile, char* weightfile,
   // if (mapf) map = read_map(mapf);
   FILE* reinforcement_fd = NULL;
 
-  network net;
+  Network net;
   // int initial_batch;
   if (existing_net)
   {
-    char* train_images = option_find_str(options, "train", "data/train.txt");
-    valid_images = option_find_str(options, "valid", train_images);
+    char* train_images = FindOptionStr(options, "train", "data/train.txt");
+    valid_images = FindOptionStr(options, "valid", train_images);
     net = *existing_net;
     remember_network_recurrent_state(*existing_net);
     free_network_recurrent_state(*existing_net);
   }
   else
   {
-    net = parse_network_cfg_custom(cfgfile, 1, 1);  // set batch=1
-    if (weightfile)
+    ParseNetworkCfgCustom(&net, model_file, 1, 1);  // set batch=1
+    if (weights_file)
     {
-      load_weights(&net, weightfile);
+      LoadWeights(&net, weights_file);
     }
     // set_batch_network(&net, 1);
-    fuse_conv_batchnorm(net);
+    FuseConvBatchNorm(&net);
     calculate_binary_weights(net);
   }
   if (net.layers[net.n - 1].classes != names_size)
@@ -539,7 +538,7 @@ float validate_detector_map(char* datacfg, char* cfgfile, char* weightfile,
     printf(
         "\n Error: in the file %s number of names %d that isn't equal to "
         "classes=%d in the file %s \n",
-        name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
+        name_list, names_size, net.layers[net.n - 1].classes, model_file);
     getchar();
   }
   srand(time(0));
@@ -568,10 +567,10 @@ float validate_detector_map(char* datacfg, char* cfgfile, char* weightfile,
 
   int nthreads = 4;
   if (m < 4) nthreads = m;
-  image* val = (image*)xcalloc(nthreads, sizeof(image));
-  image* val_resized = (image*)xcalloc(nthreads, sizeof(image));
-  image* buf = (image*)xcalloc(nthreads, sizeof(image));
-  image* buf_resized = (image*)xcalloc(nthreads, sizeof(image));
+  Image* val = (Image*)xcalloc(nthreads, sizeof(Image));
+  Image* val_resized = (Image*)xcalloc(nthreads, sizeof(Image));
+  Image* buf = (Image*)xcalloc(nthreads, sizeof(Image));
+  Image* buf_resized = (Image*)xcalloc(nthreads, sizeof(Image));
   pthread_t* thr = (pthread_t*)xcalloc(nthreads, sizeof(pthread_t));
 
   load_args args = {0};
@@ -627,21 +626,21 @@ float validate_detector_map(char* datacfg, char* cfgfile, char* weightfile,
     {
       const int image_index = i + t - nthreads;
       char* path = paths[image_index];
-      char* id = basecfg(path);
+      char* id = BaseCfg(path);
       float* X = val_resized[t].data;
-      network_predict(net, X);
+      NetworkPredict(&net, X);
 
       int nboxes = 0;
       float hier_thresh = 0;
-      detection* dets;
+      Detection* dets;
       if (args.type == LETTERBOX_DATA)
       {
-        dets = get_network_boxes(&net, val[t].w, val[t].h, thresh, hier_thresh,
-            0, 1, &nboxes, letter_box);
+        dets = GetNetworkBoxes(&net, val[t].w, val[t].h, thresh, hier_thresh, 0,
+            1, &nboxes, letter_box);
       }
       else
       {
-        dets = get_network_boxes(
+        dets = GetNetworkBoxes(
             &net, 1, 1, thresh, hier_thresh, 0, 0, &nboxes, letter_box);
       }
       // detection *dets = get_network_boxes(&net, val[t].w, val[t].h, thresh,
@@ -1045,31 +1044,31 @@ float validate_detector_map(char* datacfg, char* cfgfile, char* weightfile,
   return mean_average_precision;
 }
 
-void test_detector(char* datacfg, char* cfgfile, char* weightfile,
-    char* filename, float thresh, float hier_thresh, int dont_show,
-    int ext_output, int save_labels, char* outfile, int letter_box,
-    int benchmark_layers)
+void TestDetector(char const* data_file, char const* model_file,
+    char const* weights_file, char const* filename, float thresh,
+    float hier_thresh, int dont_show, int ext_output, int save_labels,
+    char* outfile, int letter_box, int benchmark_layers)
 {
-  list* options = read_data_cfg(datacfg);
-  char* name_list = option_find_str(options, "names", "data/names.list");
+  list* options = ReadDataCfg(data_file);
+  char* name_list = FindOptionStr(options, "names", "data/names.list");
   int names_size = 0;
   char** names = get_labels_custom(name_list, &names_size);
 
-  image** alphabet = load_alphabet();
-  network net = parse_network_cfg_custom(cfgfile, 1, 1);
-  if (weightfile)
+  Network net = {0};
+  ParseNetworkCfgCustom(&net, model_file, 1, 1);
+  if (weights_file)
   {
-    load_weights(&net, weightfile);
+    LoadWeights(&net, weights_file);
   }
   net.benchmark_layers = benchmark_layers;
-  fuse_conv_batchnorm(net);
+  FuseConvBatchNorm(&net);
   calculate_binary_weights(net);
   if (net.layers[net.n - 1].classes != names_size)
   {
     printf(
         "\n Error: in the file %s number of names %d that isn't equal to "
         "classes=%d in the file %s \n",
-        name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
+        name_list, names_size, net.layers[net.n - 1].classes, model_file);
     if (net.layers[net.n - 1].classes > names_size) getchar();
   }
   srand(2222222);
@@ -1108,8 +1107,8 @@ void test_detector(char* datacfg, char* cfgfile, char* weightfile,
     }
     // image im;
     // image sized = load_image_resize(input, net.w, net.h, net.c, &im);
-    image im = load_image(input, 0, 0, net.c);
-    image sized;
+    Image im = load_image(input, 0, 0, net.c);
+    Image sized;
     if (letter_box)
       sized = letterbox_image(im, net.w, net.h);
     else
@@ -1125,7 +1124,7 @@ void test_detector(char* datacfg, char* cfgfile, char* weightfile,
 
     // time= what_time_is_it_now();
     double time = get_time_point();
-    network_predict(net, X);
+    NetworkPredict(&net, X);
     // network_predict_image(&net, im); letterbox = 1;
     printf("%s: Predicted in %lf milli-seconds.\n", input,
         ((double)get_time_point() - time) / 1000);
@@ -1133,7 +1132,7 @@ void test_detector(char* datacfg, char* cfgfile, char* weightfile,
     // (what_time_is_it_now()-time));
 
     int nboxes = 0;
-    detection* dets = get_network_boxes(
+    Detection* dets = GetNetworkBoxes(
         &net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
     if (nms)
     {
@@ -1143,7 +1142,7 @@ void test_detector(char* datacfg, char* cfgfile, char* weightfile,
         diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
     }
     draw_detections_v3(
-        im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output);
+        im, dets, nboxes, thresh, names, NULL, l.classes, ext_output);
     save_image(im, "predictions");
     if (!dont_show)
     {
@@ -1220,18 +1219,6 @@ void test_detector(char* datacfg, char* cfgfile, char* weightfile,
   free_ptrs((void**)names, net.layers[net.n - 1].classes);
   free_list_contents_kvp(options);
   free_list(options);
-
-  int i;
-  const int nsize = 8;
-  for (j = 0; j < nsize; ++j)
-  {
-    for (i = 32; i < 127; ++i)
-    {
-      free_image(alphabet[j][i]);
-    }
-    free(alphabet[j]);
-  }
-  free(alphabet);
 
   free_network(net);
 }

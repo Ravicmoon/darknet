@@ -54,20 +54,20 @@ typedef enum
 extern "C" {
 #endif
 
-struct network;
-typedef struct network network;
+struct Network;
+typedef struct Network Network;
 
-struct network_state;
-typedef struct network_state network_state;
+struct NetworkState;
+typedef struct NetworkState NetworkState;
 
 struct layer;
 typedef struct layer layer;
 
-struct image;
-typedef struct image image;
+struct Image;
+typedef struct Image Image;
 
-struct detection;
-typedef struct detection detection;
+struct Detection;
+typedef struct Detection Detection;
 
 struct load_args;
 typedef struct load_args load_args;
@@ -75,8 +75,8 @@ typedef struct load_args load_args;
 struct data;
 typedef struct data data;
 
-struct metadata;
-typedef struct metadata metadata;
+struct Metadata;
+typedef struct Metadata Metadata;
 
 struct tree;
 typedef struct tree tree;
@@ -84,11 +84,11 @@ typedef struct tree tree;
 extern int gpu_index;
 
 // option_list.h
-typedef struct metadata
+typedef struct Metadata
 {
   int classes;
   char** names;
-} metadata;
+} Metadata;
 
 // tree.h
 typedef struct tree
@@ -265,11 +265,11 @@ struct layer
   LAYER_TYPE type;
   ACTIVATION activation;
   COST_TYPE cost_type;
-  void (*forward)(struct layer, struct network_state);
-  void (*backward)(struct layer, struct network_state);
+  void (*forward)(struct layer, struct NetworkState);
+  void (*backward)(struct layer, struct NetworkState);
   void (*update)(struct layer, int, float, float, float);
-  void (*forward_gpu)(struct layer, struct network_state);
-  void (*backward_gpu)(struct layer, struct network_state);
+  void (*forward_gpu)(struct layer, struct NetworkState);
+  void (*backward_gpu)(struct layer, struct NetworkState);
   void (*update_gpu)(struct layer, int, float, float, float, float);
   layer* share_layer;
   int train;
@@ -712,7 +712,7 @@ typedef enum
 } learning_rate_policy;
 
 // network.h
-typedef struct network
+typedef struct Network
 {
   int n;
   int batch;
@@ -825,10 +825,10 @@ typedef struct network
   int optimized_memory;
   int dynamic_minibatch;
   size_t workspace_size_limit;
-} network;
+} Network;
 
 // network.h
-typedef struct network_state
+typedef struct NetworkState
 {
   float* truth;
   float* input;
@@ -836,17 +836,17 @@ typedef struct network_state
   float* workspace;
   int train;
   int index;
-  network net;
-} network_state;
+  Network* net;
+} NetworkState;
 
 // image.h
-typedef struct image
+typedef struct Image
 {
   int w;
   int h;
   int c;
   float* data;
-} image;
+} Image;
 
 // box.h
 typedef struct box
@@ -875,7 +875,7 @@ typedef struct ious
 } ious;
 
 // box.h
-typedef struct detection
+typedef struct Detection
 {
   box bbox;
   int classes;
@@ -886,13 +886,13 @@ typedef struct detection
   float* uc;   // Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
   int points;  // bit-0 - center, bit-1 - top-left-corner, bit-2 -
                // bottom-right-corner
-} detection;
+} Detection;
 
 // network.c -batch inference
 typedef struct det_num_pair
 {
   int num;
-  detection* dets;
+  Detection* dets;
 } det_num_pair, *pdet_num_pair;
 
 // matrix.h
@@ -977,8 +977,8 @@ typedef struct load_args
   float exposure;
   float hue;
   data* d;
-  image* im;
-  image* resized;
+  Image* im;
+  Image* resized;
   data_type type;
   tree* hierarchy;
 } load_args;
@@ -992,69 +992,68 @@ typedef struct box_label
 } box_label;
 
 // parser.c
-LIB_API network* load_network(char* cfg, char* weights, int clear);
-LIB_API network* load_network_custom(
-    char* cfg, char* weights, int clear, int batch);
-LIB_API void free_network(network net);
+LIB_API Network* LoadNetwork(char const* cfg, char const* weights, int clear);
+LIB_API Network* LoadNetworkCustom(
+    char const* cfg, char const* weights, int clear, int batch);
+LIB_API void free_network(Network net);
 
 // network.c
-LIB_API load_args get_base_args(network* net);
+LIB_API load_args get_base_args(Network* net);
 
 // box.h
-LIB_API void do_nms_sort(detection* dets, int total, int classes, float thresh);
-LIB_API void do_nms_obj(detection* dets, int total, int classes, float thresh);
-LIB_API void diounms_sort(detection* dets, int total, int classes, float thresh,
+LIB_API void do_nms_sort(Detection* dets, int total, int classes, float thresh);
+LIB_API void do_nms_obj(Detection* dets, int total, int classes, float thresh);
+LIB_API void diounms_sort(Detection* dets, int total, int classes, float thresh,
     NMS_KIND nms_kind, float beta1);
 
 // network.h
-LIB_API float* network_predict(network net, float* input);
-LIB_API float* network_predict_ptr(network* net, float* input);
-LIB_API detection* get_network_boxes(network* net, int w, int h, float thresh,
+LIB_API float* NetworkPredict(Network* net, float* input);
+LIB_API float* network_predict_ptr(Network* net, float* input);
+LIB_API Detection* GetNetworkBoxes(Network* net, int w, int h, float thresh,
     float hier, int* map, int relative, int* num, int letter);
-LIB_API det_num_pair* network_predict_batch(network* net, image im,
+LIB_API det_num_pair* network_predict_batch(Network* net, Image im,
     int batch_size, int w, int h, float thresh, float hier, int* map,
     int relative, int letter);
-LIB_API void free_detections(detection* dets, int n);
+LIB_API void free_detections(Detection* dets, int n);
 LIB_API void free_batch_detections(det_num_pair* det_num_pairs, int n);
-LIB_API void fuse_conv_batchnorm(network net);
-LIB_API void calculate_binary_weights(network net);
-LIB_API char* detection_to_json(detection* dets, int nboxes, int classes,
+LIB_API void FuseConvBatchNorm(Network* net);
+LIB_API void calculate_binary_weights(Network net);
+LIB_API char* detection_to_json(Detection* dets, int nboxes, int classes,
     char** names, long long int frame_id, char* filename);
 
-LIB_API layer* get_network_layer(network* net, int i);
+LIB_API layer* get_network_layer(Network* net, int i);
 // LIB_API detection *get_network_boxes(network *net, int w, int h, float
 // thresh, float hier, int *map, int relative, int *num, int letter);
-LIB_API detection* make_network_boxes(network* net, float thresh, int* num);
-LIB_API void reset_rnn(network* net);
-LIB_API float* network_predict_image(network* net, image im);
-LIB_API float* network_predict_image_letterbox(network* net, image im);
-LIB_API float validate_detector_map(char* datacfg, char* cfgfile,
-    char* weightfile, float thresh_calc_avg_iou, const float iou_thresh,
-    const int map_points, int letter_box, network* existing_net);
-LIB_API void train_detector(char* datacfg, char* cfgfile, char* weightfile,
-    int* gpus, int ngpus, int clear, int dont_show, int calc_map, int show_imgs,
-    int benchmark_layers, char* chart_path);
-LIB_API void test_detector(char* datacfg, char* cfgfile, char* weightfile,
-    char* filename, float thresh, float hier_thresh, int dont_show,
-    int ext_output, int save_labels, char* outfile, int letter_box,
-    int benchmark_layers);
-LIB_API int network_width(network* net);
-LIB_API int network_height(network* net);
+LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
+LIB_API void reset_rnn(Network* net);
+LIB_API float* network_predict_image(Network* net, Image im);
+LIB_API float* network_predict_image_letterbox(Network* net, Image im);
+
+LIB_API void TrainDetector(char const* data_file, char const* model_file,
+    char const* weights_file, int* gpus, int ngpus, int clear, int dont_show,
+    int calc_map, int show_imgs, int benchmark_layers, char* chart_path);
+LIB_API float ValidateDetector(char const* data_file, char const* model_file,
+    char const* weights_file, float thresh_calc_avg_iou, const float iou_thresh,
+    const int map_points, int letter_box, Network* existing_net);
+LIB_API void TestDetector(char const* data_file, char const* model_file,
+    char const* weights_file, char const* filename, float thresh,
+    float hier_thresh, int dont_show, int ext_output, int save_labels,
+    char* outfile, int letter_box, int benchmark_layers);
 
 // image.h
-LIB_API void make_image_red(image im);
-LIB_API image make_attention_image(int img_size, float* original_delta_cpu,
+LIB_API void make_image_red(Image im);
+LIB_API Image make_attention_image(int img_size, float* original_delta_cpu,
     float* original_input_cpu, int w, int h, int c);
-LIB_API image resize_image(image im, int w, int h);
-LIB_API void quantize_image(image im);
-LIB_API void copy_image_from_bytes(image im, char* pdata);
-LIB_API image letterbox_image(image im, int w, int h);
-LIB_API void rgbgr_image(image im);
-LIB_API image make_image(int w, int h, int c);
-LIB_API image load_image_color(char* filename, int w, int h);
-LIB_API void free_image(image m);
-LIB_API image crop_image(image im, int dx, int dy, int w, int h);
-LIB_API image resize_min(image im, int min);
+LIB_API Image resize_image(Image im, int w, int h);
+LIB_API void quantize_image(Image im);
+LIB_API void copy_image_from_bytes(Image im, char* pdata);
+LIB_API Image letterbox_image(Image im, int w, int h);
+LIB_API void rgbgr_image(Image im);
+LIB_API Image make_image(int w, int h, int c);
+LIB_API Image load_image_color(char* filename, int w, int h);
+LIB_API void free_image(Image m);
+LIB_API Image crop_image(Image im, int dx, int dy, int w, int h);
+LIB_API Image resize_min(Image im, int min);
 
 // layer.h
 LIB_API void free_layer_custom(layer l, int keep_cudnn_desc);
@@ -1081,7 +1080,7 @@ LIB_API void top_k(float* a, int n, int k, int* index);
 LIB_API tree* read_tree(char* filename);
 
 // option_list.h
-LIB_API metadata get_metadata(char* file);
+LIB_API Metadata GetMetadata(char const* file);
 
 // gemm.h
 LIB_API void init_cpu();
