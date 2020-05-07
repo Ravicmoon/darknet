@@ -302,7 +302,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       loss = TrainNetworks(nets, ngpus, train, 4);
     }
 #else
-    loss = TrainNetwork(net, train);
+    loss = TrainNetwork(&net, train);
 #endif
     if (avg_loss < 0 || avg_loss != avg_loss)
       avg_loss = loss;  // if(-inf or nan)
