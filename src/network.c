@@ -403,7 +403,7 @@ float TrainNetwork(Network* net, data d)
 
 float TrainNetworkWaitKey(Network* net, data d, int wait_key)
 {
-  assert(d.X.rows % net.batch == 0);
+  assert(d.X.rows % net->batch == 0);
   int batch = net->batch;
   int n = d.X.rows / batch;
   float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));

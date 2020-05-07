@@ -1924,7 +1924,7 @@ void ParseNetworkCfgCustom(
 #else
   if (workspace_size)
   {
-    net.workspace = (float*)xcalloc(1, workspace_size);
+    net->workspace = (float*)xcalloc(1, workspace_size);
   }
 #endif
 
