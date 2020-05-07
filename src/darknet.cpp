@@ -29,9 +29,6 @@ DEFINE_int32(height, -1, "");
 DEFINE_int32(ext_output, 0, "");
 DEFINE_int32(save_labels, 0, "");
 DEFINE_int32(clear, 0, "");
-DEFINE_int32(time_limit_sec, 0, "");
-DEFINE_int32(frame_skip, 0, "");
-DEFINE_int32(cam_index, 0, "");
 DEFINE_int32(gpu_idx, 0, "");
 DEFINE_int32(cuda_dbg_sync, 0, "");
 
@@ -88,7 +85,7 @@ int main(int argc, char** argv)
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
 #ifndef GPU
-  FLAGS_gpu_index = -1;
+  FLAGS_gpu_idx = -1;
   printf(" GPU isn't used \n");
   init_cpu();
 #else  // GPU
@@ -187,7 +184,7 @@ int main(int argc, char** argv)
       if (cv::waitKey(1) == 27) break;
     }
 
-    free_network(*net);
+    FreeNetwork(net);
     free(net);
   }
 

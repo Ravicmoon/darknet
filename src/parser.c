@@ -1229,7 +1229,7 @@ learning_rate_policy get_policy(char* s)
   return CONSTANT;
 }
 
-void parse_net_options(list* options, Network* net)
+void ParseNetOptions(list* options, Network* net)
 {
   net->max_batches = FindOptionInt(options, "max_batches", 0);
   net->batch = FindOptionInt(options, "batch", 1);
@@ -1392,7 +1392,7 @@ void parse_net_options(list* options, Network* net)
   }
 }
 
-int is_network(section* s)
+int IsNetwork(section* s)
 {
   return (strcmp(s->type, "[net]") == 0 || strcmp(s->type, "[network]") == 0);
 }
@@ -1461,8 +1461,8 @@ void ParseNetworkCfgCustom(
 
   section* s = (section*)n->val;
   list* options = s->options;
-  if (!is_network(s)) error("First section must be [net] or [network]");
-  parse_net_options(options, net);
+  if (!IsNetwork(s)) error("First section must be [net] or [network]");
+  ParseNetOptions(options, net);
 
 #ifdef GPU
   printf("net.optimized_memory = %d \n", net->optimized_memory);

@@ -382,9 +382,8 @@ float TrainNetworkSgd(Network* net, data d, int n)
   float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
   float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
 
-  int i;
   float sum = 0;
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
     get_random_batch(d, batch, X, y);
     net->current_subdivision = i;
@@ -410,9 +409,8 @@ float TrainNetworkWaitKey(Network* net, data d, int wait_key)
   float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
   float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
 
-  int i;
   float sum = 0;
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
     get_next_batch(d, batch, i * batch, X, y);
     net->current_subdivision = i;
@@ -436,7 +434,6 @@ float TrainNetworkWaitKey(Network* net, data d, int wait_key)
 
 float TrainNetworkBatch(Network* net, data d, int n)
 {
-  int i, j;
   NetworkState state = {0};
   state.index = 0;
   state.net = net;
@@ -444,9 +441,9 @@ float TrainNetworkBatch(Network* net, data d, int n)
   state.delta = 0;
   float sum = 0;
   int batch = 2;
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
-    for (j = 0; j < batch; ++j)
+    for (int j = 0; j < batch; ++j)
     {
       int index = random_gen() % d.X.rows;
       state.input = d.X.vals[index];
@@ -795,6 +792,7 @@ float* NetworkPredict(Network* net, float* input)
   state.truth = 0;
   state.train = 0;
   state.delta = 0;
+
   ForwardNetwork(net, state);
 
   return GetNetworkOutput(net);
@@ -802,9 +800,8 @@ float* NetworkPredict(Network* net, float* input)
 
 int NumDetections(Network* net, float thresh)
 {
-  int i;
   int s = 0;
-  for (i = 0; i < net->n; ++i)
+  for (int i = 0; i < net->n; ++i)
   {
     layer l = net->layers[i];
     if (l.type == YOLO)
@@ -1293,48 +1290,48 @@ float network_accuracy_multi(Network net, data d, int n)
   return acc;
 }
 
-void free_network(Network net)
+void FreeNetwork(Network* net)
 {
   int i;
-  for (i = 0; i < net.n; ++i)
+  for (i = 0; i < net->n; ++i)
   {
-    free_layer(net.layers[i]);
+    free_layer(net->layers[i]);
   }
-  free(net.layers);
+  free(net->layers);
 
-  free(net.seq_scales);
-  free(net.scales);
-  free(net.steps);
-  free(net.seen);
-  free(net.cur_iteration);
+  free(net->seq_scales);
+  free(net->scales);
+  free(net->steps);
+  free(net->seen);
+  free(net->cur_iteration);
 
 #ifdef GPU
   if (gpu_index >= 0)
-    cuda_free(net.workspace);
+    cuda_free(net->workspace);
   else
-    free(net.workspace);
+    free(net->workspace);
   free_pinned_memory();
-  if (net.input_state_gpu) cuda_free(net.input_state_gpu);
-  if (net.input_pinned_cpu)
+  if (net->input_state_gpu) cuda_free(net->input_state_gpu);
+  if (net->input_pinned_cpu)
   {  // CPU
-    if (net.input_pinned_cpu_flag)
-      cudaFreeHost(net.input_pinned_cpu);
+    if (net->input_pinned_cpu_flag)
+      cudaFreeHost(net->input_pinned_cpu);
     else
-      free(net.input_pinned_cpu);
+      free(net->input_pinned_cpu);
   }
-  if (*net.input_gpu) cuda_free(*net.input_gpu);
-  if (*net.truth_gpu) cuda_free(*net.truth_gpu);
-  if (net.input_gpu) free(net.input_gpu);
-  if (net.truth_gpu) free(net.truth_gpu);
+  if (*net->input_gpu) cuda_free(*net->input_gpu);
+  if (*net->truth_gpu) cuda_free(*net->truth_gpu);
+  if (net->input_gpu) free(net->input_gpu);
+  if (net->truth_gpu) free(net->truth_gpu);
 
-  if (*net.input16_gpu) cuda_free(*net.input16_gpu);
-  if (*net.output16_gpu) cuda_free(*net.output16_gpu);
-  if (net.input16_gpu) free(net.input16_gpu);
-  if (net.output16_gpu) free(net.output16_gpu);
-  if (net.max_input16_size) free(net.max_input16_size);
-  if (net.max_output16_size) free(net.max_output16_size);
+  if (*net->input16_gpu) cuda_free(*net->input16_gpu);
+  if (*net->output16_gpu) cuda_free(*net->output16_gpu);
+  if (net->input16_gpu) free(net->input16_gpu);
+  if (net->output16_gpu) free(net->output16_gpu);
+  if (net->max_input16_size) free(net->max_input16_size);
+  if (net->max_output16_size) free(net->max_output16_size);
 #else
-  free(net.workspace);
+  free(net->workspace);
 #endif
 }
 

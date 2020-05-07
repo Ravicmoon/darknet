@@ -29,7 +29,8 @@ void TrainDetector(char const* data_file, char const* model_file,
   Network net_map;
   if (calc_map)
   {
-    FILE* valid_file = fopen(valid_images, "r");
+    FILE* valid_file = NULL;
+    fopen_s(&valid_file, valid_images, "r");
     if (!valid_file)
     {
       printf(
@@ -46,10 +47,8 @@ void TrainDetector(char const* data_file, char const* model_file,
     printf(" Prepare additional network for mAP calculation...\n");
     ParseNetworkCfgCustom(&net_map, model_file, 1, 1);
     net_map.benchmark_layers = benchmark_layers;
-    const int net_classes = net_map.layers[net_map.n - 1].classes;
 
-    int k;  // free memory unnecessary arrays
-    for (k = 0; k < net_map.n - 1; ++k)
+    for (int k = 0; k < net_map.n - 1; ++k)
     {
       free_layer_custom(net_map.layers[k], 1);
     }
@@ -57,13 +56,15 @@ void TrainDetector(char const* data_file, char const* model_file,
     char* name_list = FindOptionStr(options, "names", "data/names.list");
     int names_size = 0;
     char** names = get_labels_custom(name_list, &names_size);
-    if (net_classes != names_size)
+
+    int const num_classes = net_map.layers[net_map.n - 1].classes;
+    if (num_classes != names_size)
     {
       printf(
           "\n Error: in the file %s number of names %d that isn't equal to "
           "classes=%d in the file %s \n",
-          name_list, names_size, net_classes, model_file);
-      if (net_classes > names_size) getchar();
+          name_list, names_size, num_classes, model_file);
+      if (num_classes > names_size) getchar();
     }
     free_ptrs((void**)names, net_map.layers[net_map.n - 1].classes);
   }
@@ -76,8 +77,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   srand(time(0));
   int seed = rand();
-  int k;
-  for (k = 0; k < ngpus; ++k)
+  for (int k = 0; k < ngpus; ++k)
   {
     srand(seed);
 #ifdef GPU
@@ -99,7 +99,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   srand(time(0));
   Network net = nets[0];
 
-  const int actual_batch_size = net.batch * net.subdivisions;
+  int const actual_batch_size = net.batch * net.subdivisions;
   if (actual_batch_size == 1)
   {
     printf(
@@ -129,13 +129,12 @@ void TrainDetector(char const* data_file, char const* model_file,
   int train_images_num = plist->size;
   char** paths = (char**)list_to_array(plist);
 
-  const int init_w = net.w;
-  const int init_h = net.h;
-  const int init_b = net.batch;
-  int iter_save, iter_save_last, iter_map;
-  iter_save = GetCurrentIteration(&net);
-  iter_save_last = GetCurrentIteration(&net);
-  iter_map = GetCurrentIteration(&net);
+  int const init_w = net.w;
+  int const init_h = net.h;
+  int const init_b = net.batch;
+  int iter_save = GetCurrentIteration(&net);
+  int iter_save_last = GetCurrentIteration(&net);
+  int iter_map = GetCurrentIteration(&net);
   float mean_average_precision = -1;
   float best_map = mean_average_precision;
 
@@ -180,6 +179,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   img = draw_train_chart(windows_name, max_img_loss, net.max_batches,
       number_of_lines, img_size, dont_show, chart_path);
 #endif  // OPENCV
+
   if (net.track)
   {
     args.track = net.track;
@@ -194,7 +194,6 @@ void TrainDetector(char const* data_file, char const* model_file,
         "%d \n",
         net.batch, net.subdivisions, net.time_steps, args.mini_batch);
   }
-  // printf(" imgs = %d \n", imgs);
 
   pthread_t load_thread = load_data(args);
 
@@ -238,10 +237,9 @@ void TrainDetector(char const* data_file, char const* model_file,
       args.w = dim_w;
       args.h = dim_h;
 
-      int k;
       if (net.dynamic_minibatch)
       {
-        for (k = 0; k < ngpus; ++k)
+        for (int k = 0; k < ngpus; ++k)
         {
           (*nets[k].seen) =
               init_b * net.subdivisions *
@@ -249,8 +247,11 @@ void TrainDetector(char const* data_file, char const* model_file,
                   &net);  // remove this line, when you will save to
                           // weights-file both: seen & cur_iteration
           nets[k].batch = dim_b;
-          int j;
-          for (j = 0; j < nets[k].n; ++j) nets[k].layers[j].batch = dim_b;
+
+          for (int j = 0; j < nets[k].n; ++j)
+          {
+            nets[k].layers[j].batch = dim_b;
+          }
         }
         net.batch = dim_b;
         imgs = net.batch * net.subdivisions * ngpus;
@@ -265,7 +266,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       free_data(train);
       load_thread = load_data(args);
 
-      for (k = 0; k < ngpus; ++k)
+      for (int k = 0; k < ngpus; ++k)
       {
         resize_network(nets + k, dim_w, dim_h);
       }
@@ -462,14 +463,16 @@ void TrainDetector(char const* data_file, char const* model_file,
   free_list_contents_kvp(options);
   free_list(options);
 
-  for (k = 0; k < ngpus; ++k) free_network(nets[k]);
+  for (int k = 0; k < ngpus; ++k)
+  {
+    FreeNetwork(&nets[k]);
+  }
   free(nets);
-  // free_network(net);
 
   if (calc_map)
   {
     net_map.n = 0;
-    free_network(net_map);
+    FreeNetwork(&net_map);
   }
 }
 
@@ -1033,7 +1036,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
   }
   else
   {
-    free_network(net);
+    FreeNetwork(&net);
   }
   if (val) free(val);
   if (val_resized) free(val_resized);
@@ -1220,5 +1223,5 @@ void TestDetector(char const* data_file, char const* model_file,
   free_list_contents_kvp(options);
   free_list(options);
 
-  free_network(net);
+  FreeNetwork(&net);
 }

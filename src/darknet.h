@@ -995,7 +995,7 @@ typedef struct box_label
 LIB_API Network* LoadNetwork(char const* cfg, char const* weights, int clear);
 LIB_API Network* LoadNetworkCustom(
     char const* cfg, char const* weights, int clear, int batch);
-LIB_API void free_network(Network net);
+LIB_API void FreeNetwork(Network* net);
 
 // network.c
 LIB_API load_args get_base_args(Network* net);
