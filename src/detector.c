@@ -29,8 +29,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   Network net_map;
   if (calc_map)
   {
-    FILE* valid_file = NULL;
-    fopen_s(&valid_file, valid_images, "r");
+    FILE* valid_file = fopen(valid_images, "r");
     if (!valid_file)
     {
       printf(
