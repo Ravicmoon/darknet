@@ -1,0 +1,6 @@
+stb
+pthreads
+gflags
+opencv4[core]
+--triplet
+x64-windows

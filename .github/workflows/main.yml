@@ -10,30 +10,63 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  linux-build-vcpkg:
+  ubuntu-vcpkg:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       
-      - name: update apt
+      - name: Update apt
         run: sudo apt update
       
-      - name: install dependencies
-        run: sudo apt install libopencv-dev yasm
+      - name: Install dependencies
+        run: sudo apt install yasm
       
       - uses: lukka/get-cmake@latest
       
-      - name: restore from cache and run vcpkg
+      - name: Restore from cache and run vcpkg
         env:
           vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_linux.diff
         uses: lukka/run-vcpkg@v2
         with:
           vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
           vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-          vcpkgGitCommitId: '2bc6cd714f931c32d3299a137d5abe0f86f803e1'
+          vcpkgGitCommitId: 'aa0b9d7ca9e1b98e7bb18538f04dd39e7a41d3ff'
           appendedCacheKey: ${{ hashFiles(env.vcpkgResponseFile) }}
       
-      - name: build with CMake and Ninja
+      - name: Build with CMake and Ninja
+        uses: lukka/run-cmake@v2
+        with:
+          cmakeListOrSettingJson: CMakeListTxtAdvanced
+          cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
+          useVcpkgToolchainFile: true
+          buildDirectory: '${{ runner.workspace }}/build'
+          cmakeBuildType: 'Release'
+          cmakeAppendedArgs: "-DBUILD_SHARED_LIBS=OFF"
+          buildWithCMakeArgs: '--target install'
+      
+      - uses: actions/upload-artifact@v2
+        with:
+          name: yolo-core-vcpkg-${{ runner.os }}
+          path: ${{ github.workspace }}/build/install/bin
+  
+  windows-vcpkg:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - uses: lukka/get-cmake@latest
+      
+      - name: Restore from cache and run vcpkg
+        env:
+          vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_windows.diff
+        uses: lukka/run-vcpkg@v2
+        with:
+          vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+          vcpkgGitCommitId: 'aa0b9d7ca9e1b98e7bb18538f04dd39e7a41d3ff'
+          appendedCacheKey: ${{ hashFiles(env.vcpkgResponseFile) }}
+      
+      - name: Build with CMake and Ninja
         uses: lukka/run-cmake@v2
         with:
           cmakeListOrSettingJson: CMakeListTxtAdvanced
