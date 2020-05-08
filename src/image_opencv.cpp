@@ -141,7 +141,7 @@ extern "C" mat_cv* load_image_mat_cv(const char* filename, int flag)
 }
 // ----------------------------------------
 
-cv::Mat load_image_mat(char* filename, int channels)
+cv::Mat load_image_mat(char const* filename, int channels)
 {
   int flag = cv::IMREAD_UNCHANGED;
   if (channels == 0)
@@ -169,7 +169,7 @@ cv::Mat load_image_mat(char* filename, int channels)
 }
 // ----------------------------------------
 
-extern "C" Image load_image_cv(char* filename, int channels)
+extern "C" Image load_image_cv(char const* filename, int channels)
 {
   cv::Mat mat = load_image_mat(filename, channels);
 
@@ -1127,7 +1127,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, Detection* dets, int num,
 // ====================================================================
 extern "C" mat_cv* draw_train_chart(char* windows_name, float max_img_loss,
     int max_batches, int number_of_lines, int img_size, int dont_show,
-    char* chart_path)
+    char const* chart_path)
 {
   int img_offset = 60;
   int draw_size = img_size - img_offset;

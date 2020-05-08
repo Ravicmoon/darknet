@@ -992,9 +992,10 @@ typedef struct box_label
 } box_label;
 
 // parser.c
-LIB_API Network* LoadNetwork(char const* cfg, char const* weights, int clear);
+LIB_API Network* LoadNetwork(
+    char const* model_file, char const* weights_file, int clear);
 LIB_API Network* LoadNetworkCustom(
-    char const* cfg, char const* weights, int clear, int batch);
+    char const* model_file, char const* weights_file, int clear, int batch);
 LIB_API void FreeNetwork(Network* net);
 
 // network.c
@@ -1008,18 +1009,13 @@ LIB_API void diounms_sort(Detection* dets, int total, int classes, float thresh,
 
 // network.h
 LIB_API float* NetworkPredict(Network* net, float* input);
-LIB_API float* network_predict_ptr(Network* net, float* input);
 LIB_API Detection* GetNetworkBoxes(Network* net, int w, int h, float thresh,
     float hier, int* map, int relative, int* num, int letter);
-LIB_API det_num_pair* network_predict_batch(Network* net, Image im,
-    int batch_size, int w, int h, float thresh, float hier, int* map,
-    int relative, int letter);
-LIB_API void free_detections(Detection* dets, int n);
-LIB_API void free_batch_detections(det_num_pair* det_num_pairs, int n);
+LIB_API void FreeDetections(Detection* dets, int n);
 LIB_API void FuseConvBatchNorm(Network* net);
 LIB_API void calculate_binary_weights(Network net);
-LIB_API char* detection_to_json(Detection* dets, int nboxes, int classes,
-    char** names, long long int frame_id, char* filename);
+LIB_API char* Detection2Json(Detection* dets, int nboxes, int classes,
+    char** names, long long int frame_id, char const* filename);
 
 LIB_API layer* get_network_layer(Network* net, int i);
 // LIB_API detection *get_network_boxes(network *net, int w, int h, float
@@ -1030,15 +1026,13 @@ LIB_API float* network_predict_image(Network* net, Image im);
 LIB_API float* network_predict_image_letterbox(Network* net, Image im);
 
 LIB_API void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, int* gpus, int ngpus, int clear, int dont_show,
-    int calc_map, int show_imgs, int benchmark_layers, char* chart_path);
+    char const* weights_file, char const* chart_path, int* gpus, int ngpus,
+    int clear, int show_imgs, int dont_show, int calc_map,
+    int benchmark_layers);
 LIB_API float ValidateDetector(char const* data_file, char const* model_file,
-    char const* weights_file, float thresh_calc_avg_iou, const float iou_thresh,
-    const int map_points, int letter_box, Network* existing_net);
-LIB_API void TestDetector(char const* data_file, char const* model_file,
-    char const* weights_file, char const* filename, float thresh,
-    float hier_thresh, int dont_show, int ext_output, int save_labels,
-    char* outfile, int letter_box, int benchmark_layers);
+    char const* weights_file, float const thresh_calc_avg_iou,
+    float const iou_thresh, int const map_points, int letter_box,
+    Network* existing_net);
 
 // image.h
 LIB_API void make_image_red(Image im);

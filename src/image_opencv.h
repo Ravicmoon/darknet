@@ -21,7 +21,7 @@ typedef void* write_cv;
 
 // cv::Mat
 mat_cv* load_image_mat_cv(const char* filename, int flag);
-Image load_image_cv(char* filename, int channels);
+Image load_image_cv(char const* filename, int channels);
 Image load_image_resize(char* filename, int w, int h, int c, Image* im);
 int get_width_mat(mat_cv* mat);
 int get_height_mat(mat_cv* mat);
@@ -96,7 +96,7 @@ void draw_detections_cv_v3(mat_cv* show_img, Detection* dets, int num,
 // Draw Loss & Accuracy chart
 mat_cv* draw_train_chart(char* windows_name, float max_img_loss,
     int max_batches, int number_of_lines, int img_size, int dont_show,
-    char* chart_path);
+    char const* chart_path);
 void draw_train_loss(char* windows_name, mat_cv* img, int img_size,
     float avg_loss, float max_img_loss, int current_batch, int max_batches,
     float precision, int draw_precision, char* accuracy_name, int dont_show,

@@ -89,7 +89,7 @@ Image float_to_image_scaled(int w, int h, int c, float* data);
 Image float_to_image(int w, int h, int c, float* data);
 Image copy_image(Image p);
 void copy_image_inplace(Image src, Image dst);
-Image load_image(char* filename, int w, int h, int c);
+Image load_image(char const* filename, int w, int h, int c);
 Image load_image_stb_resize(char* filename, int w, int h, int c);
 // LIB_API image load_image_color(char *filename, int w, int h);
 Image** load_alphabet();

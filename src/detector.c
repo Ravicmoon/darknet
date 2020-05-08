@@ -18,8 +18,8 @@ typedef __compar_fn_t comparison_fn_t;
 #endif
 
 void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, int* gpus, int ngpus, int clear, int dont_show,
-    int calc_map, int show_imgs, int benchmark_layers, char* chart_path)
+    char const* weights_file, char const* chart_path, int* gpus, int ngpus,
+    int clear, int show_imgs, int dont_show, int calc_map, int benchmark_layers)
 {
   list* options = ReadDataCfg(data_file);
   char* train_images = FindOptionStr(options, "train", "data/train.txt");
@@ -54,7 +54,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 
     char* name_list = FindOptionStr(options, "names", "data/names.list");
     int names_size = 0;
-    char** names = get_labels_custom(name_list, &names_size);
+    char** names = GetLabelsCustom(name_list, &names_size);
 
     int const num_classes = net_map.layers[net_map.n - 1].classes;
     if (num_classes != names_size)
@@ -498,8 +498,9 @@ int detections_comparator(const void* pa, const void* pb)
 }
 
 float ValidateDetector(char const* data_file, char const* model_file,
-    char const* weights_file, float thresh_calc_avg_iou, const float iou_thresh,
-    const int map_points, int letter_box, Network* existing_net)
+    char const* weights_file, float const thresh_calc_avg_iou,
+    float const iou_thresh, int const map_points, int letter_box,
+    Network* existing_net)
 {
   int j;
   list* options = ReadDataCfg(data_file);
@@ -507,8 +508,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
   char* difficult_valid_images = FindOptionStr(options, "difficult", NULL);
   char* name_list = FindOptionStr(options, "names", "data/names.list");
   int names_size = 0;
-  char** names =
-      get_labels_custom(name_list, &names_size);  // get_labels(name_list);
+  char** names = GetLabelsCustom(name_list, &names_size);
   // char *mapf = option_find_str(options, "map", 0);
   // int *map = 0;
   // if (mapf) map = read_map(mapf);
@@ -656,10 +656,10 @@ float ValidateDetector(char const* data_file, char const* model_file,
       }
       // if (nms) do_nms_obj(dets, nboxes, l.classes, nms);
 
-      char labelpath[4096];
-      replace_image_to_label(path, labelpath);
+      char label_file[4096];
+      ReplaceImage2Label(path, label_file);
       int num_labels = 0;
-      box_label* truth = read_boxes(labelpath, &num_labels);
+      box_label* truth = read_boxes(label_file, &num_labels);
       int j;
       for (j = 0; j < num_labels; ++j)
       {
@@ -674,7 +674,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
         char* path_dif = paths_dif[image_index];
 
         char labelpath_dif[4096];
-        replace_image_to_label(path_dif, labelpath_dif);
+        ReplaceImage2Label(path_dif, labelpath_dif);
 
         truth_dif = read_boxes(labelpath_dif, &num_labels_dif);
       }
@@ -783,7 +783,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
       // buff[1000]; sprintf(buff, "%s\n", path); if(errors_in_this_image > 0)
       // fwrite(buff, sizeof(char), strlen(buff), reinforcement_fd);
 
-      free_detections(dets, nboxes);
+      FreeDetections(dets, nboxes);
       free(id);
       free_image(val[t]);
       free_image(val_resized[t]);
@@ -1044,183 +1044,4 @@ float ValidateDetector(char const* data_file, char const* model_file,
   if (buf_resized) free(buf_resized);
 
   return mean_average_precision;
-}
-
-void TestDetector(char const* data_file, char const* model_file,
-    char const* weights_file, char const* filename, float thresh,
-    float hier_thresh, int dont_show, int ext_output, int save_labels,
-    char* outfile, int letter_box, int benchmark_layers)
-{
-  list* options = ReadDataCfg(data_file);
-  char* name_list = FindOptionStr(options, "names", "data/names.list");
-  int names_size = 0;
-  char** names = get_labels_custom(name_list, &names_size);
-
-  Network net = {0};
-  ParseNetworkCfgCustom(&net, model_file, 1, 1);
-  if (weights_file)
-  {
-    LoadWeights(&net, weights_file);
-  }
-  net.benchmark_layers = benchmark_layers;
-  FuseConvBatchNorm(&net);
-  calculate_binary_weights(net);
-  if (net.layers[net.n - 1].classes != names_size)
-  {
-    printf(
-        "\n Error: in the file %s number of names %d that isn't equal to "
-        "classes=%d in the file %s \n",
-        name_list, names_size, net.layers[net.n - 1].classes, model_file);
-    if (net.layers[net.n - 1].classes > names_size) getchar();
-  }
-  srand(2222222);
-  char buff[256];
-  char* input = buff;
-  char* json_buf = NULL;
-  int json_image_id = 0;
-  FILE* json_file = NULL;
-  if (outfile)
-  {
-    json_file = fopen(outfile, "wb");
-    if (!json_file)
-    {
-      error("fopen failed");
-    }
-    char* tmp = "[\n";
-    fwrite(tmp, sizeof(char), strlen(tmp), json_file);
-  }
-  int j;
-  float nms = .45;  // 0.4F
-  while (1)
-  {
-    if (filename)
-    {
-      strncpy(input, filename, 256);
-      if (strlen(input) > 0)
-        if (input[strlen(input) - 1] == 0x0d) input[strlen(input) - 1] = 0;
-    }
-    else
-    {
-      printf("Enter Image Path: ");
-      fflush(stdout);
-      input = fgets(input, 256, stdin);
-      if (!input) break;
-      strtok(input, "\n");
-    }
-    // image im;
-    // image sized = load_image_resize(input, net.w, net.h, net.c, &im);
-    Image im = load_image(input, 0, 0, net.c);
-    Image sized;
-    if (letter_box)
-      sized = letterbox_image(im, net.w, net.h);
-    else
-      sized = resize_image(im, net.w, net.h);
-    layer l = net.layers[net.n - 1];
-
-    // box *boxes = calloc(l.w*l.h*l.n, sizeof(box));
-    // float **probs = calloc(l.w*l.h*l.n, sizeof(float*));
-    // for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = (float*)xcalloc(l.classes,
-    // sizeof(float));
-
-    float* X = sized.data;
-
-    // time= what_time_is_it_now();
-    double time = get_time_point();
-    NetworkPredict(&net, X);
-    // network_predict_image(&net, im); letterbox = 1;
-    printf("%s: Predicted in %lf milli-seconds.\n", input,
-        ((double)get_time_point() - time) / 1000);
-    // printf("%s: Predicted in %f seconds.\n", input,
-    // (what_time_is_it_now()-time));
-
-    int nboxes = 0;
-    Detection* dets = GetNetworkBoxes(
-        &net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
-    if (nms)
-    {
-      if (l.nms_kind == DEFAULT_NMS)
-        do_nms_sort(dets, nboxes, l.classes, nms);
-      else
-        diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
-    }
-    draw_detections_v3(
-        im, dets, nboxes, thresh, names, NULL, l.classes, ext_output);
-    save_image(im, "predictions");
-    if (!dont_show)
-    {
-      show_image(im, "predictions");
-    }
-
-    if (json_file)
-    {
-      if (json_buf)
-      {
-        char* tmp = ", \n";
-        fwrite(tmp, sizeof(char), strlen(tmp), json_file);
-      }
-      ++json_image_id;
-      json_buf = detection_to_json(
-          dets, nboxes, l.classes, names, json_image_id, input);
-
-      fwrite(json_buf, sizeof(char), strlen(json_buf), json_file);
-      free(json_buf);
-    }
-
-    // pseudo labeling concept - fast.ai
-    if (save_labels)
-    {
-      char labelpath[4096];
-      replace_image_to_label(input, labelpath);
-
-      FILE* fw = fopen(labelpath, "wb");
-      int i;
-      for (i = 0; i < nboxes; ++i)
-      {
-        char buff[1024];
-        int class_id = -1;
-        float prob = 0;
-        for (j = 0; j < l.classes; ++j)
-        {
-          if (dets[i].prob[j] > thresh && dets[i].prob[j] > prob)
-          {
-            prob = dets[i].prob[j];
-            class_id = j;
-          }
-        }
-        if (class_id >= 0)
-        {
-          sprintf(buff, "%d %2.4f %2.4f %2.4f %2.4f\n", class_id,
-              dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
-          fwrite(buff, sizeof(char), strlen(buff), fw);
-        }
-      }
-      fclose(fw);
-    }
-
-    free_detections(dets, nboxes);
-    free_image(im);
-    free_image(sized);
-
-    if (!dont_show)
-    {
-      wait_until_press_key_cv();
-      destroy_all_windows_cv();
-    }
-
-    if (filename) break;
-  }
-
-  if (json_file)
-  {
-    char* tmp = "\n]";
-    fwrite(tmp, sizeof(char), strlen(tmp), json_file);
-    fclose(json_file);
-  }
-
-  // free memory
-  free_ptrs((void**)names, net.layers[net.n - 1].classes);
-  free_list_contents_kvp(options);
-  free_list(options);
-
-  FreeNetwork(&net);
 }

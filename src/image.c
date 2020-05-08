@@ -1683,7 +1683,7 @@ void test_resize(char* filename)
 #endif
 }
 
-Image load_image_stb(char* filename, int channels)
+Image load_image_stb(char const* filename, int channels)
 {
   int w, h, c;
   unsigned char* data = stbi_load(filename, &w, &h, &c, channels);
@@ -1735,7 +1735,7 @@ Image load_image_stb_resize(char* filename, int w, int h, int c)
   return out;
 }
 
-Image load_image(char* filename, int w, int h, int c)
+Image load_image(char const* filename, int w, int h, int c)
 {
 #ifdef OPENCV
   // image out = load_image_stb(filename, c);

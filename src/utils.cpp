@@ -285,7 +285,7 @@ void find_replace_extension(char* str, char* orig, char* rep, char* output)
   free(buffer);
 }
 
-void replace_image_to_label(const char* input_path, char* output_path)
+void ReplaceImage2Label(char const* input_path, char* output_path)
 {
   find_replace(input_path, "/images/train2014/", "/labels/train2014/",
       output_path);  // COCO

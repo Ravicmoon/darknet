@@ -305,7 +305,7 @@ void fill_truth_swag(char* path, float* truth, int classes, int flip, float dx,
     float dy, float sx, float sy)
 {
   char labelpath[4096];
-  replace_image_to_label(path, labelpath);
+  ReplaceImage2Label(path, labelpath);
 
   int count = 0;
   box_label* boxes = read_boxes(labelpath, &count);
@@ -341,7 +341,7 @@ void fill_truth_region(char* path, float* truth, int classes, int num_boxes,
     int flip, float dx, float dy, float sx, float sy)
 {
   char labelpath[4096];
-  replace_image_to_label(path, labelpath);
+  ReplaceImage2Label(path, labelpath);
 
   int count = 0;
   box_label* boxes = read_boxes(labelpath, &count);
@@ -387,7 +387,7 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
     int net_h)
 {
   char labelpath[4096];
-  replace_image_to_label(path, labelpath);
+  ReplaceImage2Label(path, labelpath);
 
   int count = 0;
   int i;
@@ -695,7 +695,7 @@ matrix load_tags_paths(char** paths, int n, int k)
   return y;
 }
 
-char** get_labels_custom(char* filename, int* size)
+char** GetLabelsCustom(char* filename, int* size)
 {
   list* plist = get_paths(filename);
   if (size) *size = plist->size;
@@ -704,7 +704,7 @@ char** get_labels_custom(char* filename, int* size)
   return labels;
 }
 
-char** get_labels(char* filename) { return get_labels_custom(filename, NULL); }
+char** GetLabels(char* filename) { return GetLabelsCustom(filename, NULL); }
 
 void free_data(data d)
 {

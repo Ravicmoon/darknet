@@ -20,7 +20,7 @@ Metadata GetMetadata(char const* filename)
   }
   else
   {
-    m.names = get_labels(name_list);
+    m.names = GetLabels(name_list);
   }
   m.classes = FindOptionInt(options, "classes", 2);
   free_list(options);

@@ -1000,7 +1000,7 @@ Detection* GetNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
   return dets;
 }
 
-void free_detections(Detection* dets, int n)
+void FreeDetections(Detection* dets, int n)
 {
   int i;
   for (i = 0; i < n; ++i)
@@ -1010,14 +1010,6 @@ void free_detections(Detection* dets, int n)
     if (dets[i].mask) free(dets[i].mask);
   }
   free(dets);
-}
-
-void free_batch_detections(det_num_pair* det_num_pairs, int n)
-{
-  int i;
-  for (i = 0; i < n; ++i)
-    free_detections(det_num_pairs[i].dets, det_num_pairs[i].num);
-  free(det_num_pairs);
 }
 
 // JSON format:
@@ -1033,8 +1025,8 @@ void free_batch_detections(det_num_pair* det_num_pairs, int n)
 // ]
 //},
 
-char* detection_to_json(Detection* dets, int nboxes, int classes, char** names,
-    long long int frame_id, char* filename)
+char* Detection2Json(Detection* dets, int nboxes, int classes, char** names,
+    long long int frame_id, char const* filename)
 {
   const float thresh = 0.005;  // function get_network_boxes() has already
                                // filtred dets by actual threshold
@@ -1113,25 +1105,6 @@ float* network_predict_image(Network* net, Image im)
     free_image(imr);
   }
   return p;
-}
-
-det_num_pair* network_predict_batch(Network* net, Image im, int batch_size,
-    int w, int h, float thresh, float hier, int* map, int relative, int letter)
-{
-  NetworkPredict(net, im.data);
-  det_num_pair* pdets =
-      (struct det_num_pair*)calloc(batch_size, sizeof(det_num_pair));
-  int num;
-  int batch;
-  for (batch = 0; batch < batch_size; batch++)
-  {
-    Detection* dets = make_network_boxes_batch(net, thresh, &num, batch);
-    fill_network_boxes_batch(
-        net, w, h, thresh, hier, map, relative, dets, letter, batch);
-    pdets[batch].num = num;
-    pdets[batch].dets = dets;
-  }
-  return pdets;
 }
 
 float* network_predict_image_letterbox(Network* net, Image im)
