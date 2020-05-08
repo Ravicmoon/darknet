@@ -86,6 +86,8 @@ float activate(float x, ACTIVATION a)
       return loggy_activate(x);
     case RELU:
       return relu_activate(x);
+    case RELU6:
+      return relu6_activate(x);
     case ELU:
       return elu_activate(x);
     case SELU:
@@ -108,8 +110,10 @@ float activate(float x, ACTIVATION a)
       return hardtan_activate(x);
     case LHTAN:
       return lhtan_activate(x);
+    default:
+      return 0.0f;
   }
-  return 0;
+  return 0.0f;
 }
 
 void activate_array(float* x, const int n, const ACTIVATION a)

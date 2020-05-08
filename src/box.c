@@ -6,7 +6,6 @@
 
 #include "utils.h"
 
-
 #ifndef M_PI
 #define M_PI 3.141592
 #endif
@@ -160,6 +159,8 @@ float box_iou_kind(box a, box b, IOU_LOSS iou_kind)
       return box_iou(a, b);
     case GIOU:
       return box_giou(a, b);
+    case MSE:
+      return box_rmse(a, b);
     case DIOU:
       return box_diou(a, b);
     case CIOU:
@@ -528,11 +529,11 @@ dxrep dx_box_iou(box pred, box truth, IOU_LOSS iou_loss)
   // dx.dr += gt_dr;
 
   //// instead, look at the change between pred and gt, and weight t/b/l/r
-  ///appropriately... / need the real derivative here (I think?)
+  /// appropriately... / need the real derivative here (I think?)
   // float delta_t = fmax(truth_tblr.top, pred_t) - fmin(truth_tblr.top,
-  // pred_t); float delta_b = fmax(truth_tblr.bot, pred_b) - fmin(truth_tblr.bot,
-  // pred_b); float delta_l = fmax(truth_tblr.left, pred_l) -
-  // fmin(truth_tblr.left, pred_l); float delta_r = fmax(truth_tblr.right,
+  // pred_t); float delta_b = fmax(truth_tblr.bot, pred_b) -
+  // fmin(truth_tblr.bot, pred_b); float delta_l = fmax(truth_tblr.left, pred_l)
+  // - fmin(truth_tblr.left, pred_l); float delta_r = fmax(truth_tblr.right,
   // pred_r) - fmin(truth_tblr.right, pred_r);
 
   // dx.dt *= delta_t / (delta_t + delta_b);
@@ -567,11 +568,11 @@ dxrep dx_box_iou(box pred, box truth, IOU_LOSS iou_loss)
   // dx.dr += gt_dr;
 
   //// instead, look at the change between pred and gt, and weight t/b/l/r
-  ///appropriately... / need the real derivative here (I think?)
+  /// appropriately... / need the real derivative here (I think?)
   // float delta_t = fmax(truth_tblr.top, pred_t) - fmin(truth_tblr.top,
-  // pred_t); float delta_b = fmax(truth_tblr.bot, pred_b) - fmin(truth_tblr.bot,
-  // pred_b); float delta_l = fmax(truth_tblr.left, pred_l) -
-  // fmin(truth_tblr.left, pred_l); float delta_r = fmax(truth_tblr.right,
+  // pred_t); float delta_b = fmax(truth_tblr.bot, pred_b) -
+  // fmin(truth_tblr.bot, pred_b); float delta_l = fmax(truth_tblr.left, pred_l)
+  // - fmin(truth_tblr.left, pred_l); float delta_r = fmax(truth_tblr.right,
   // pred_r) - fmin(truth_tblr.right, pred_r);
 
   // dx.dt *= delta_t / (delta_t + delta_b);
@@ -982,28 +983,6 @@ void diounms_sort(Detection* dets, int total, int classes, float thresh,
         box b = dets[j].bbox;
         if (box_iou(a, b) > thresh && nms_kind == CORNERS_NMS)
         {
-          float sum_prob = pow(dets[i].prob[k], 2) + pow(dets[j].prob[k], 2);
-          float alpha_prob = pow(dets[i].prob[k], 2) / sum_prob;
-          float beta_prob = pow(dets[j].prob[k], 2) / sum_prob;
-          // dets[i].bbox.x = (dets[i].bbox.x*alpha_prob +
-          // dets[j].bbox.x*beta_prob); dets[i].bbox.y =
-          // (dets[i].bbox.y*alpha_prob + dets[j].bbox.y*beta_prob);
-          // dets[i].bbox.w = (dets[i].bbox.w*alpha_prob +
-          // dets[j].bbox.w*beta_prob); dets[i].bbox.h =
-          // (dets[i].bbox.h*alpha_prob + dets[j].bbox.h*beta_prob);
-          /*
-          if (dets[j].points == YOLO_CENTER && (dets[i].points & dets[j].points)
-          == 0) { dets[i].bbox.x = (dets[i].bbox.x*alpha_prob +
-          dets[j].bbox.x*beta_prob); dets[i].bbox.y = (dets[i].bbox.y*alpha_prob
-          + dets[j].bbox.y*beta_prob);
-          }
-          else if ((dets[i].points & dets[j].points) == 0) {
-              dets[i].bbox.w = (dets[i].bbox.w*alpha_prob +
-          dets[j].bbox.w*beta_prob); dets[i].bbox.h = (dets[i].bbox.h*alpha_prob
-          + dets[j].bbox.h*beta_prob);
-          }
-          dets[i].points |= dets[j].points;
-          */
           dets[j].prob[k] = 0;
         }
         else if (box_iou(a, b) > thresh && nms_kind == GREEDY_NMS)
@@ -1018,10 +997,6 @@ void diounms_sort(Detection* dets, int total, int classes, float thresh,
           }
         }
       }
-
-      // if ((nms_kind == CORNERS_NMS) && (dets[i].points != (YOLO_CENTER |
-      // YOLO_LEFT_TOP | YOLO_RIGHT_BOTTOM)))
-      //    dets[i].prob[k] = 0;
     }
   }
 }

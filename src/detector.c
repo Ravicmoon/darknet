@@ -956,16 +956,6 @@ float ValidateDetector(char const* data_file, char const* model_file,
         i, names[i], avg_precision * 100, tp_for_thresh_per_class[i],
         fp_for_thresh_per_class[i]);
 
-    float class_precision =
-        (float)tp_for_thresh_per_class[i] /
-        ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
-    float class_recall =
-        (float)tp_for_thresh_per_class[i] /
-        ((float)tp_for_thresh_per_class[i] +
-            (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
-    // printf("Precision = %1.2f, Recall = %1.2f, avg IOU = %2.2f%% \n\n",
-    // class_precision, class_recall, avg_iou_per_class[i]);
-
     mean_average_precision += avg_precision;
   }
 

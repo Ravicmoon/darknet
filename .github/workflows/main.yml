@@ -46,7 +46,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: yolo-core-vcpkg-${{ runner.os }}
-          path: ${{ github.workspace }}/build/install/bin
+          path: ${{ runner.workspace }}/build/install/bin
   
   windows-vcpkg:
     runs-on: windows-latest
@@ -78,7 +78,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: yolo-core-vcpkg-${{ runner.os }}
-          path: ${{ github.workspace }}/build/install/bin
+          path: ${{ runner.workspace }}/build/install/bin
 
   windows-cuda-vcpkg:
     runs-on: windows-latest
@@ -126,4 +126,4 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: yolo-core-vcpkg-${{ runner.os }}
-          path: ${{ github.workspace }}/build/install/bin
+          path: ${{ runner.workspace }}/build/install/bin
