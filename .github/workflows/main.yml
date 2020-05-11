@@ -84,6 +84,11 @@ jobs:
           appendedCacheKey: ${{ hashFiles(env.vcpkgResponseFile) }}
       
       - name: Build with CMake and Ninja
+        env:
+          CUDACXX: "/usr/local/cuda-10.2/bin/nvcc"
+          CUDA_PATH: "/usr/local/cuda-10.2"
+          CUDA_TOOLKIT_ROOT_DIR: "/usr/local/cuda-10.2"
+          LD_LIBRARY_PATH: "/usr/local/cuda-10.2/lib64:/usr/local/cuda-10.2/lib64/stubs:$LD_LIBRARY_PATH"
         uses: lukka/run-cmake@v2
         with:
           cmakeListOrSettingJson: CMakeListTxtAdvanced
@@ -134,12 +139,23 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: 'Install CUDA'
+        run: |
+          choco install cuda -y
+          $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          refreshenv
       
       - uses: lukka/get-cmake@latest
       
       - name: Restore from cache and run vcpkg
         env:
-          vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_windows_cuda.diff
+          vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_windows_cuda.diff  
+          CUDA_PATH: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDA_PATH_V10_2: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDA_TOOLKIT_ROOT_DIR: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDACXX: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\bin\\nvcc.exe"
         uses: lukka/run-vcpkg@v2
         with:
           vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
@@ -147,7 +163,12 @@ jobs:
           vcpkgGitCommitId: 'aa0b9d7ca9e1b98e7bb18538f04dd39e7a41d3ff'
           appendedCacheKey: ${{ hashFiles(env.vcpkgResponseFile) }}
       
-      - name: Build with CMake and Ninja
+      - name: Build with CMake and Ninja      
+        env:
+          CUDA_PATH: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDA_PATH_V10_2: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDA_TOOLKIT_ROOT_DIR: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDACXX: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\bin\\nvcc.exe"
         uses: lukka/run-cmake@v2
         with:
           cmakeListOrSettingJson: CMakeListTxtAdvanced
