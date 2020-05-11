@@ -60,10 +60,22 @@ jobs:
         run: sudo apt install yasm
       
       - uses: lukka/get-cmake@latest
+
+      - name: 'Install CUDA'
+        run: |
+          wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.2.89-1_amd64.deb
+          sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
+          sudo dpkg -i cuda-repo-ubuntu1804_10.2.89-1_amd64.deb
+          wget http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb
+          sudo dpkg -i nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb
+          sudo apt update
+          sudo apt-get install -y --no-install-recommends cuda-compiler-10-2 cuda-libraries-dev-10-2 cuda-driver-dev-10-2 cuda-cudart-dev-10-2 cuda-curand-dev-10-2
+          sudo apt-get install -y --no-install-recommends libcudnn7-dev
+          sudo ln -s /usr/local/cuda-10.2/lib64/stubs/libcuda.so /usr/local/cuda-10.2/lib64/stubs/libcuda.so.1
       
       - name: Restore from cache and run vcpkg
         env:
-          vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_linux_cuda.diff
+          vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_linux.diff
         uses: lukka/run-vcpkg@v2
         with:
           vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
