@@ -397,7 +397,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 
       draw_precision = 1;
     }
-    time_remaining = (net.max_batches - iteration) *
+    time_remaining = ((net.max_batches - iteration) / ngpus) *
                      (what_time_is_it_now() - time + load_time) / 60 / 60;
     // set initial value, even if resume training from 10000 iteration
     if (avg_time < 0)
