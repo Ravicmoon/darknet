@@ -992,17 +992,18 @@ layer ParseShortcut(list* options, size_params params, Network* net)
   }
 
   char* weights_normalizion_str =
-      FindOptionStrQuiet(options, "weights_normalizion", "none");
-  WEIGHTS_NORMALIZATION_T weights_normalizion = NO_NORMALIZATION;
+      FindOptionStrQuiet(options, "weights_normalization", "none");
+  WEIGHTS_NORMALIZATION_T weights_normalization = NO_NORMALIZATION;
   if (strcmp(weights_normalizion_str, "relu") == 0 ||
       strcmp(weights_normalizion_str, "avg_relu") == 0)
-    weights_normalizion = RELU_NORMALIZATION;
+    weights_normalization = RELU_NORMALIZATION;
   else if (strcmp(weights_normalizion_str, "softmax") == 0)
-    weights_normalizion = SOFTMAX_NORMALIZATION;
+    weights_normalization = SOFTMAX_NORMALIZATION;
   else if (strcmp(weights_type_str, "none") != 0)
   {
     printf(
-        "Error: Incorrect weights_normalizion = %s \n Use one of: none, relu, "
+        "Error: Incorrect weights_normalization = %s \n Use one of: none, "
+        "relu, "
         "softmax \n",
         weights_normalizion_str);
     getchar();
@@ -1047,7 +1048,7 @@ layer ParseShortcut(list* options, size_params params, Network* net)
 
   layer s = make_shortcut_layer(params.batch, n, layers, sizes, params.w,
       params.h, params.c, layers_output, layers_delta, layers_output_gpu,
-      layers_delta_gpu, weights_type, weights_normalizion, activation,
+      layers_delta_gpu, weights_type, weights_normalization, activation,
       params.train);
 
   free(layers_output_gpu);
