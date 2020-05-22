@@ -63,7 +63,8 @@ void TrainDetector(char const* data_file, char const* model_file,
           "\n Error: in the file %s number of names %d that isn't equal to "
           "classes=%d in the file %s \n",
           name_list, names_size, num_classes, model_file);
-      if (num_classes > names_size) getchar();
+      if (num_classes > names_size)
+        getchar();
     }
     free_ptrs((void**)names, net_map.layers[net_map.n - 1].classes);
   }
@@ -162,7 +163,8 @@ void TrainDetector(char const* data_file, char const* model_file,
   args.saturation = net.saturation;
   args.hue = net.hue;
   args.letter_box = net.letter_box;
-  if (dont_show && show_imgs) show_imgs = 2;
+  if (dont_show && show_imgs)
+    show_imgs = 2;
   args.show_imgs = show_imgs;
 
 #ifdef OPENCV
@@ -204,7 +206,8 @@ void TrainDetector(char const* data_file, char const* model_file,
     if (l.random && count++ % 10 == 0)
     {
       float rand_coef = 1.4;
-      if (l.random != 1.0) rand_coef = l.random;
+      if (l.random != 1.0)
+        rand_coef = l.random;
       printf("Resizing, random_coef = %.2f \n", rand_coef);
       float random_val = rand_scale(rand_coef);  // *x or /x
       int dim_w =
@@ -227,11 +230,14 @@ void TrainDetector(char const* data_file, char const* model_file,
         dim_h = max_dim_h;
       }
 
-      if (dim_w < net.resize_step) dim_w = net.resize_step;
-      if (dim_h < net.resize_step) dim_h = net.resize_step;
+      if (dim_w < net.resize_step)
+        dim_w = net.resize_step;
+      if (dim_h < net.resize_step)
+        dim_h = net.resize_step;
       int dim_b = (init_b * max_dim_w * max_dim_h) / (dim_w * dim_h);
       int new_dim_b = (int)(dim_b * 0.8);
-      if (new_dim_b > init_b) dim_b = new_dim_b;
+      if (new_dim_b > init_b)
+        dim_b = new_dim_b;
 
       args.w = dim_w;
       args.h = dim_h;
@@ -416,7 +422,8 @@ void TrainDetector(char const* data_file, char const* model_file,
     {
       iter_save = iteration;
 #ifdef GPU
-      if (ngpus != 1) sync_nets(nets, ngpus, 0);
+      if (ngpus != 1)
+        sync_nets(nets, ngpus, 0);
 #endif
       char buff[256];
       sprintf(buff, "%s/%s_%d.weights", backup_directory, base, iteration);
@@ -428,7 +435,8 @@ void TrainDetector(char const* data_file, char const* model_file,
     {
       iter_save_last = iteration;
 #ifdef GPU
-      if (ngpus != 1) sync_nets(nets, ngpus, 0);
+      if (ngpus != 1)
+        sync_nets(nets, ngpus, 0);
 #endif
       char buff[256];
       sprintf(buff, "%s/%s_last.weights", backup_directory, base);
@@ -437,7 +445,8 @@ void TrainDetector(char const* data_file, char const* model_file,
     free_data(train);
   }
 #ifdef GPU
-  if (ngpus != 1) sync_nets(nets, ngpus, 0);
+  if (ngpus != 1)
+    sync_nets(nets, ngpus, 0);
 #endif
   char buff[256];
   sprintf(buff, "%s/%s_final.weights", backup_directory, base);
@@ -568,7 +577,8 @@ float ValidateDetector(char const* data_file, char const* model_file,
   // const float iou_thresh = 0.5;
 
   int nthreads = 4;
-  if (m < 4) nthreads = m;
+  if (m < 4)
+    nthreads = m;
   Image* val = (Image*)xcalloc(nthreads, sizeof(Image));
   Image* val_resized = (Image*)xcalloc(nthreads, sizeof(Image));
   Image* buf = (Image*)xcalloc(nthreads, sizeof(Image));
@@ -1009,7 +1019,8 @@ float ValidateDetector(char const* data_file, char const* model_file,
   printf(
       " `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom "
       "dataset\n");
-  if (reinforcement_fd != NULL) fclose(reinforcement_fd);
+  if (reinforcement_fd != NULL)
+    fclose(reinforcement_fd);
 
   // free memory
   free_ptrs((void**)names, net.layers[net.n - 1].classes);
@@ -1027,11 +1038,16 @@ float ValidateDetector(char const* data_file, char const* model_file,
   {
     FreeNetwork(&net);
   }
-  if (val) free(val);
-  if (val_resized) free(val_resized);
-  if (thr) free(thr);
-  if (buf) free(buf);
-  if (buf_resized) free(buf_resized);
+  if (val)
+    free(val);
+  if (val_resized)
+    free(val_resized);
+  if (thr)
+    free(thr);
+  if (buf)
+    free(buf);
+  if (buf_resized)
+    free(buf_resized);
 
   return mean_average_precision;
 }

@@ -3,6 +3,7 @@ BasedOnStyle: Google
 Language: Cpp
 AlignAfterOpenBracket: false
 AlignEscapedNewlines: Left
+AllowShortIfStatementsOnASingleLine : false
 BreakBeforeBraces: Custom
 BreakBeforeTernaryOperators: false
 BraceWrapping:
