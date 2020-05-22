@@ -11,7 +11,6 @@
 #include "gemm.h"
 #include "utils.h"
 
-
 static void increment_layer(layer* l, int steps)
 {
   int num = l->outputs * l->batch * steps;
@@ -328,7 +327,8 @@ void backward_gru_layer_gpu(layer l, NetworkState state)
   increment_layer(&state_h_layer, l.steps - 1);
 
   state.input += l.inputs * l.batch * (l.steps - 1);
-  if (state.delta) state.delta += l.inputs * l.batch * (l.steps - 1);
+  if (state.delta)
+    state.delta += l.inputs * l.batch * (l.steps - 1);
   l.output_gpu += l.outputs * l.batch * (l.steps - 1);
   l.delta_gpu += l.outputs * l.batch * (l.steps - 1);
   for (i = l.steps - 1; i >= 0; --i)
@@ -409,7 +409,8 @@ void backward_gru_layer_gpu(layer l, NetworkState state)
     backward_connected_layer_gpu(input_z_layer, s);
 
     state.input -= l.inputs * l.batch;
-    if (state.delta) state.delta -= l.inputs * l.batch;
+    if (state.delta)
+      state.delta -= l.inputs * l.batch;
     l.output_gpu -= l.outputs * l.batch;
     l.delta_gpu -= l.outputs * l.batch;
     increment_layer(&input_z_layer, -1);

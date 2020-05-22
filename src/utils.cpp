@@ -75,7 +75,8 @@ int* read_map(char* filename)
   int* map = 0;
   char* str;
   FILE* file = fopen(filename, "r");
-  if (!file) FileError(filename);
+  if (!file)
+    FileError(filename);
   while ((str = fgetl(file)))
   {
     ++n;
@@ -83,7 +84,8 @@ int* read_map(char* filename)
     map[n - 1] = atoi(str);
     free(str);
   }
-  if (file) fclose(file);
+  if (file)
+    fclose(file);
   return map;
 }
 
@@ -125,7 +127,8 @@ int find_arg(int argc, char* argv[], char* arg)
   int i;
   for (i = 0; i < argc; ++i)
   {
-    if (!argv[i]) continue;
+    if (!argv[i])
+      continue;
     if (0 == strcmp(argv[i], arg))
     {
       del_arg(argc, argv, i);
@@ -140,7 +143,8 @@ int find_int_arg(int argc, char** argv, char* arg, int def)
   int i;
   for (i = 0; i < argc - 1; ++i)
   {
-    if (!argv[i]) continue;
+    if (!argv[i])
+      continue;
     if (0 == strcmp(argv[i], arg))
     {
       def = atoi(argv[i + 1]);
@@ -157,7 +161,8 @@ float find_float_arg(int argc, char** argv, char* arg, float def)
   int i;
   for (i = 0; i < argc - 1; ++i)
   {
-    if (!argv[i]) continue;
+    if (!argv[i])
+      continue;
     if (0 == strcmp(argv[i], arg))
     {
       def = atof(argv[i + 1]);
@@ -174,7 +179,8 @@ char* find_char_arg(int argc, char** argv, char* arg, char* def)
   int i;
   for (i = 0; i < argc - 1; ++i)
   {
-    if (!argv[i]) continue;
+    if (!argv[i])
+      continue;
     if (0 == strcmp(argv[i], arg))
     {
       def = argv[i + 1];
@@ -201,14 +207,16 @@ char* BaseCfg(char const* cfg_file)
     }
   c = copy_string(c);
   next = strchr(c, '.');
-  if (next) *next = 0;
+  if (next)
+    *next = 0;
   return c;
 }
 
 int alphanum_to_int(char c) { return (c < 58) ? c - 48 : c - 87; }
 char int_to_alphanum(int i)
 {
-  if (i == 36) return '.';
+  if (i == 36)
+    return '.';
   return (i < 10) ? i + 48 : i + 87;
 }
 
@@ -467,7 +475,8 @@ void free_ptrs(void** ptrs, int n)
 
 char* fgetl(FILE* fp)
 {
-  if (feof(fp)) return 0;
+  if (feof(fp))
+    return 0;
   size_t size = 512;
   char* line = (char*)xmalloc(size * sizeof(char));
   if (!fgets(line, size, fp))
@@ -486,15 +495,18 @@ char* fgetl(FILE* fp)
       line = (char*)xrealloc(line, size * sizeof(char));
     }
     size_t readsize = size - curr;
-    if (readsize > INT_MAX) readsize = INT_MAX - 1;
+    if (readsize > INT_MAX)
+      readsize = INT_MAX - 1;
     fgets(&line[curr], readsize, fp);
     curr = strlen(line);
   }
   if (curr >= 2)
-    if (line[curr - 2] == 0x0d) line[curr - 2] = 0x00;
+    if (line[curr - 2] == 0x0d)
+      line[curr - 2] = 0x00;
 
   if (curr >= 1)
-    if (line[curr - 1] == 0x0a) line[curr - 1] = 0x00;
+    if (line[curr - 1] == 0x0a)
+      line[curr - 1] = 0x00;
 
   return line;
 }
@@ -503,14 +515,16 @@ int read_int(int fd)
 {
   int n = 0;
   int next = read(fd, &n, sizeof(int));
-  if (next <= 0) return -1;
+  if (next <= 0)
+    return -1;
   return n;
 }
 
 void write_int(int fd, int n)
 {
   int next = write(fd, &n, sizeof(int));
-  if (next <= 0) error("read failed");
+  if (next <= 0)
+    error("read failed");
 }
 
 int read_all_fail(int fd, char* buffer, size_t bytes)
@@ -519,7 +533,8 @@ int read_all_fail(int fd, char* buffer, size_t bytes)
   while (n < bytes)
   {
     int next = read(fd, buffer + n, bytes - n);
-    if (next <= 0) return 1;
+    if (next <= 0)
+      return 1;
     n += next;
   }
   return 0;
@@ -531,7 +546,8 @@ int write_all_fail(int fd, char* buffer, size_t bytes)
   while (n < bytes)
   {
     size_t next = write(fd, buffer + n, bytes - n);
-    if (next <= 0) return 1;
+    if (next <= 0)
+      return 1;
     n += next;
   }
   return 0;
@@ -543,7 +559,8 @@ void read_all(int fd, char* buffer, size_t bytes)
   while (n < bytes)
   {
     int next = read(fd, buffer + n, bytes - n);
-    if (next <= 0) error("read failed");
+    if (next <= 0)
+      error("read failed");
     n += next;
   }
 }
@@ -554,7 +571,8 @@ void write_all(int fd, char* buffer, size_t bytes)
   while (n < bytes)
   {
     size_t next = write(fd, buffer + n, bytes - n);
-    if (next <= 0) error("write failed");
+    if (next <= 0)
+      error("write failed");
     n += next;
   }
 }
@@ -598,7 +616,8 @@ int count_fields(char* line)
   for (c = line; !done; ++c)
   {
     done = (*c == '\0');
-    if (*c == ',' || done) ++count;
+    if (*c == ',' || done)
+      ++count;
   }
   return count;
 }
@@ -616,7 +635,8 @@ float* parse_fields(char* line, int n)
     {
       *c = '\0';
       field[count] = strtod(p, &end);
-      if (p == c) field[count] = nan("");
+      if (p == c)
+        field[count] = nan("");
       if (end != c && (end != c - 1 || *end != '\r'))
         field[count] = nan("");  // DOS file formats!
       p = c + 1;
@@ -673,15 +693,19 @@ float variance_array(float* a, int n)
 
 int constrain_int(int a, int min, int max)
 {
-  if (a < min) return min;
-  if (a > max) return max;
+  if (a < min)
+    return min;
+  if (a > max)
+    return max;
   return a;
 }
 
 float constrain(float min, float max, float a)
 {
-  if (a < min) return min;
-  if (a > max) return max;
+  if (a < min)
+    return min;
+  if (a > max)
+    return max;
   return a;
 }
 
@@ -767,7 +791,8 @@ int sample_array(float* a, int n)
   for (i = 0; i < n; ++i)
   {
     r = r - a[i];
-    if (r <= 0) return i;
+    if (r <= 0)
+      return i;
   }
   return n - 1;
 }
@@ -782,14 +807,16 @@ int sample_array_custom(float* a, int n)
   for (i = 0; i < n; ++i)
   {
     r = r - a[(i + start_index) % n];
-    if (r <= 0) return i;
+    if (r <= 0)
+      return i;
   }
   return n - 1;
 }
 
 int max_index(float* a, int n)
 {
-  if (n <= 0) return -1;
+  if (n <= 0)
+    return -1;
   int i, max_i = 0;
   float max = a[0];
   for (i = 1; i < n; ++i)
@@ -805,7 +832,8 @@ int max_index(float* a, int n)
 
 int top_max_index(float* a, int n, int k)
 {
-  if (n <= 0) return -1;
+  if (n <= 0)
+    return -1;
   float* values = (float*)xcalloc(k, sizeof(float));
   int* indexes = (int*)xcalloc(k, sizeof(int));
   int i, j;
@@ -823,7 +851,8 @@ int top_max_index(float* a, int n, int k)
   }
   int count = 0;
   for (j = 0; j < k; ++j)
-    if (values[j] > 0) count++;
+    if (values[j] > 0)
+      count++;
   int get_index = rand_int(0, count - 1);
   int val = indexes[get_index];
   free(indexes);
@@ -836,7 +865,8 @@ int int_index(int* a, int val, int n)
   int i;
   for (i = 0; i < n; ++i)
   {
-    if (a[i] == val) return i;
+    if (a[i] == val)
+      return i;
   }
   return -1;
 }
@@ -868,7 +898,8 @@ float rand_normal()
   haveSpare = 1;
 
   rand1 = random_gen() / ((double)RAND_MAX);
-  if (rand1 < 1e-100) rand1 = 1e-100;
+  if (rand1 < 1e-100)
+    rand1 = 1e-100;
   rand1 = -2 * log(rand1);
   rand2 = (random_gen() / ((double)RAND_MAX)) * 2.0 * M_PI;
 
@@ -919,7 +950,8 @@ float rand_uniform(float min, float max)
 float rand_scale(float s)
 {
   float scale = rand_uniform_strong(1, s);
-  if (random_gen() % 2) return scale;
+  if (random_gen() % 2)
+    return scale;
   return 1. / scale;
 }
 
@@ -1047,7 +1079,8 @@ int check_array_is_nan(float* arr, int size)
   int i;
   for (i = 0; i < size; ++i)
   {
-    if (isnan(arr[i])) return 1;
+    if (isnan(arr[i]))
+      return 1;
   }
   return 0;
 }
@@ -1057,7 +1090,8 @@ int check_array_is_inf(float* arr, int size)
   int i;
   for (i = 0; i < size; ++i)
   {
-    if (isinf(arr[i])) return 1;
+    if (isinf(arr[i]))
+      return 1;
   }
   return 0;
 }
@@ -1082,7 +1116,8 @@ int* random_index_order(int min, int max)
 
 int max_int_index(int* a, int n)
 {
-  if (n <= 0) return -1;
+  if (n <= 0)
+    return -1;
   int i, max_i = 0;
   int max = a[0];
   for (i = 1; i < n; ++i)
@@ -1108,10 +1143,14 @@ boxabs box_to_boxabs(
 
   if (bounds_check)
   {
-    if (ba.left < 0) ba.left = 0;
-    if (ba.right > img_w - 1) ba.right = img_w - 1;
-    if (ba.top < 0) ba.top = 0;
-    if (ba.bot > img_h - 1) ba.bot = img_h - 1;
+    if (ba.left < 0)
+      ba.left = 0;
+    if (ba.right > img_w - 1)
+      ba.right = img_w - 1;
+    if (ba.top < 0)
+      ba.top = 0;
+    if (ba.bot > img_h - 1)
+      ba.bot = img_h - 1;
   }
 
   return ba;

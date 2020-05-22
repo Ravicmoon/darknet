@@ -172,7 +172,8 @@ void delta_region_class(float* output, float* delta, int index, int class_id,
 
         delta[index + n] *= alpha * grad;
 
-        if (n == class_id) *avg_cat += output[index + n];
+        if (n == class_id)
+          *avg_cat += output[index + n];
       }
     }
     else
@@ -182,7 +183,8 @@ void delta_region_class(float* output, float* delta, int index, int class_id,
       {
         delta[index + n] =
             scale * (((n == class_id) ? 1 : 0) - output[index + n]);
-        if (n == class_id) *avg_cat += output[index + n];
+        if (n == class_id)
+          *avg_cat += output[index + n];
       }
     }
   }
@@ -244,7 +246,8 @@ void forward_region_layer(const region_layer l, NetworkState state)
     }
   }
 #endif
-  if (!state.train) return;
+  if (!state.train)
+    return;
   memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
   float avg_iou = 0;
   float recall = 0;
@@ -262,7 +265,8 @@ void forward_region_layer(const region_layer l, NetworkState state)
       for (t = 0; t < l.max_boxes; ++t)
       {
         box truth = float_to_box(state.truth + t * 5 + b * l.truths);
-        if (!truth.x) break;  // continue;
+        if (!truth.x)
+          break;  // continue;
         int class_id = state.truth[t * 5 + b * l.truths + 4];
         float maxp = 0;
         int maxi = 0;
@@ -288,7 +292,8 @@ void forward_region_layer(const region_layer l, NetworkState state)
           break;
         }
       }
-      if (onlyclass_id) continue;
+      if (onlyclass_id)
+        continue;
     }
     for (j = 0; j < l.h; ++j)
     {
@@ -308,7 +313,8 @@ void forward_region_layer(const region_layer l, NetworkState state)
             if (class_id >= l.classes)
               continue;  // if label contains class_id more than number of
                          // classes in the cfg-file
-            if (!truth.x) break;  // continue;
+            if (!truth.x)
+              break;  // continue;
             float iou = box_iou(pred, truth);
             if (iou > best_iou)
             {
@@ -373,7 +379,8 @@ void forward_region_layer(const region_layer l, NetworkState state)
                    // the cfg-file
       }
 
-      if (!truth.x) break;  // continue;
+      if (!truth.x)
+        break;  // continue;
       float best_iou = 0;
       int best_index = 0;
       int best_n = 0;
@@ -414,7 +421,8 @@ void forward_region_layer(const region_layer l, NetworkState state)
 
       float iou = delta_region_box(truth, l.output, l.biases, best_n,
           best_index, i, j, l.w, l.h, l.delta, l.coord_scale);
-      if (iou > .5) recall += 1;
+      if (iou > .5)
+        recall += 1;
       avg_iou += iou;
 
       // l.delta[best_index + 4] = iou - l.output[best_index + 4];
@@ -429,7 +437,8 @@ void forward_region_layer(const region_layer l, NetworkState state)
                                   logistic_gradient(l.output[best_index + 4]);
       }
 
-      if (l.map) class_id = l.map[class_id];
+      if (l.map)
+        class_id = l.map[class_id];
       delta_region_class(l.output, l.delta, best_index + 5, class_id, l.classes,
           l.softmax_tree, l.class_scale, &avg_cat, l.focal_loss);
       ++count;
@@ -469,7 +478,8 @@ void get_region_boxes(layer l, int w, int h, float thresh, float** probs,
       int index = i * l.n + n;
       int p_index = index * (l.classes + 5) + 4;
       float scale = predictions[p_index];
-      if (l.classfix == -1 && scale < .5) scale = 0;
+      if (l.classfix == -1 && scale < .5)
+        scale = 0;
       int box_index = index * (l.classes + 5);
       boxes[index] = get_region_box(
           predictions, l.biases, n, box_index, col, row, l.w, l.h);
@@ -572,10 +582,12 @@ void forward_region_layer_gpu(const region_layer l, NetworkState state)
   forward_region_layer(l, cpu_state);
   // cuda_push_array(l.output_gpu, l.output, l.batch*l.outputs);
   free(cpu_state.input);
-  if (!state.train) return;
+  if (!state.train)
+    return;
   cuda_push_array(l.delta_gpu, l.delta, l.batch * l.outputs);
   // cudaStreamSynchronize(get_cuda_stream());
-  if (cpu_state.truth) free(cpu_state.truth);
+  if (cpu_state.truth)
+    free(cpu_state.truth);
 }
 
 void backward_region_layer_gpu(region_layer l, NetworkState state)

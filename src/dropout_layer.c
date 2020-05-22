@@ -6,7 +6,6 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-
 dropout_layer make_dropout_layer(int batch, int inputs, float probability,
     int dropblock, float dropblock_size_rel, int dropblock_size_abs, int w,
     int h, int c)
@@ -90,7 +89,8 @@ void resize_dropout_layer(dropout_layer* l, int inputs)
 void forward_dropout_layer(dropout_layer l, NetworkState state)
 {
   int i;
-  if (!state.train) return;
+  if (!state.train)
+    return;
   for (i = 0; i < l.batch * l.inputs; ++i)
   {
     float r = rand_uniform(0, 1);
@@ -105,7 +105,8 @@ void forward_dropout_layer(dropout_layer l, NetworkState state)
 void backward_dropout_layer(dropout_layer l, NetworkState state)
 {
   int i;
-  if (!state.delta) return;
+  if (!state.delta)
+    return;
   for (i = 0; i < l.batch * l.inputs; ++i)
   {
     float r = l.rand[i];

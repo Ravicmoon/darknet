@@ -44,19 +44,22 @@ static float get_pixel(Image m, int x, int y, int c)
 }
 static float get_pixel_extend(Image m, int x, int y, int c)
 {
-  if (x < 0 || x >= m.w || y < 0 || y >= m.h) return 0;
+  if (x < 0 || x >= m.w || y < 0 || y >= m.h)
+    return 0;
   /*
   if(x < 0) x = 0;
   if(x >= m.w) x = m.w-1;
   if(y < 0) y = 0;
   if(y >= m.h) y = m.h-1;
   */
-  if (c < 0 || c >= m.c) return 0;
+  if (c < 0 || c >= m.c)
+    return 0;
   return get_pixel(m, x, y, c);
 }
 static void set_pixel(Image m, int x, int y, int c, float val)
 {
-  if (x < 0 || y < 0 || c < 0 || x >= m.w || y >= m.h || c >= m.c) return;
+  if (x < 0 || y < 0 || c < 0 || x >= m.w || y >= m.h || c >= m.c)
+    return;
   assert(x < m.w && y < m.h && c < m.c);
   m.data[c * m.h * m.w + y * m.w + x] = val;
 }
@@ -106,7 +109,8 @@ Image border_image(Image a, int border)
 
 Image tile_images(Image a, Image b, int dx)
 {
-  if (a.w == 0) return copy_image(b);
+  if (a.w == 0)
+    return copy_image(b);
   Image c = make_image(
       a.w + b.w + dx, (a.h > b.h) ? a.h : b.h, (a.c > b.c) ? a.c : b.c);
   fill_cpu(c.w * c.h * c.c, 1, c.data, 1);
@@ -117,7 +121,8 @@ Image tile_images(Image a, Image b, int dx)
 
 Image get_label(Image** characters, char* string, int size)
 {
-  if (size > 7) size = 7;
+  if (size > 7)
+    size = 7;
   Image label = make_empty_image(0, 0, 0);
   while (*string)
   {
@@ -135,7 +140,8 @@ Image get_label(Image** characters, char* string, int size)
 Image get_label_v3(Image** characters, char* string, int size)
 {
   size = size / 10;
-  if (size > 7) size = 7;
+  if (size > 7)
+    size = 7;
   Image label = make_empty_image(0, 0, 0);
   while (*string)
   {
@@ -154,7 +160,8 @@ void draw_label(Image a, int r, int c, Image label, const float* rgb)
 {
   int w = label.w;
   int h = label.h;
-  if (r - h >= 0) r = r - h;
+  if (r - h >= 0)
+    r = r - h;
 
   int i, j, k;
   for (j = 0; j < h && j + r < a.h; ++j)
@@ -174,15 +181,23 @@ void draw_box_bw(Image a, int x1, int y1, int x2, int y2, float brightness)
 {
   // normalize_image(a);
   int i;
-  if (x1 < 0) x1 = 0;
-  if (x1 >= a.w) x1 = a.w - 1;
-  if (x2 < 0) x2 = 0;
-  if (x2 >= a.w) x2 = a.w - 1;
+  if (x1 < 0)
+    x1 = 0;
+  if (x1 >= a.w)
+    x1 = a.w - 1;
+  if (x2 < 0)
+    x2 = 0;
+  if (x2 >= a.w)
+    x2 = a.w - 1;
 
-  if (y1 < 0) y1 = 0;
-  if (y1 >= a.h) y1 = a.h - 1;
-  if (y2 < 0) y2 = 0;
-  if (y2 >= a.h) y2 = a.h - 1;
+  if (y1 < 0)
+    y1 = 0;
+  if (y1 >= a.h)
+    y1 = a.h - 1;
+  if (y2 < 0)
+    y2 = 0;
+  if (y2 >= a.h)
+    y2 = a.h - 1;
 
   for (i = x1; i <= x2; ++i)
   {
@@ -212,15 +227,23 @@ void draw_box(
 {
   // normalize_image(a);
   int i;
-  if (x1 < 0) x1 = 0;
-  if (x1 >= a.w) x1 = a.w - 1;
-  if (x2 < 0) x2 = 0;
-  if (x2 >= a.w) x2 = a.w - 1;
+  if (x1 < 0)
+    x1 = 0;
+  if (x1 >= a.w)
+    x1 = a.w - 1;
+  if (x2 < 0)
+    x2 = 0;
+  if (x2 >= a.w)
+    x2 = a.w - 1;
 
-  if (y1 < 0) y1 = 0;
-  if (y1 >= a.h) y1 = a.h - 1;
-  if (y2 < 0) y2 = 0;
-  if (y2 >= a.h) y2 = a.h - 1;
+  if (y1 < 0)
+    y1 = 0;
+  if (y1 >= a.h)
+    y1 = a.h - 1;
+  if (y2 < 0)
+    y2 = 0;
+  if (y2 >= a.h)
+    y2 = a.h - 1;
 
   for (i = x1; i <= x2; ++i)
   {
@@ -317,7 +340,8 @@ detection_with_class* get_actual_detections(Detection* dets, int dets_num,
       ++selected_num;
     }
   }
-  if (selected_detections_num) *selected_detections_num = selected_num;
+  if (selected_detections_num)
+    *selected_detections_num = selected_num;
   return result_arr;
 }
 
@@ -404,7 +428,8 @@ void draw_detections_v3(Image im, Detection* dets, int num, float thresh,
   for (i = 0; i < selected_detections_num; ++i)
   {
     int width = im.h * .006;
-    if (width < 1) width = 1;
+    if (width < 1)
+      width = 1;
 
     /*
     if(0){
@@ -434,10 +459,14 @@ void draw_detections_v3(Image im, Detection* dets, int num, float thresh,
     int top = (b.y - b.h / 2.) * im.h;
     int bot = (b.y + b.h / 2.) * im.h;
 
-    if (left < 0) left = 0;
-    if (right > im.w - 1) right = im.w - 1;
-    if (top < 0) top = 0;
-    if (bot > im.h - 1) bot = im.h - 1;
+    if (left < 0)
+      left = 0;
+    if (right > im.w - 1)
+      right = im.w - 1;
+    if (top < 0)
+      top = 0;
+    if (bot > im.h - 1)
+      bot = im.h - 1;
 
     // int b_x_center = (left + right) / 2;
     // int b_y_center = (top + bot) / 2;
@@ -549,10 +578,14 @@ void draw_detections(Image im, int num, float thresh, box* boxes, float** probs,
       int top = (b.y - b.h / 2.) * im.h;
       int bot = (b.y + b.h / 2.) * im.h;
 
-      if (left < 0) left = 0;
-      if (right > im.w - 1) right = im.w - 1;
-      if (top < 0) top = 0;
-      if (bot > im.h - 1) bot = im.h - 1;
+      if (left < 0)
+        left = 0;
+      if (right > im.w - 1)
+        right = im.w - 1;
+      if (top < 0)
+        top = 0;
+      if (bot > im.h - 1)
+        bot = im.h - 1;
       printf("%s: %.0f%%", names[class_id], prob * 100);
 
       // printf(" - id: %d, x_center: %d, y_center: %d, width: %d, height: %d",
@@ -692,8 +725,10 @@ void constrain_image(Image im)
   int i;
   for (i = 0; i < im.w * im.h * im.c; ++i)
   {
-    if (im.data[i] < 0) im.data[i] = 0;
-    if (im.data[i] > 1) im.data[i] = 1;
+    if (im.data[i] < 0)
+      im.data[i] = 0;
+    if (im.data[i] > 1)
+      im.data[i] = 1;
   }
 }
 
@@ -706,8 +741,10 @@ void normalize_image(Image p)
   for (i = 0; i < p.h * p.w * p.c; ++i)
   {
     float v = p.data[i];
-    if (v < min) min = v;
-    if (v > max) max = v;
+    if (v < min)
+      min = v;
+    if (v > max)
+      max = v;
   }
   if (max - min < .000000001)
   {
@@ -732,8 +769,10 @@ void normalize_image2(Image p)
     for (i = 0; i < p.h * p.w; ++i)
     {
       float v = p.data[i + j * p.h * p.w];
-      if (v < min[j]) min[j] = v;
-      if (v > max[j]) max[j] = v;
+      if (v < min[j])
+        min[j] = v;
+      if (v > max[j])
+        max[j] = v;
     }
   }
   for (i = 0; i < p.c; ++i)
@@ -807,7 +846,8 @@ void save_image_png(Image im, const char* name)
   }
   int success = stbi_write_png(buff, im.w, im.h, im.c, data, im.w * im.c);
   free(data);
-  if (!success) fprintf(stderr, "Failed to write image %s\n", buff);
+  if (!success)
+    fprintf(stderr, "Failed to write image %s\n", buff);
 }
 
 void save_image_options(Image im, const char* name, IMTYPE f, int quality)
@@ -844,7 +884,8 @@ void save_image_options(Image im, const char* name, IMTYPE f, int quality)
   else if (f == JPG)
     success = stbi_write_jpg(buff, im.w, im.h, im.c, data, quality);
   free(data);
-  if (!success) fprintf(stderr, "Failed to write image %s\n", buff);
+  if (!success)
+    fprintf(stderr, "Failed to write image %s\n", buff);
 }
 
 void save_image(Image im, const char* name)
@@ -913,7 +954,8 @@ Image float_to_image_scaled(int w, int h, int c, float* data)
   int i = 0;
   for (i = 0; i < w * h * c; ++i)
   {
-    if (fabs(data[i]) > abs_max) abs_max = fabs(data[i]);
+    if (fabs(data[i]) > abs_max)
+      abs_max = fabs(data[i]);
   }
   for (i = 0; i < w * h * c; ++i)
   {
@@ -1016,7 +1058,8 @@ Image crop_image(Image im, int dx, int dy, int w, int h)
 
 int best_3d_shift_r(Image a, Image b, int min, int max)
 {
-  if (min == max) return min;
+  if (min == max)
+    return min;
   int mid = floor((min + max) / 2.);
   Image c1 = crop_image(b, 0, mid, b.w, b.h);
   Image c2 = crop_image(b, 0, mid + 1, b.w, b.h);
@@ -1052,7 +1095,8 @@ int best_3d_shift(Image a, Image b, int min, int max)
 
 void composite_3d(char* f1, char* f2, char* out, int delta)
 {
-  if (!out) out = "out";
+  if (!out)
+    out = "out";
   Image a = load_image(f1, 0, 0, 0);
   Image b = load_image(f2, 0, 0, 0);
   int shift = best_3d_shift_r(a, b, -a.h / 100, a.h / 100);
@@ -1151,7 +1195,8 @@ Image resize_max(Image im, int max)
     w = (w * max) / h;
     h = max;
   }
-  if (w == im.w && h == im.h) return im;
+  if (w == im.w && h == im.h)
+    return im;
   Image resized = resize_image(im, w, h);
   return resized;
 }
@@ -1170,7 +1215,8 @@ Image resize_min(Image im, int min)
     w = (w * min) / h;
     h = min;
   }
-  if (w == im.w && h == im.h) return im;
+  if (w == im.w && h == im.h)
+    return im;
   Image resized = resize_image(im, w, h);
   return resized;
 }
@@ -1195,8 +1241,10 @@ Image random_augment_image(
 
   float dx = (im.w * scale / aspect - size) / 2.;
   float dy = (im.h * scale - size) / 2.;
-  if (dx < 0) dx = 0;
-  if (dy < 0) dy = 0;
+  if (dx < 0)
+    dx = 0;
+  if (dy < 0)
+    dy = 0;
   dx = rand_uniform(-dx, dx);
   dy = rand_uniform(-dy, dy);
 
@@ -1253,7 +1301,8 @@ void rgb_to_hsv(Image im)
         {
           h = 4 + (r - g) / delta;
         }
-        if (h < 0) h += 6;
+        if (h < 0)
+          h += 6;
         h = h / 6.;
       }
       set_pixel(im, i, j, 0, h);
@@ -1439,8 +1488,10 @@ void hue_image(Image im, float hue)
   for (i = 0; i < im.w * im.h; ++i)
   {
     im.data[i] = im.data[i] + hue;
-    if (im.data[i] > 1) im.data[i] -= 1;
-    if (im.data[i] < 0) im.data[i] += 1;
+    if (im.data[i] > 1)
+      im.data[i] -= 1;
+    if (im.data[i] < 0)
+      im.data[i] += 1;
   }
   hsv_to_rgb(im);
   constrain_image(im);
@@ -1465,8 +1516,10 @@ void distort_image(Image im, float hue, float sat, float val)
     for (i = 0; i < im.w * im.h; ++i)
     {
       im.data[i] = im.data[i] + hue;
-      if (im.data[i] > 1) im.data[i] -= 1;
-      if (im.data[i] < 0) im.data[i] += 1;
+      if (im.data[i] > 1)
+        im.data[i] -= 1;
+      if (im.data[i] < 0)
+        im.data[i] += 1;
     }
     hsv_to_rgb(im);
   }
@@ -1553,8 +1606,10 @@ Image make_attention_image(int img_size, float* original_delta_cpu,
   float min_val = 999999, mean_val = 0, max_val = -999999;
   for (k = 0; k < img_size; ++k)
   {
-    if (original_delta_cpu[k] < min_val) min_val = original_delta_cpu[k];
-    if (original_delta_cpu[k] > max_val) max_val = original_delta_cpu[k];
+    if (original_delta_cpu[k] < min_val)
+      min_val = original_delta_cpu[k];
+    if (original_delta_cpu[k] > max_val)
+      max_val = original_delta_cpu[k];
     mean_val += original_delta_cpu[k];
   }
   mean_val = mean_val / img_size;
@@ -1579,7 +1634,8 @@ Image make_attention_image(int img_size, float* original_delta_cpu,
 
 Image resize_image(Image im, int w, int h)
 {
-  if (im.w == w && im.h == h) return copy_image(im);
+  if (im.w == w && im.h == h)
+    return copy_image(im);
 
   Image resized = make_image(w, h, im.c);
   Image part = make_image(w, im.h, im.c);
@@ -1621,7 +1677,8 @@ Image resize_image(Image im, int w, int h)
         float val = (1 - dy) * get_pixel(part, c, iy, k);
         set_pixel(resized, c, r, k, val);
       }
-      if (r == h - 1 || im.h == 1) continue;
+      if (r == h - 1 || im.h == 1)
+        continue;
       for (c = 0; c < w; ++c)
       {
         float val = dy * get_pixel(part, c, iy + 1, k);
@@ -1703,7 +1760,8 @@ Image load_image_stb(char const* filename, int channels)
     fclose(fw);
     return make_image(10, 10, 3);
   }
-  if (channels) c = channels;
+  if (channels)
+    c = channels;
   int i, j, k;
   Image im = make_image(w, h, c);
   for (k = 0; k < c; ++k)
@@ -1779,10 +1837,12 @@ void print_image(Image m)
       for (k = 0; k < m.w; ++k)
       {
         printf("%.2lf, ", m.data[i * m.h * m.w + j * m.w + k]);
-        if (k > 30) break;
+        if (k > 30)
+          break;
       }
       printf("\n");
-      if (j > 30) break;
+      if (j > 30)
+        break;
     }
     printf("\n");
   }

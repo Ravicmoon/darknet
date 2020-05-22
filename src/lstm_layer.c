@@ -11,7 +11,6 @@
 #include "gemm.h"
 #include "utils.h"
 
-
 static void increment_layer(layer* l, int steps)
 {
   int num = l->outputs * l->batch * steps;
@@ -313,7 +312,8 @@ void backward_lstm_layer(layer l, NetworkState state)
   increment_layer(&uo, l.steps - 1);
 
   state.input += l.inputs * l.batch * (l.steps - 1);
-  if (state.delta) state.delta += l.inputs * l.batch * (l.steps - 1);
+  if (state.delta)
+    state.delta += l.inputs * l.batch * (l.steps - 1);
 
   l.output += l.outputs * l.batch * (l.steps - 1);
   l.cell_cpu += l.outputs * l.batch * (l.steps - 1);
@@ -418,7 +418,8 @@ void backward_lstm_layer(layer l, NetworkState state)
     copy_cpu(l.outputs * l.batch, l.temp_cpu, 1, l.dc_cpu, 1);
 
     state.input -= l.inputs * l.batch;
-    if (state.delta) state.delta -= l.inputs * l.batch;
+    if (state.delta)
+      state.delta -= l.inputs * l.batch;
     l.output -= l.outputs * l.batch;
     l.cell_cpu -= l.outputs * l.batch;
     l.delta -= l.outputs * l.batch;
@@ -573,7 +574,8 @@ void backward_lstm_layer_gpu(layer l, NetworkState state)
   increment_layer(&uo, l.steps - 1);
 
   state.input += l.inputs * l.batch * (l.steps - 1);
-  if (state.delta) state.delta += l.inputs * l.batch * (l.steps - 1);
+  if (state.delta)
+    state.delta += l.inputs * l.batch * (l.steps - 1);
 
   l.output_gpu += l.outputs * l.batch * (l.steps - 1);
   l.cell_gpu += l.outputs * l.batch * (l.steps - 1);
@@ -678,7 +680,8 @@ void backward_lstm_layer_gpu(layer l, NetworkState state)
     copy_ongpu(l.outputs * l.batch, l.temp_gpu, 1, l.dc_gpu, 1);
 
     state.input -= l.inputs * l.batch;
-    if (state.delta) state.delta -= l.inputs * l.batch;
+    if (state.delta)
+      state.delta -= l.inputs * l.batch;
     l.output_gpu -= l.outputs * l.batch;
     l.cell_gpu -= l.outputs * l.batch;
     l.delta_gpu -= l.outputs * l.batch;

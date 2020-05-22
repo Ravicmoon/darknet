@@ -23,7 +23,8 @@ __inline__ __device__ float warpAllReduceSum(float val)
 __global__ void compare_2_arrays_kernel(float* one, float* two, int size)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= size) return;
+  if (index >= size)
+    return;
 
   const float diff = 100 * fabs(one[index] - two[index]) / fabs(one[index]);
 
@@ -46,7 +47,8 @@ __global__ void scale_bias_kernel(float* output, float* scale, int batch,
     int filters, int spatial, int current_size)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= current_size) return;
+  if (index >= current_size)
+    return;
 
   int f = (index / spatial) % filters;
   output[index] *= scale[f];
@@ -99,7 +101,8 @@ __global__ void add_bias_kernel(float* output, float* biases, int batch,
     int filters, int spatial, int current_size)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= current_size) return;
+  if (index >= current_size)
+    return;
 
   int f = (index / spatial) % filters;
   output[index] += biases[f];
@@ -196,7 +199,8 @@ __global__ void adam_kernel(int N, float* x, float* m, float* v, float B1,
     float B2, float rate, float eps, int t)
 {
   int index = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (index >= N) return;
+  if (index >= N)
+    return;
 
   float mhat = m[index] / (1.f - powf(B1, t));
   float vhat = v[index] / (1.f - powf(B2, t));
@@ -233,7 +237,8 @@ __global__ void normalize_kernel(int N, float* x, float* mean, float* variance,
     int batch, int filters, int spatial)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= N) return;
+  if (index >= N)
+    return;
   int f = (index / spatial) % filters;
 
   x[index] = (x[index] - mean[f]) / (sqrtf(variance[f] + .00001f));
@@ -255,7 +260,8 @@ __global__ void normalize_delta_kernel(int N, float* x, float* mean,
     int filters, int spatial, float* delta)
 {
   int index = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (index >= N) return;
+  if (index >= N)
+    return;
   int f = (index / spatial) % filters;
 
   delta[index] =
@@ -279,7 +285,8 @@ __global__ void variance_delta_kernel(float* x, float* delta, float* mean,
     float* variance, int batch, int filters, int spatial, float* variance_delta)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= filters) return;
+  if (i >= filters)
+    return;
   int j, k;
   variance_delta[i] = 0;
   for (j = 0; j < batch; ++j)
@@ -297,7 +304,8 @@ __global__ void accumulate_kernel(float* x, int n, int groups, float* sum)
 {
   int k;
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= groups) return;
+  if (i >= groups)
+    return;
   sum[i] = 0;
   for (k = 0; k < n; ++k)
   {
@@ -378,7 +386,8 @@ __global__ void mean_delta_kernel(float* delta, float* variance, int batch,
     int filters, int spatial, float* mean_delta)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= filters) return;
+  if (i >= filters)
+    return;
   int j, k;
   mean_delta[i] = 0;
   for (j = 0; j < batch; ++j)
@@ -421,7 +430,8 @@ __global__ void mean_kernel(
 {
   float scale = 1.F / (batch * spatial);
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= filters) return;
+  if (i >= filters)
+    return;
   int j, k;
   mean[i] = 0;
   for (j = 0; j < batch; ++j)
@@ -441,7 +451,8 @@ __global__ void variance_kernel(
   float scale = 1.F / (batch * spatial - 1);
   int j, k;
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= filters) return;
+  if (i >= filters)
+    return;
   variance[i] = 0;
   for (j = 0; j < batch; ++j)
   {
@@ -458,7 +469,8 @@ __global__ void reorg_kernel(int N, float* x, int w, int h, int c, int batch,
     int stride, int forward, float* out)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= N) return;
+  if (i >= N)
+    return;
   int in_index = i;
   int in_w = i % w;
   i = i / w;
@@ -499,7 +511,8 @@ __global__ void constrain_weight_updates_kernel(
     const float wu = weight_updates_gpu[i];
     const float wu_sign = (wu == 0) ? 0 : (fabs(wu) / wu);
     const float abs_limit = fabs(w * coef);
-    if (fabs(wu) > abs_limit) weight_updates_gpu[i] = abs_limit * wu_sign;
+    if (fabs(wu) > abs_limit)
+      weight_updates_gpu[i] = abs_limit * wu_sign;
   }
 }
 
@@ -515,32 +528,37 @@ __global__ void axpy_kernel(int N, float ALPHA, float* X, int OFFX, int INCX,
     float* Y, int OFFY, int INCY)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) Y[OFFY + i * INCY] += ALPHA * X[OFFX + i * INCX];
+  if (i < N)
+    Y[OFFY + i * INCY] += ALPHA * X[OFFX + i * INCX];
 }
 
 __global__ void pow_kernel(
     int N, float ALPHA, float* X, int INCX, float* Y, int INCY)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) Y[i * INCY] = powf(X[i * INCX], ALPHA);
+  if (i < N)
+    Y[i * INCY] = powf(X[i * INCX], ALPHA);
 }
 
 __global__ void const_kernel(int N, float ALPHA, float* X, int INCX)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) X[i * INCX] = ALPHA;
+  if (i < N)
+    X[i * INCX] = ALPHA;
 }
 
 __global__ void constrain_kernel(int N, float ALPHA, float* X, int INCX)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) X[i * INCX] = fminf(ALPHA, fmaxf(-ALPHA, X[i * INCX]));
+  if (i < N)
+    X[i * INCX] = fminf(ALPHA, fmaxf(-ALPHA, X[i * INCX]));
 }
 __global__ void constrain_min_max_kernel(
     int N, float MIN, float MAX, float* X, int INCX)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) X[i * INCX] = fminf(MAX, fmaxf(MIN, X[i * INCX]));
+  if (i < N)
+    X[i * INCX] = fminf(MAX, fmaxf(MIN, X[i * INCX]));
 }
 
 __global__ void supp_kernel(int N, float ALPHA, float* X, int INCX)
@@ -548,27 +566,31 @@ __global__ void supp_kernel(int N, float ALPHA, float* X, int INCX)
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
   if (i < N)
   {
-    if ((X[i * INCX] * X[i * INCX]) < (ALPHA * ALPHA)) X[i * INCX] = 0;
+    if ((X[i * INCX] * X[i * INCX]) < (ALPHA * ALPHA))
+      X[i * INCX] = 0;
   }
 }
 
 __global__ void scal_kernel(int N, float ALPHA, float* X, int INCX)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) X[i * INCX] *= ALPHA;
+  if (i < N)
+    X[i * INCX] *= ALPHA;
 }
 
 __global__ void scal_add_kernel(
     int N, float ALPHA, float BETA, float* X, int INCX)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) X[i * INCX] = X[i * INCX] * ALPHA + BETA;
+  if (i < N)
+    X[i * INCX] = X[i * INCX] * ALPHA + BETA;
 }
 
 __global__ void fill_kernel(int N, float ALPHA, float* X, int INCX)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= N) return;
+  if (index >= N)
+    return;
   X[index * INCX] = ALPHA;
 }
 
@@ -576,32 +598,37 @@ __global__ void mask_kernel_new_api(
     int n, float* x, float mask_num, float* mask, float val)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < n && mask[i] == mask_num) x[i] = val;
+  if (i < n && mask[i] == mask_num)
+    x[i] = val;
 }
 
 __global__ void mask_kernel(int n, float* x, float mask_num, float* mask)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < n && mask[i] == mask_num) x[i] = mask_num;
+  if (i < n && mask[i] == mask_num)
+    x[i] = mask_num;
 }
 
 __global__ void copy_kernel(
     int N, float* X, int OFFX, int INCX, float* Y, int OFFY, int INCY)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) Y[i * INCY + OFFY] = X[i * INCX + OFFX];
+  if (i < N)
+    Y[i * INCY + OFFY] = X[i * INCX + OFFX];
 }
 
 __global__ void simple_copy_kernel(int size, float* src, float* dst)
 {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index < size) dst[index] = src[index];
+  if (index < size)
+    dst[index] = src[index];
 }
 
 __global__ void mul_kernel(int N, float* X, int INCX, float* Y, int INCY)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i < N) Y[i * INCY] *= X[i * INCX];
+  if (i < N)
+    Y[i * INCY] *= X[i * INCX];
 }
 
 __global__ void fast_mean_kernel(
@@ -770,7 +797,8 @@ __global__ void inverse_variance_kernel(
     int size, float* src, float* dst, float epsilon)
 {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index < size) dst[index] = 1.0f / sqrtf(src[index] + epsilon);
+  if (index < size)
+    dst[index] = 1.0f / sqrtf(src[index] + epsilon);
 }
 
 extern "C" void inverse_variance_ongpu(
@@ -787,7 +815,8 @@ __global__ void normalize_scale_bias_kernel(int N, float* x, float* mean,
     int spatial, int inverse_variance, float epsilon)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= N) return;
+  if (index >= N)
+    return;
   int f = (index / spatial) % filters;
 
   float val = 0;
@@ -798,7 +827,8 @@ __global__ void normalize_scale_bias_kernel(int N, float* x, float* mean,
   val *= scales[f];
   val += biases[f];
 
-  if (!isnan(val) && !isinf(val)) x[index] = val;
+  if (!isnan(val) && !isinf(val))
+    x[index] = val;
 }
 
 extern "C" void normalize_scale_bias_gpu(float* x, float* mean, float* variance,
@@ -891,7 +921,8 @@ __global__ void flatten_kernel(int N, float* x, int spatial, int layers,
     int batch, int forward, float* out)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= N) return;
+  if (i >= N)
+    return;
   int in_s = i % spatial;
   i = i / spatial;
   int in_c = i % layers;
@@ -995,14 +1026,16 @@ extern "C" void fill_ongpu(int N, float ALPHA, float* X, int INCX)
 
 __device__ float relu(float src)
 {
-  if (src > 0) return src;
+  if (src > 0)
+    return src;
   return 0;
 }
 
 __device__ float lrelu(float src)
 {
   const float eps = 0.001;
-  if (src > eps) return src;
+  if (src > eps)
+    return src;
   return eps;
 }
 
@@ -1021,7 +1054,8 @@ __global__ void shortcut_singlelayer_simple_kernel(int size, int src_outputs,
 {
   const int id =
       (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= size) return;
+  if (id >= size)
+    return;
 
   int src_id = id;
   const int src_i = src_id % src_outputs;
@@ -1048,7 +1082,8 @@ __global__ void shortcut_multilayer_kernel(int size, int src_outputs, int batch,
 {
   const int id =
       (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= size) return;
+  if (id >= size)
+    return;
 
   // nweights - l.n or l.n*l.c or (l.n*l.c*l.h*l.w)
   const int layer_step = nweights / (n + 1);  // 1 or l.c or (l.c * l.h * l.w)
@@ -1071,7 +1106,8 @@ __global__ void shortcut_multilayer_kernel(int size, int src_outputs, int batch,
         const int weights_index =
             src_i / step + i * layer_step;  // [0 or c or (c, h ,w)]
         const float w = weights_gpu[weights_index];
-        if (max_val < w) max_val = w;
+        if (max_val < w)
+          max_val = w;
       }
     }
     const float eps = 0.0001;
@@ -1162,7 +1198,8 @@ __global__ void backward_shortcut_multilayer_kernel(int size, int src_outputs,
 {
   const int id =
       (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= size) return;
+  if (id >= size)
+    return;
 
   // nweights - l.n or l.n*l.c or (l.n*l.c*l.h*l.w)
   const int layer_step = nweights / (n + 1);  // 1 or l.c or (l.c * l.h * l.w)
@@ -1186,7 +1223,8 @@ __global__ void backward_shortcut_multilayer_kernel(int size, int src_outputs,
         const int weights_index =
             src_i / step + i * layer_step;  // [0 or c or (c, h ,w)]
         float w = weights_gpu[weights_index];
-        if (max_val < w) max_val = w;
+        if (max_val < w)
+          max_val = w;
       }
     }
     const float eps = 0.0001;
@@ -1322,7 +1360,8 @@ __global__ void shortcut_kernel(int size, int minw, int minh, int minc,
     int w2, int h2, int c2, float* out)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= size) return;
+  if (id >= size)
+    return;
   int i = id % minw;
   id /= minw;
   int j = id % minh;
@@ -1347,8 +1386,10 @@ extern "C" void shortcut_gpu(int batch, int w1, int h1, int c1, float* add,
   int sample = w2 / w1;
   assert(stride == h1 / h2);
   assert(sample == h2 / h1);
-  if (stride < 1) stride = 1;
-  if (sample < 1) sample = 1;
+  if (stride < 1)
+    stride = 1;
+  if (sample < 1)
+    sample = 1;
 
   int size = batch * minw * minh * minc;
   shortcut_kernel<<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream()>>>(size,
@@ -1361,7 +1402,8 @@ __global__ void simple_input_shortcut_kernel(
     float* in, int size, float* add, float* out)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= size) return;
+  if (id >= size)
+    return;
 
   out[id] = in[id] + add[id];
 }
@@ -1371,7 +1413,8 @@ __global__ void input_shortcut_kernel(float* in, int size, int minw, int minh,
     float* add, int w2, int h2, int c2, float* out)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= size) return;
+  if (id >= size)
+    return;
   int i = id % minw;
   id /= minw;
   int j = id % minh;
@@ -1405,8 +1448,10 @@ extern "C" void input_shortcut_gpu(float* in, int batch, int w1, int h1, int c1,
   int sample = w2 / w1;
   assert(stride == h1 / h2);
   assert(sample == h2 / h1);
-  if (stride < 1) stride = 1;
-  if (sample < 1) sample = 1;
+  if (stride < 1)
+    stride = 1;
+  if (sample < 1)
+    sample = 1;
 
   int size = batch * minw * minh * minc;
   // input_shortcut_kernel << <cuda_gridsize(size), BLOCK, 0, get_cuda_stream()
@@ -1513,7 +1558,8 @@ __global__ void weighted_delta_kernel(int n, float* a, float* b, float* s,
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
   if (i < n)
   {
-    if (da) da[i] += dc[i] * s[i];
+    if (da)
+      da[i] += dc[i] * s[i];
     db[i] += dc[i] * (1 - s[i]);
     ds[i] += dc[i] * a[i] + dc[i] * -b[i];
   }
@@ -1569,7 +1615,8 @@ __global__ void softmax_kernel(
     int n, int offset, int batch, float* input, float temp, float* output)
 {
   int b = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (b >= batch) return;
+  if (b >= batch)
+    return;
   softmax_device(n, input + b * offset, temp, output + b * offset);
 }
 
@@ -1611,7 +1658,8 @@ __global__ void softmax_kernel_new_api(float* input, int n, int batch,
     float* output)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= batch * groups) return;
+  if (id >= batch * groups)
+    return;
   int b = id / groups;
   int g = id % groups;
   softmax_device_new_api(input + b * batch_offset + g * group_offset, n, temp,
@@ -1632,7 +1680,8 @@ __global__ void upsample_kernel(size_t N, float* x, int w, int h, int c,
     int batch, int stride, int forward, float scale, float* out)
 {
   size_t i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= N) return;
+  if (i >= N)
+    return;
   int out_index = i;
   int out_w = i % (w * stride);
   i = i / (w * stride);
@@ -1668,7 +1717,8 @@ __global__ void softmax_tree_kernel(float* input, int spatial, int batch,
     int* group_offset)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= spatial * batch * groups) return;
+  if (id >= spatial * batch * groups)
+    return;
   int s = id % spatial;
   id = id / spatial;
   int g = id % groups;
@@ -1756,7 +1806,8 @@ __global__ void is_nan_or_inf_kernel(
   if (index < size)
   {
     float val = input[index];
-    if (isnan(val) || isinf(val)) *pinned_return = 1;
+    if (isnan(val) || isinf(val))
+      *pinned_return = 1;
   }
 }
 
@@ -1787,7 +1838,8 @@ __global__ void add_3_arrays_activate_kernel(
     float val = 0;
     val += a1[index];
     val += a2[index];
-    if (a3) val += a3[index];
+    if (a3)
+      val += a3[index];
     if (a == LOGISTIC)
       val = 1.f / (1.f + expf(-val));
     else if (a == TANH)
@@ -1839,7 +1891,8 @@ __global__ void activate_and_mult_kernel(
   if (index < size)
   {
     float val = a1[index];
-    if (a == TANH) val = (2 / (1 + expf(-2 * val)) - 1);
+    if (a == TANH)
+      val = (2 / (1 + expf(-2 * val)) - 1);
     dst[index] = val * a2[index];
   }
 }
@@ -2029,7 +2082,8 @@ __global__ void smooth_rotate_weights_kernel(const float* src_weight_gpu,
   if (i < nweights)
   {
     // rotate left or right
-    if (reverse) angle = -angle;
+    if (reverse)
+      angle = -angle;
 
     const float cos_a = cosf(angle * 3.14159265 / 180);
     const float sin_a = sinf(angle * 3.14159265 / 180);
@@ -2047,10 +2101,12 @@ __global__ void smooth_rotate_weights_kernel(const float* src_weight_gpu,
 
         int x_0 = floor(x_s);  // round down
         int x_1 = ceil(x_s);   // round up
-        if (x_0 == x_1) x_1 = x_0 + 1;
+        if (x_0 == x_1)
+          x_1 = x_0 + 1;
         int y_0 = floor(y_s);
         int y_1 = ceil(y_s);
-        if (y_0 == y_1) y_1 = y_0 + 1;
+        if (y_0 == y_1)
+          y_1 = y_0 + 1;
 
         float c_x_0 = x_1 - x_s;
         float c_x_1 = x_s - x_0;
@@ -2147,7 +2203,8 @@ __global__ void stretch_weights_kernel(const float* src_weight_gpu,
       else if (stage_id == 3)
         scale = 1.3;
 
-      if (reverse) scale = 1 / scale;
+      if (reverse)
+        scale = 1 / scale;
 
       const int x_c = kernel_size / 2;
       const int y_c = kernel_size / 2;
@@ -2166,10 +2223,12 @@ __global__ void stretch_weights_kernel(const float* src_weight_gpu,
 
           int x_0 = floor(x_s);  // round down
           int x_1 = ceil(x_s);   // round up
-          if (x_0 == x_1) x_1 = x_0 + 1;
+          if (x_0 == x_1)
+            x_1 = x_0 + 1;
           int y_0 = floor(y_s);
           int y_1 = ceil(y_s);
-          if (y_0 == y_1) y_1 = y_0 + 1;
+          if (y_0 == y_1)
+            y_1 = y_0 + 1;
 
           float c_x_0 = x_1 - x_s;
           float c_x_1 = x_s - x_0;
@@ -2262,8 +2321,10 @@ __global__ void sway_and_flip_weights_kernel(const float* src_weight_gpu,
     else if (stage_id == 1 || stage_id == 2)
     {
       // rotate left or right
-      if (stage_id == 2) angle = -angle;
-      if (reverse) angle = -angle;
+      if (stage_id == 2)
+        angle = -angle;
+      if (reverse)
+        angle = -angle;
 
       const float cos_a = cosf(angle * 3.14159265 / 180);
       const float sin_a = sinf(angle * 3.14159265 / 180);
@@ -2284,10 +2345,12 @@ __global__ void sway_and_flip_weights_kernel(const float* src_weight_gpu,
 
           int x_0 = floor(x_s);  // round down
           int x_1 = ceil(x_s);   // round up
-          if (x_0 == x_1) x_1 = x_0 + 1;
+          if (x_0 == x_1)
+            x_1 = x_0 + 1;
           int y_0 = floor(y_s);
           int y_1 = ceil(y_s);
-          if (y_0 == y_1) y_1 = y_0 + 1;
+          if (y_0 == y_1)
+            y_1 = y_0 + 1;
 
           float c_x_0 = x_1 - x_s;
           float c_x_1 = x_s - x_0;
@@ -2498,7 +2561,8 @@ __global__ void stretch_sway_flip_weights_kernel(const float* src_weight_gpu,
       else if (stage_id == 4)
         scale = 1.4;
 
-      if (reverse) scale = 1 / scale;
+      if (reverse)
+        scale = 1 / scale;
 
       const int x_c = kernel_size / 2;
       const int y_c = kernel_size / 2;
@@ -2517,10 +2581,12 @@ __global__ void stretch_sway_flip_weights_kernel(const float* src_weight_gpu,
 
           int x_0 = floor(x_s);  // round down
           int x_1 = ceil(x_s);   // round up
-          if (x_0 == x_1) x_1 = x_0 + 1;
+          if (x_0 == x_1)
+            x_1 = x_0 + 1;
           int y_0 = floor(y_s);
           int y_1 = ceil(y_s);
-          if (y_0 == y_1) y_1 = y_0 + 1;
+          if (y_0 == y_1)
+            y_1 = y_0 + 1;
 
           float c_x_0 = x_1 - x_s;
           float c_x_1 = x_s - x_0;
@@ -2567,8 +2633,10 @@ __global__ void stretch_sway_flip_weights_kernel(const float* src_weight_gpu,
     else if (stage_id == 5 || stage_id == 6)
     {
       // rotate left or right
-      if (stage_id == 6) angle = -angle;
-      if (reverse) angle = -angle;
+      if (stage_id == 6)
+        angle = -angle;
+      if (reverse)
+        angle = -angle;
 
       const float cos_a = cosf(angle * 3.14159265 / 180);
       const float sin_a = sinf(angle * 3.14159265 / 180);
@@ -2589,10 +2657,12 @@ __global__ void stretch_sway_flip_weights_kernel(const float* src_weight_gpu,
 
           int x_0 = floor(x_s);  // round down
           int x_1 = ceil(x_s);   // round up
-          if (x_0 == x_1) x_1 = x_0 + 1;
+          if (x_0 == x_1)
+            x_1 = x_0 + 1;
           int y_0 = floor(y_s);
           int y_1 = ceil(y_s);
-          if (y_0 == y_1) y_1 = y_0 + 1;
+          if (y_0 == y_1)
+            y_1 = y_0 + 1;
 
           float c_x_0 = x_1 - x_s;
           float c_x_1 = x_s - x_0;

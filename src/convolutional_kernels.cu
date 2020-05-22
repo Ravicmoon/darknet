@@ -15,7 +15,8 @@
 __global__ void binarize_kernel(float* x, int n, float* binary)
 {
   int i = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (i >= n) return;
+  if (i >= n)
+    return;
   binary[i] = (x[i] >= 0) ? 1 : -1;
 }
 
@@ -30,7 +31,8 @@ __global__ void binarize_input_kernel(
     float* input, int n, int size, float* binary)
 {
   int s = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (s >= size) return;
+  if (s >= size)
+    return;
   int i = 0;
   float mean = 0;
   for (i = 0; i < n; ++i)
@@ -55,7 +57,8 @@ __global__ void binarize_weights_kernel(
     float* weights, int n, int size, float* binary)
 {
   int f = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (f >= n) return;
+  if (f >= n)
+    return;
   int i = 0;
   float mean = 0;
   for (i = 0; i < size; ++i)
@@ -80,7 +83,8 @@ void binarize_weights_gpu(float* weights, int n, int size, float* binary)
 __global__ void set_zero_kernel(float* src, int size)
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < size) src[i] = 0;
+  if (i < size)
+    src[i] = 0;
 }
 
 __inline__ __device__ float warpAllReduceSum(float val)
@@ -100,9 +104,11 @@ __global__ void reduce_kernel(
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   int f = i / size;
-  if (f >= n) return;
+  if (f >= n)
+    return;
   float warp_mean = warpAllReduceSum(fabs(weights[i]));
-  if (i % 32 == 0) atomicAdd(&mean_arr_gpu[f], warp_mean / size);
+  if (i % 32 == 0)
+    atomicAdd(&mean_arr_gpu[f], warp_mean / size);
 }
 
 __global__ void binarize_weights_mean_kernel(
@@ -110,7 +116,8 @@ __global__ void binarize_weights_mean_kernel(
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   int f = i / size;
-  if (f >= n) return;
+  if (f >= n)
+    return;
   float mean = mean_arr_gpu[f];
   binary[i] = (weights[i] > 0) ? mean : -mean;
 }
@@ -141,7 +148,8 @@ void fast_binarize_weights_gpu(
 __global__ void cuda_f32_to_f16(float* input_f32, size_t size, half* output_f16)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < size) output_f16[idx] = __float2half(input_f32[idx]);
+  if (idx < size)
+    output_f16[idx] = __float2half(input_f32[idx]);
   // if (idx < size) output_f16[idx] = __float2half_rn(input_f32[idx]); // can't
   // be compiled on Linux without casting
   // __float2half_ru, __float2half_rd, __float2half_rz, __float2half_rn
@@ -159,7 +167,8 @@ void cuda_convert_f32_to_f16(float* input_f32, size_t size, float* output_f16)
 __global__ void cuda_f16_to_f32(half* input_f16, size_t size, float* output_f32)
 {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < size) output_f32[idx] = __half2float(input_f16[idx]);
+  if (idx < size)
+    output_f32[idx] = __half2float(input_f16[idx]);
   // if (idx < size) output_f32[idx] = __half2float(*((unsigned short
   // *)input_f16 + idx));
 }
@@ -181,7 +190,8 @@ half* cuda_make_f16_from_f32_array(float* src, size_t n)
     assert(n > 0);
     cuda_convert_f32_to_f16(src, n, (float*)dst16);
   }
-  if (!dst16) error("Cuda malloc failed\n");
+  if (!dst16)
+    error("Cuda malloc failed\n");
   return dst16;
 }
 
@@ -519,7 +529,8 @@ void forward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
     if (*state.net->max_input16_size < input16_size)
     {
       *state.net->max_input16_size = input16_size;
-      if (*state.net->input16_gpu) cuda_free(*state.net->input16_gpu);
+      if (*state.net->input16_gpu)
+        cuda_free(*state.net->input16_gpu);
       assert(*state.net->max_input16_size > 0);
       *state.net->input16_gpu = (float*)cuda_make_f16_from_f32_array(
           NULL, *state.net->max_input16_size);
@@ -529,7 +540,8 @@ void forward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
     if (*state.net->max_output16_size < output16_size)
     {
       *state.net->max_output16_size = output16_size;
-      if (*state.net->output16_gpu) cuda_free(*state.net->output16_gpu);
+      if (*state.net->output16_gpu)
+        cuda_free(*state.net->output16_gpu);
       assert(*state.net->max_output16_size > 0);
       *state.net->output16_gpu = (float*)cuda_make_f16_from_f32_array(
           NULL, *state.net->max_output16_size);
@@ -699,7 +711,8 @@ void forward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
   else if (l.activation != LINEAR)
     activate_array_ongpu(l.output_gpu, l.outputs * l.batch, l.activation);
   // if(l.dot > 0) dot_error_gpu(l);
-  if (l.binary || l.xnor) swap_binary(&l);
+  if (l.binary || l.xnor)
+    swap_binary(&l);
   // cudaDeviceSynchronize();    // for correct profiling of performance
 
   if (state.net->try_fix_nan)
@@ -782,7 +795,8 @@ void backward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
   //#endif // no CUDNN_HALF
   float* original_input = state.input;
 
-  if (l.xnor) state.input = l.binary_input_gpu;
+  if (l.xnor)
+    state.input = l.binary_input_gpu;
 #ifdef CUDNN
   float one = 1.f;
   float alpha = 1, beta = 0;
@@ -800,7 +814,8 @@ void backward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
     if (*state.net->max_input16_size < input16_size)
     {
       *state.net->max_input16_size = input16_size;
-      if (*state.net->input16_gpu) cuda_free(*state.net->input16_gpu);
+      if (*state.net->input16_gpu)
+        cuda_free(*state.net->input16_gpu);
       assert(*state.net->max_input16_size > 0);
       *state.net->input16_gpu = (float*)cuda_make_f16_from_f32_array(
           NULL, *state.net->max_input16_size);
@@ -810,7 +825,8 @@ void backward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
     if (*state.net->max_output16_size < delta16_size)
     {
       *state.net->max_output16_size = delta16_size;
-      if (*state.net->output16_gpu) cuda_free(*state.net->output16_gpu);
+      if (*state.net->output16_gpu)
+        cuda_free(*state.net->output16_gpu);
       assert(*state.net->max_output16_size > 0);
       *state.net->output16_gpu = (float*)cuda_make_f16_from_f32_array(
           NULL, *state.net->max_output16_size);
@@ -886,7 +902,8 @@ void backward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
 
     if (state.delta)
     {
-      if (l.binary || l.xnor) swap_binary(&l);
+      if (l.binary || l.xnor)
+        swap_binary(&l);
 
       // http://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnConvolutionBackwardData
       // calculate delta for the next layer
@@ -904,7 +921,8 @@ void backward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
 
       cuda_convert_f16_to_f32(input16, input16_size, state.delta);
 
-      if (l.binary || l.xnor) swap_binary(&l);
+      if (l.binary || l.xnor)
+        swap_binary(&l);
       if (l.xnor)
         gradient_array_ongpu(
             original_input, l.batch * l.c * l.h * l.w, HARDTAN, state.delta);
@@ -931,7 +949,8 @@ void backward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
 
     if (state.delta)
     {
-      if (l.binary || l.xnor) swap_binary(&l);
+      if (l.binary || l.xnor)
+        swap_binary(&l);
       // http://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnConvolutionBackwardData
       // calculate delta for the next layer
       CHECK_CUDNN(cudnnConvolutionBackwardData(cudnn_handle(), &one,
@@ -939,7 +958,8 @@ void backward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
           l.convDesc, l.bd_algo, state.workspace, l.workspace_size, &one,
           l.dsrcTensorDesc, state.delta));
 
-      if (l.binary || l.xnor) swap_binary(&l);
+      if (l.binary || l.xnor)
+        swap_binary(&l);
       if (l.xnor)
         gradient_array_ongpu(
             original_input, l.batch * l.c * l.h * l.w, HARDTAN, state.delta);
@@ -987,7 +1007,8 @@ void backward_convolutional_layer_gpu(convolutional_layer l, NetworkState state)
 
       if (state.delta)
       {
-        if (l.binary || l.xnor) swap_binary(&l);
+        if (l.binary || l.xnor)
+          swap_binary(&l);
         float* a = l.weights_gpu + j * l.nweights / l.groups;
         float* b = l.delta_gpu + (i * l.groups + j) * m * k;
         float* c = state.workspace;
@@ -1100,7 +1121,8 @@ __global__ void assisted_activation2_kernel(float alpha, float* output,
   {
     for (int c = 0; c < channels; ++c)
     {
-      if (gt_gpu[i] == 0) output[xy + size * (c + channels * b)] *= beta;
+      if (gt_gpu[i] == 0)
+        output[xy + size * (c + channels * b)] *= beta;
     }
   }
 }
@@ -1131,7 +1153,8 @@ void assisted_excitation_forward_gpu(convolutional_layer l, NetworkState state)
 
   if (l.assisted_excitation == 1)
   {
-    if (iteration_num > state.net->max_batches / 2) return;
+    if (iteration_num > state.net->max_batches / 2)
+      return;
   }
   else
   {
@@ -1175,7 +1198,8 @@ void assisted_excitation_forward_gpu(convolutional_layer l, NetworkState state)
     {
       box truth =
           float_to_box_stride(truth_cpu + t * (4 + 1) + b * l.truths, 1);
-      if (!truth.x) break;  // continue;
+      if (!truth.x)
+        break;  // continue;
       float beta = 0;
       // float beta = 1 - alpha; // from 0 to 1
       float dw = (1 - truth.w) * beta;
@@ -1187,10 +1211,14 @@ void assisted_excitation_forward_gpu(convolutional_layer l, NetworkState state)
       int right = ceil((truth.x + (dw + truth.w) / 2) * l.out_w);
       int top = floor((truth.y - (dh + truth.h) / 2) * l.out_h);
       int bottom = ceil((truth.y + (dh + truth.h) / 2) * l.out_h);
-      if (left < 0) left = 0;
-      if (top < 0) top = 0;
-      if (right > l.out_w) right = l.out_w;
-      if (bottom > l.out_h) bottom = l.out_h;
+      if (left < 0)
+        left = 0;
+      if (top < 0)
+        top = 0;
+      if (right > l.out_w)
+        right = l.out_w;
+      if (bottom > l.out_h)
+        bottom = l.out_h;
 
       for (w = left; w <= right; w++)
       {

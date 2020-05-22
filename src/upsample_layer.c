@@ -6,7 +6,6 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-
 layer make_upsample_layer(int batch, int w, int h, int c, int stride)
 {
   layer l = {(LAYER_TYPE)0};

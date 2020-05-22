@@ -108,7 +108,8 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
           l.type, took_time, avg_time_per_layer[i].time);
     }
 
-    if (net->wait_stream) cudaStreamSynchronize(get_cuda_stream());
+    if (net->wait_stream)
+      cudaStreamSynchronize(get_cuda_stream());
     state.input = l.output_gpu;
   }
 
@@ -152,8 +153,10 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
   {
     state.index = i;
     layer l = net->layers[i];
-    if (l.stopbackward == 1) break;
-    if (l.stopbackward > GetCurrentIteration(net)) break;
+    if (l.stopbackward == 1)
+      break;
+    if (l.stopbackward > GetCurrentIteration(net))
+      break;
     if (i == 0)
     {
       state.input = original_input;
@@ -169,7 +172,8 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
         state.delta = net->state_delta_gpu;
       }
     }
-    if (l.onlyforward) continue;
+    if (l.onlyforward)
+      continue;
 
     if (net->benchmark_layers)
     {
@@ -267,10 +271,12 @@ void UpdateNetworkGpu(Network* net)
   {
     layer l = net->layers[i];
     l.t = GetCurrentBatch(net);
-    if (iteration_num > (net->max_batches * 1 / 2)) l.deform = 0;
+    if (iteration_num > (net->max_batches * 1 / 2))
+      l.deform = 0;
     if (l.burnin_update && (l.burnin_update * net->burn_in > iteration_num))
       continue;
-    if (l.train_only_bn) continue;
+    if (l.train_only_bn)
+      continue;
 
     if (l.update_gpu && l.dont_update < iteration_num)
     {
@@ -509,7 +515,8 @@ void pull_weights(layer l)
   {
     cuda_pull_array(l.biases_gpu, l.biases, l.n);
     cuda_pull_array(l.weights_gpu, l.weights, l.nweights);
-    if (l.scales) cuda_pull_array(l.scales_gpu, l.scales, l.n);
+    if (l.scales)
+      cuda_pull_array(l.scales_gpu, l.scales, l.n);
   }
   else if (l.type == CONNECTED)
   {
@@ -524,7 +531,8 @@ void push_weights(layer l)
   {
     cuda_push_array(l.biases_gpu, l.biases, l.n);
     cuda_push_array(l.weights_gpu, l.weights, l.nweights);
-    if (l.scales) cuda_push_array(l.scales_gpu, l.scales, l.n);
+    if (l.scales)
+      cuda_push_array(l.scales_gpu, l.scales, l.n);
   }
   else if (l.type == CONNECTED)
   {
@@ -539,7 +547,8 @@ void distribute_weights(layer l, layer base)
   {
     cuda_push_array(l.biases_gpu, base.biases, l.n);
     cuda_push_array(l.weights_gpu, base.weights, l.nweights);
-    if (base.scales) cuda_push_array(l.scales_gpu, base.scales, l.n);
+    if (base.scales)
+      cuda_push_array(l.scales_gpu, base.scales, l.n);
   }
   else if (l.type == CONNECTED)
   {
@@ -716,7 +725,8 @@ float* GetNetworkOutputGpu(Network* net)
   int i;
   for (i = net->n - 1; i > 0; --i)
   {
-    if (net->layers[i].type != COST) break;
+    if (net->layers[i].type != COST)
+      break;
   }
 
   return GetNetworkOutputLayerGpu(net, i);
@@ -724,7 +734,8 @@ float* GetNetworkOutputGpu(Network* net)
 
 float* NetworkPredictGpu(Network* net, float* input)
 {
-  if (net->gpu_index != cuda_get_device()) cuda_set_device(net->gpu_index);
+  if (net->gpu_index != cuda_get_device())
+    cuda_set_device(net->gpu_index);
   int size = GetNetworkInputSize(net) * net->batch;
 
   NetworkState state;

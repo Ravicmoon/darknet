@@ -53,7 +53,8 @@ void scale_matrix(matrix m, float scale)
 matrix resize_matrix(matrix m, int size)
 {
   int i;
-  if (m.rows == size) return m;
+  if (m.rows == size)
+    return m;
   if (m.rows < size)
   {
     m.vals = (float**)xrealloc(m.vals, size * sizeof(float*));
@@ -136,7 +137,8 @@ float* pop_column(matrix* m, int c)
 matrix csv_to_matrix(char* filename)
 {
   FILE* fp = fopen(filename, "r");
-  if (!fp) FileError(filename);
+  if (!fp)
+    FileError(filename);
 
   matrix m;
   m.cols = -1;
@@ -148,7 +150,8 @@ matrix csv_to_matrix(char* filename)
   m.vals = (float**)xcalloc(size, sizeof(float*));
   while ((line = fgetl(fp)))
   {
-    if (m.cols == -1) m.cols = count_fields(line);
+    if (m.cols == -1)
+      m.cols = count_fields(line);
     if (n == size)
     {
       size *= 2;
@@ -171,7 +174,8 @@ void matrix_to_csv(matrix m)
   {
     for (j = 0; j < m.cols; ++j)
     {
-      if (j > 0) printf(",");
+      if (j > 0)
+        printf(",");
       printf("%.17g", m.vals[i][j]);
     }
     printf("\n");
@@ -240,7 +244,8 @@ int kmeans_expectation(matrix data, int* assignments, matrix centers)
   for (i = 0; i < data.rows; ++i)
   {
     int closest = closest_center(data.vals[i], centers);
-    if (closest != assignments[i]) converged = 0;
+    if (closest != assignments[i])
+      converged = 0;
     assignments[i] = closest;
   }
   return converged;
@@ -283,7 +288,8 @@ void kmeans_maximization(matrix data, int* assignments, matrix centers)
   {
     for (j = 0; j < centers.cols; ++j)
     {
-      if (centers.vals[i][j] == 0) centers.vals[i][j] = old_centers.vals[i][j];
+      if (centers.vals[i][j] == 0)
+        centers.vals[i][j] = old_centers.vals[i][j];
     }
   }
   free(counts);
@@ -355,7 +361,8 @@ model do_kmeans(matrix data, int k)
   */
 
   // range centers [min - max] using exp graph or Pyth example
-  if (k == 1) kmeans_maximization(data, assignments, centers);
+  if (k == 1)
+    kmeans_maximization(data, assignments, centers);
   int i;
   for (i = 0; i < 1000 && !kmeans_expectation(data, assignments, centers); ++i)
   {

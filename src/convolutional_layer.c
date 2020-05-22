@@ -122,15 +122,18 @@ size_t get_workspace_size32(layer l)
     CHECK_CUDNN(
         cudnnGetConvolutionForwardWorkspaceSize(cudnn_handle(), l.srcTensorDesc,
             l.weightDesc, l.convDesc, l.dstTensorDesc, l.fw_algo, &s));
-    if (s > most) most = s;
+    if (s > most)
+      most = s;
     CHECK_CUDNN(cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnn_handle(),
         l.srcTensorDesc, l.ddstTensorDesc, l.convDesc, l.dweightDesc, l.bf_algo,
         &s));
-    if (s > most && l.train) most = s;
+    if (s > most && l.train)
+      most = s;
     CHECK_CUDNN(cudnnGetConvolutionBackwardDataWorkspaceSize(cudnn_handle(),
         l.weightDesc, l.ddstTensorDesc, l.convDesc, l.dsrcTensorDesc, l.bd_algo,
         &s));
-    if (s > most && l.train) most = s;
+    if (s > most && l.train)
+      most = s;
     return most;
   }
 #endif
@@ -157,15 +160,18 @@ size_t get_workspace_size16(layer l)
     CHECK_CUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnn_handle(),
         l.srcTensorDesc16, l.weightDesc16, l.convDesc, l.dstTensorDesc16,
         l.fw_algo16, &s));
-    if (s > most) most = s;
+    if (s > most)
+      most = s;
     CHECK_CUDNN(cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnn_handle(),
         l.srcTensorDesc16, l.ddstTensorDesc16, l.convDesc, l.dweightDesc16,
         l.bf_algo16, &s));
-    if (s > most && l.train) most = s;
+    if (s > most && l.train)
+      most = s;
     CHECK_CUDNN(cudnnGetConvolutionBackwardDataWorkspaceSize(cudnn_handle(),
         l.weightDesc16, l.ddstTensorDesc16, l.convDesc, l.dsrcTensorDesc16,
         l.bd_algo16, &s));
-    if (s > most && l.train) most = s;
+    if (s > most && l.train)
+      most = s;
     return most;
   }
 #endif
@@ -178,7 +184,8 @@ size_t get_convolutional_workspace_size(layer l)
 {
   size_t workspace_size = get_workspace_size32(l);
   size_t workspace_size16 = get_workspace_size16(l);
-  if (workspace_size16 > workspace_size) workspace_size = workspace_size16;
+  if (workspace_size16 > workspace_size)
+    workspace_size = workspace_size16;
   return workspace_size;
 }
 #ifdef GPU
@@ -229,9 +236,12 @@ void cudnn_convolutional_setup(
   // 3. FP32 Master Copy of Weights
   // More:
   // http://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#tensor_ops
-  if (l->groups < 1) l->groups = 1;
-  if (l->stride_x < 1) l->stride_x = 1;
-  if (l->stride_y < 1) l->stride_y = 1;
+  if (l->groups < 1)
+    l->groups = 1;
+  if (l->stride_x < 1)
+    l->stride_x = 1;
+  if (l->stride_y < 1)
+    l->stride_y = 1;
   CHECK_CUDNN(cudnnSetConvolutionGroupCount(l->convDesc, l->groups));
   CHECK_CUDNN(cudnnSetConvolutionMathType(l->convDesc, CUDNN_TENSOR_OP_MATH));
 #if ((CUDNN_MAJOR * 10 + CUDNN_MINOR) >= 72)  // cuDNN >= 7.2
@@ -362,24 +372,36 @@ void free_convolutional_batchnorm(convolutional_layer* l)
 {
   if (!l->share_layer)
   {
-    if (l->scales) free(l->scales), l->scales = NULL;
-    if (l->scale_updates) free(l->scale_updates), l->scale_updates = NULL;
-    if (l->mean) free(l->mean), l->mean = NULL;
-    if (l->variance) free(l->variance), l->variance = NULL;
-    if (l->mean_delta) free(l->mean_delta), l->mean_delta = NULL;
-    if (l->variance_delta) free(l->variance_delta), l->variance_delta = NULL;
-    if (l->rolling_mean) free(l->rolling_mean), l->rolling_mean = NULL;
+    if (l->scales)
+      free(l->scales), l->scales = NULL;
+    if (l->scale_updates)
+      free(l->scale_updates), l->scale_updates = NULL;
+    if (l->mean)
+      free(l->mean), l->mean = NULL;
+    if (l->variance)
+      free(l->variance), l->variance = NULL;
+    if (l->mean_delta)
+      free(l->mean_delta), l->mean_delta = NULL;
+    if (l->variance_delta)
+      free(l->variance_delta), l->variance_delta = NULL;
+    if (l->rolling_mean)
+      free(l->rolling_mean), l->rolling_mean = NULL;
     if (l->rolling_variance)
       free(l->rolling_variance), l->rolling_variance = NULL;
-    if (l->x) free(l->x), l->x = NULL;
-    if (l->x_norm) free(l->x_norm), l->x_norm = NULL;
+    if (l->x)
+      free(l->x), l->x = NULL;
+    if (l->x_norm)
+      free(l->x_norm), l->x_norm = NULL;
 
 #ifdef GPU
-    if (l->scales_gpu) cuda_free(l->scales_gpu), l->scales_gpu = NULL;
+    if (l->scales_gpu)
+      cuda_free(l->scales_gpu), l->scales_gpu = NULL;
     if (l->scale_updates_gpu)
       cuda_free(l->scale_updates_gpu), l->scale_updates_gpu = NULL;
-    if (l->mean_gpu) cuda_free(l->mean_gpu), l->mean_gpu = NULL;
-    if (l->variance_gpu) cuda_free(l->variance_gpu), l->variance_gpu = NULL;
+    if (l->mean_gpu)
+      cuda_free(l->mean_gpu), l->mean_gpu = NULL;
+    if (l->variance_gpu)
+      cuda_free(l->variance_gpu), l->variance_gpu = NULL;
     if (l->mean_delta_gpu)
       cuda_free(l->mean_delta_gpu), l->mean_delta_gpu = NULL;
     if (l->variance_delta_gpu)
@@ -388,8 +410,10 @@ void free_convolutional_batchnorm(convolutional_layer* l)
       cuda_free(l->rolling_mean_gpu), l->rolling_mean_gpu = NULL;
     if (l->rolling_variance_gpu)
       cuda_free(l->rolling_variance_gpu), l->rolling_variance_gpu = NULL;
-    if (l->x_gpu) cuda_free(l->x_gpu), l->x_gpu = NULL;
-    if (l->x_norm_gpu) cuda_free(l->x_norm_gpu), l->x_norm_gpu = NULL;
+    if (l->x_gpu)
+      cuda_free(l->x_gpu), l->x_gpu = NULL;
+    if (l->x_norm_gpu)
+      cuda_free(l->x_norm_gpu), l->x_norm_gpu = NULL;
 #endif
   }
 }
@@ -407,8 +431,10 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
   l.type = CONVOLUTIONAL;
   l.train = train;
 
-  if (xnor) groups = 1;  // disable groups for XNOR-net
-  if (groups < 1) groups = 1;
+  if (xnor)
+    groups = 1;  // disable groups for XNOR-net
+  if (groups < 1)
+    groups = 1;
 
   const int blur_stride_x = stride_x;
   const int blur_stride_y = stride_y;
@@ -496,7 +522,8 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 
   l.output = (float*)xcalloc(total_batch * l.outputs, sizeof(float));
 #ifndef GPU
-  if (train) l.delta = (float*)xcalloc(total_batch * l.outputs, sizeof(float));
+  if (train)
+    l.delta = (float*)xcalloc(total_batch * l.outputs, sizeof(float));
 #endif  // not GPU
 
   l.forward = forward_convolutional_layer;
@@ -604,7 +631,8 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
           cuda_make_array(l.activation_input, total_batch * l.outputs);
     }
 
-    if (l.deform) l.weight_deform_gpu = cuda_make_array(NULL, l.nweights);
+    if (l.deform)
+      l.weight_deform_gpu = cuda_make_array(NULL, l.nweights);
 
     if (adam)
     {
@@ -635,7 +663,8 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
         l.weight_updates_gpu16 = cuda_make_array(NULL, l.nweights / 2 + 1);
 #endif  // CUDNN_HALF
       l.biases_gpu = cuda_make_array(l.biases, n);
-      if (train) l.bias_updates_gpu = cuda_make_array(l.bias_updates, n);
+      if (train)
+        l.bias_updates_gpu = cuda_make_array(l.bias_updates, n);
     }
 
     l.output_gpu = cuda_make_array(l.output, total_batch * out_h * out_w * n);
@@ -715,7 +744,8 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
   // fprintf(stderr, "conv  %5d %2d x%2d /%2d  %4d x%4d x%4d   ->  %4d x%4d
   // x%4d\n", n, size, size, stride, w, h, c, l.out_w, l.out_h, l.out_c);
   l.bflops = (2.0 * l.nweights * l.out_h * l.out_w) / 1000000000.;
-  if (l.xnor) l.bflops = l.bflops / 32;
+  if (l.xnor)
+    l.bflops = l.bflops / 32;
   if (l.xnor && l.use_bin_output)
     fprintf(stderr, "convXB");
   else if (l.xnor)
@@ -1052,7 +1082,8 @@ void bit_to_float(unsigned char* src, float* dst, size_t size, size_t filters,
   for (i = 0; i < size; ++i)
   {
     float mean_val = 1;
-    if (mean_arr != NULL) mean_val = fabs(mean_arr[i / (size / filters)]);
+    if (mean_arr != NULL)
+      mean_val = fabs(mean_arr[i / (size / filters)]);
     if (get_bit(src, i))
       dst[i] = mean_val;
     else
@@ -1452,7 +1483,8 @@ void forward_convolutional_layer(convolutional_layer l, NetworkState state)
   else
     activate_array_cpu_custom(l.output, l.outputs * l.batch, l.activation);
 
-  if (l.binary || l.xnor) swap_binary(&l);
+  if (l.binary || l.xnor)
+    swap_binary(&l);
 
   // visualize_convolutional_layer(l, "conv_visual", NULL);
   // wait_until_press_key_cv();
@@ -1519,7 +1551,8 @@ void assisted_excitation_forward(convolutional_layer l, NetworkState state)
     {
       box truth =
           float_to_box_stride(state.truth + t * (4 + 1) + b * l.truths, 1);
-      if (!truth.x) break;  // continue;
+      if (!truth.x)
+        break;  // continue;
 
       int left = floor((truth.x - truth.w / 2) * l.out_w);
       int right = ceil((truth.x + truth.w / 2) * l.out_w);

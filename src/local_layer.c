@@ -9,7 +9,6 @@
 #include "im2col.h"
 #include "utils.h"
 
-
 int local_out_height(local_layer l)
 {
   int h = l.h;

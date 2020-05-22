@@ -50,13 +50,16 @@ __global__ void dropblock_fast_kernel(float* rand, float prob, int w, int h,
     }
   }
   __syncthreads();
-  if (index_block == -1) return;
+  if (index_block == -1)
+    return;
 
   int b_x = index_block % w;
   int b_y = index_block / w;
 
-  if (b_x > (w - block_size)) b_x = b_x - (w - block_size);
-  if (b_y > (h - block_size)) b_y = b_y - (h - block_size);
+  if (b_x > (w - block_size))
+    b_x = b_x - (w - block_size);
+  if (b_y > (h - block_size))
+    b_y = b_y - (h - block_size);
 
   b_x = max(0, min(b_x, w - block_size));
   b_y = max(0, min(b_y, h - block_size));
@@ -93,7 +96,8 @@ __global__ void set_scales_dropblock_kernel(float* drop_blocks_scale,
     int block_size_w, int block_size_h, int outputs, int batch)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= batch) return;
+  if (index >= batch)
+    return;
 
   // printf(" drop_blocks_scale[index] = %f \n", drop_blocks_scale[index]);
   const float prob = drop_blocks_scale[index] / (float)outputs;
@@ -105,7 +109,8 @@ __global__ void scale_dropblock_kernel(
     float* output, int size, int outputs, float* drop_blocks_scale)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= size) return;
+  if (index >= size)
+    return;
 
   const int b = index / outputs;
   output[index] *= drop_blocks_scale[b];
@@ -114,21 +119,25 @@ __global__ void scale_dropblock_kernel(
 __global__ void backward_dropblock_kernel(float* pass, float* delta, int size)
 {
   const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index >= size) return;
+  if (index >= size)
+    return;
 
-  if (pass[index] == 0) delta[index] = 0;
+  if (pass[index] == 0)
+    delta[index] = 0;
 }
 
 __global__ void yoloswag420blazeit360noscope(
     float* input, int size, float* rand, float prob, float scale)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id < size) input[id] = (rand[id] < prob) ? 0 : input[id] * scale;
+  if (id < size)
+    input[id] = (rand[id] < prob) ? 0 : input[id] * scale;
 }
 
 void forward_dropout_layer_gpu(dropout_layer l, NetworkState state)
 {
-  if (!state.train) return;
+  if (!state.train)
+    return;
   int iteration_num = GetCurrentIteration(state.net);
 
   // We gradually increase the block size and the probability of dropout -
@@ -199,7 +208,8 @@ void forward_dropout_layer_gpu(dropout_layer l, NetworkState state)
 
 void backward_dropout_layer_gpu(dropout_layer l, NetworkState state)
 {
-  if (!state.delta) return;
+  if (!state.delta)
+    return;
   // int iteration_num = get_current_iteration(state.net); //(*state.net.seen) /
   // (state.net.batch*state.net.subdivisions); if (iteration_num <
   // state.net.burn_in) return;

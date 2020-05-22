@@ -11,7 +11,8 @@ __global__ void forward_maxpool_depth_layer_kernel(int n, int w, int h, int c,
     int out_c, int batch, float* input, float* output, int* indexes)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= n) return;
+  if (id >= n)
+    return;
 
   int j = id % w;
   id = id / w;
@@ -37,7 +38,8 @@ __global__ void forward_maxpool_depth_layer_kernel(int n, int w, int h, int c,
       max = (val > max) ? val : max;
     }
     output[out_index] = max;
-    if (indexes) indexes[out_index] = max_i;
+    if (indexes)
+      indexes[out_index] = max_i;
   }
 }
 
@@ -45,7 +47,8 @@ __global__ void backward_maxpool_depth_layer_kernel(int n, int w, int h, int c,
     int batch, float* delta, float* prev_delta, int* indexes)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= n) return;
+  if (id >= n)
+    return;
 
   int index = indexes[id];
   prev_delta[index] += delta[id];
@@ -60,7 +63,8 @@ __global__ void forward_maxpool_layer_kernel(int n, int in_h, int in_w,
   int c = in_c;
 
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= n) return;
+  if (id >= n)
+    return;
 
   int j = id % w;
   id /= w;
@@ -91,7 +95,8 @@ __global__ void forward_maxpool_layer_kernel(int n, int in_h, int in_w,
     }
   }
   output[out_index] = max;
-  if (indexes) indexes[out_index] = max_i;
+  if (indexes)
+    indexes[out_index] = max_i;
 }
 
 __global__ void backward_maxpool_layer_kernel(int n, int in_h, int in_w,
@@ -105,7 +110,8 @@ __global__ void backward_maxpool_layer_kernel(int n, int in_h, int in_w,
   int area_y = (size - 1) / stride_y;
 
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= n) return;
+  if (id >= n)
+    return;
 
   int index = id;
   int j = id % in_w;
@@ -257,7 +263,8 @@ __global__ void forward_local_avgpool_layer_kernel(int n, int in_h, int in_w,
   int c = in_c;
 
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= n) return;
+  if (id >= n)
+    return;
 
   int j = id % w;
   id /= w;
@@ -304,7 +311,8 @@ __global__ void backward_local_avgpool_layer_kernel(int n, int in_h, int in_w,
   int area_y = (size - 1) / stride_y;
 
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= n) return;
+  if (id >= n)
+    return;
 
   int index = id;
   int j = id % in_w;
@@ -336,7 +344,8 @@ __global__ void backward_local_avgpool_layer_kernel(int n, int in_h, int in_w,
       }
     }
   }
-  if (counter > 0) prev_delta[index] += d / counter;
+  if (counter > 0)
+    prev_delta[index] += d / counter;
 }
 
 extern "C" void forward_local_avgpool_layer_gpu(

@@ -7,11 +7,11 @@
 #include "image.h"
 #include "utils.h"
 
-
 __device__ float get_pixel_kernel(
     float* image, int w, int h, int x, int y, int c)
 {
-  if (x < 0 || x >= w || y < 0 || y >= h) return 0;
+  if (x < 0 || x >= w || y < 0 || y >= h)
+    return 0;
   return image[x + w * (y + c * h)];
 }
 
@@ -46,7 +46,8 @@ __device__ float3 rgb_to_hsv_kernel(float3 rgb)
     {
       h = 4 + (r - g) / delta;
     }
-    if (h < 0) h += 6;
+    if (h < 0)
+      h += 6;
   }
   return make_float3(h, s, v);
 }
@@ -136,7 +137,8 @@ __global__ void levels_image_kernel(float* image, float* rand, int batch, int w,
 {
   int size = batch * w * h;
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= size) return;
+  if (id >= size)
+    return;
   int x = id % w;
   id /= w;
   int y = id % h;
@@ -184,7 +186,8 @@ __global__ void forward_crop_layer_kernel(float* input, float* rand, int size,
     float angle, float* output)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= size) return;
+  if (id >= size)
+    return;
 
   float cx = w / 2.;
   float cy = h / 2.;

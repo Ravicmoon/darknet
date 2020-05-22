@@ -136,7 +136,8 @@ extern "C" mat_cv* load_image_mat_cv(const char* filename, int flag)
   {
     cerr << "OpenCV exception: load_image_mat_cv \n";
   }
-  if (mat_ptr) delete mat_ptr;
+  if (mat_ptr)
+    delete mat_ptr;
   return NULL;
 }
 // ----------------------------------------
@@ -233,7 +234,8 @@ extern "C" void release_mat(mat_cv** mat)
   try
   {
     cv::Mat** mat_ptr = (cv::Mat**)mat;
-    if (*mat_ptr) delete *mat_ptr;
+    if (*mat_ptr)
+      delete *mat_ptr;
     *mat_ptr = NULL;
   }
   catch (...)
@@ -387,9 +389,11 @@ extern "C" void create_window_cv(
   {
     int window_type = cv::WINDOW_NORMAL;
 #ifdef CV_VERSION_EPOCH  // OpenCV 2.x
-    if (full_screen) window_type = CV_WINDOW_FULLSCREEN;
+    if (full_screen)
+      window_type = CV_WINDOW_FULLSCREEN;
 #else
-    if (full_screen) window_type = cv::WINDOW_FULLSCREEN;
+    if (full_screen)
+      window_type = cv::WINDOW_FULLSCREEN;
 #endif
     cv::namedWindow(window_name, window_type);
     cv::moveWindow(window_name, 0, 0);
@@ -450,7 +454,8 @@ extern "C" void make_window(char* name, int w, int h, int fullscreen)
     else
     {
       cv::resizeWindow(name, w, h);
-      if (strcmp(name, "Demo") == 0) cv::moveWindow(name, 0, 0);
+      if (strcmp(name, "Demo") == 0)
+        cv::moveWindow(name, 0, 0);
     }
   }
   catch (...)
@@ -506,7 +511,8 @@ extern "C" void show_image_mat(mat_cv* mat_ptr, const char* name)
 {
   try
   {
-    if (mat_ptr == NULL) return;
+    if (mat_ptr == NULL)
+      return;
     cv::Mat& mat = *(cv::Mat*)mat_ptr;
     cv::namedWindow(name, cv::WINDOW_NORMAL);
     cv::imshow(name, mat);
@@ -797,19 +803,23 @@ extern "C" Image get_image_from_stream_cpp(cap_cv* cap)
     once = 0;
     do
     {
-      if (src) delete src;
+      if (src)
+        delete src;
       src = (cv::Mat*)get_capture_frame_cv(cap);
-      if (!src) return make_empty_image(0, 0, 0);
+      if (!src)
+        return make_empty_image(0, 0, 0);
     } while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
     printf("Video stream: %d x %d \n", src->cols, src->rows);
   }
   else
     src = (cv::Mat*)get_capture_frame_cv(cap);
 
-  if (!src) return make_empty_image(0, 0, 0);
+  if (!src)
+    return make_empty_image(0, 0, 0);
   Image im = mat_to_image(*src);
   rgbgr_image(im);
-  if (src) delete src;
+  if (src)
+    delete src;
   return im;
 }
 // ----------------------------------------
@@ -857,22 +867,26 @@ extern "C" Image get_image_from_stream_resize(
     once = 0;
     do
     {
-      if (src) delete src;
+      if (src)
+        delete src;
       src = (cv::Mat*)get_capture_frame_cv(cap);
-      if (!src) return make_empty_image(0, 0, 0);
+      if (!src)
+        return make_empty_image(0, 0, 0);
     } while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
     printf("Video stream: %d x %d \n", src->cols, src->rows);
   }
   else
     src = (cv::Mat*)get_capture_frame_cv(cap);
 
-  if (!wait_for_stream(cap, src, dont_close)) return make_empty_image(0, 0, 0);
+  if (!wait_for_stream(cap, src, dont_close))
+    return make_empty_image(0, 0, 0);
 
   *(cv::Mat**)in_img = src;
 
   cv::Mat new_img = cv::Mat(h, w, CV_8UC(c));
   cv::resize(*src, new_img, new_img.size(), 0, 0, cv::INTER_LINEAR);
-  if (c > 1) cv::cvtColor(new_img, new_img, cv::COLOR_RGB2BGR);
+  if (c > 1)
+    cv::cvtColor(new_img, new_img, cv::COLOR_RGB2BGR);
   Image im = mat_to_image(new_img);
 
   // show_image_cv(im, "im");
@@ -892,9 +906,11 @@ extern "C" Image get_image_from_stream_letterbox(
     once = 0;
     do
     {
-      if (src) delete src;
+      if (src)
+        delete src;
       src = (cv::Mat*)get_capture_frame_cv(cap);
-      if (!src) return make_empty_image(0, 0, 0);
+      if (!src)
+        return make_empty_image(0, 0, 0);
     } while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
     printf("Video stream: %d x %d \n", src->cols, src->rows);
   }
@@ -909,7 +925,8 @@ extern "C" Image get_image_from_stream_letterbox(
   cv::resize(*src, **(cv::Mat**)in_img, (*(cv::Mat**)in_img)->size(), 0, 0,
       cv::INTER_LINEAR);
 
-  if (c > 1) cv::cvtColor(*src, *src, cv::COLOR_RGB2BGR);
+  if (c > 1)
+    cv::cvtColor(*src, *src, cv::COLOR_RGB2BGR);
   Image tmp = mat_to_image(*src);
   Image im = letterbox_image(tmp, w, h);
   free_image(tmp);
@@ -971,7 +988,8 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, Detection* dets, int num,
   {
     cv::Mat* show_img = (cv::Mat*)mat;
     int i, j;
-    if (!show_img) return;
+    if (!show_img)
+      return;
     static int frame_id = 0;
     frame_id++;
 
@@ -1023,10 +1041,14 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, Detection* dets, int num,
         rgb[1] = green;
         rgb[2] = blue;
         box b = dets[i].bbox;
-        if (std::isnan(b.w) || std::isinf(b.w)) b.w = 0.5;
-        if (std::isnan(b.h) || std::isinf(b.h)) b.h = 0.5;
-        if (std::isnan(b.x) || std::isinf(b.x)) b.x = 0.5;
-        if (std::isnan(b.y) || std::isinf(b.y)) b.y = 0.5;
+        if (std::isnan(b.w) || std::isinf(b.w))
+          b.w = 0.5;
+        if (std::isnan(b.h) || std::isinf(b.h))
+          b.h = 0.5;
+        if (std::isnan(b.x) || std::isinf(b.x))
+          b.x = 0.5;
+        if (std::isnan(b.y) || std::isinf(b.y))
+          b.y = 0.5;
         b.w = (b.w < 1) ? b.w : 1;
         b.h = (b.h < 1) ? b.h : 1;
         b.x = (b.x < 1) ? b.x : 1;
@@ -1038,10 +1060,14 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, Detection* dets, int num,
         int top = (b.y - b.h / 2.) * show_img->rows;
         int bot = (b.y + b.h / 2.) * show_img->rows;
 
-        if (left < 0) left = 0;
-        if (right > show_img->cols - 1) right = show_img->cols - 1;
-        if (top < 0) top = 0;
-        if (bot > show_img->rows - 1) bot = show_img->rows - 1;
+        if (left < 0)
+          left = 0;
+        if (right > show_img->cols - 1)
+          right = show_img->cols - 1;
+        if (top < 0)
+          top = 0;
+        if (bot > show_img->rows - 1)
+          bot = show_img->rows - 1;
 
         // int b_x_center = (left + right) / 2;
         // int b_y_center = (top + bot) / 2;
@@ -1230,7 +1256,8 @@ extern "C" void draw_train_loss(char* windows_name, mat_cv* img_src,
     cv::Point pt1, pt2;
     pt1.x = img_offset + draw_size * (float)current_batch / max_batches;
     pt1.y = draw_size * (1 - avg_loss / max_img_loss);
-    if (pt1.y < 0) pt1.y = 1;
+    if (pt1.y < 0)
+      pt1.y = 1;
     cv::circle(img, pt1, 1, CV_RGB(0, 0, 255), CV_FILLED, 8, 0);
 
     // precision
@@ -1430,7 +1457,8 @@ extern "C" Image image_data_augmentation(mat_cv* mat, int w, int h, int pleft,
         for (t = 0; t < num_boxes; ++t)
         {
           box b = float_to_box_stride(truth + t * (4 + 1), 1);
-          if (!b.x) break;
+          if (!b.x)
+            break;
           int left = (b.x - b.w / 2.) * sized.cols;
           int width = b.w * sized.cols;
           int top = (b.y - b.h / 2.) * sized.rows;
@@ -1543,7 +1571,8 @@ extern "C" void cv_draw_object(Image sized, float* truth_cpu, int max_boxes,
     char** names)
 {
   cv::Mat frame = image_to_mat(sized);
-  if (frame.channels() == 3) cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
+  if (frame.channels() == 3)
+    cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
   cv::Mat frame_clone = frame.clone();
 
   std::string const window_name = "Marking image";

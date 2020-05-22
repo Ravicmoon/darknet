@@ -51,45 +51,68 @@ list* ReadCfg(char const* filename);
 
 LAYER_TYPE string_to_layer_type(char* type)
 {
-  if (strcmp(type, "[shortcut]") == 0) return SHORTCUT;
-  if (strcmp(type, "[scale_channels]") == 0) return SCALE_CHANNELS;
-  if (strcmp(type, "[sam]") == 0) return SAM;
-  if (strcmp(type, "[crop]") == 0) return CROP;
-  if (strcmp(type, "[cost]") == 0) return COST;
-  if (strcmp(type, "[detection]") == 0) return DETECTION;
-  if (strcmp(type, "[region]") == 0) return REGION;
-  if (strcmp(type, "[yolo]") == 0) return YOLO;
-  if (strcmp(type, "[Gaussian_yolo]") == 0) return GAUSSIAN_YOLO;
-  if (strcmp(type, "[local]") == 0) return LOCAL;
+  if (strcmp(type, "[shortcut]") == 0)
+    return SHORTCUT;
+  if (strcmp(type, "[scale_channels]") == 0)
+    return SCALE_CHANNELS;
+  if (strcmp(type, "[sam]") == 0)
+    return SAM;
+  if (strcmp(type, "[crop]") == 0)
+    return CROP;
+  if (strcmp(type, "[cost]") == 0)
+    return COST;
+  if (strcmp(type, "[detection]") == 0)
+    return DETECTION;
+  if (strcmp(type, "[region]") == 0)
+    return REGION;
+  if (strcmp(type, "[yolo]") == 0)
+    return YOLO;
+  if (strcmp(type, "[Gaussian_yolo]") == 0)
+    return GAUSSIAN_YOLO;
+  if (strcmp(type, "[local]") == 0)
+    return LOCAL;
   if (strcmp(type, "[conv]") == 0 || strcmp(type, "[convolutional]") == 0)
     return CONVOLUTIONAL;
-  if (strcmp(type, "[activation]") == 0) return ACTIVE;
+  if (strcmp(type, "[activation]") == 0)
+    return ACTIVE;
   if (strcmp(type, "[net]") == 0 || strcmp(type, "[network]") == 0)
     return NETWORK;
-  if (strcmp(type, "[crnn]") == 0) return CRNN;
-  if (strcmp(type, "[gru]") == 0) return GRU;
-  if (strcmp(type, "[lstm]") == 0) return LSTM;
-  if (strcmp(type, "[conv_lstm]") == 0) return CONV_LSTM;
-  if (strcmp(type, "[rnn]") == 0) return RNN;
+  if (strcmp(type, "[crnn]") == 0)
+    return CRNN;
+  if (strcmp(type, "[gru]") == 0)
+    return GRU;
+  if (strcmp(type, "[lstm]") == 0)
+    return LSTM;
+  if (strcmp(type, "[conv_lstm]") == 0)
+    return CONV_LSTM;
+  if (strcmp(type, "[rnn]") == 0)
+    return RNN;
   if (strcmp(type, "[conn]") == 0 || strcmp(type, "[connected]") == 0)
     return CONNECTED;
   if (strcmp(type, "[max]") == 0 || strcmp(type, "[maxpool]") == 0)
     return MAXPOOL;
   if (strcmp(type, "[local_avg]") == 0 || strcmp(type, "[local_avgpool]") == 0)
     return LOCAL_AVGPOOL;
-  if (strcmp(type, "[reorg3d]") == 0) return REORG;
-  if (strcmp(type, "[reorg]") == 0) return REORG_OLD;
+  if (strcmp(type, "[reorg3d]") == 0)
+    return REORG;
+  if (strcmp(type, "[reorg]") == 0)
+    return REORG_OLD;
   if (strcmp(type, "[avg]") == 0 || strcmp(type, "[avgpool]") == 0)
     return AVGPOOL;
-  if (strcmp(type, "[dropout]") == 0) return DROPOUT;
+  if (strcmp(type, "[dropout]") == 0)
+    return DROPOUT;
   if (strcmp(type, "[lrn]") == 0 || strcmp(type, "[normalization]") == 0)
     return NORMALIZATION;
-  if (strcmp(type, "[batchnorm]") == 0) return BATCHNORM;
+  if (strcmp(type, "[batchnorm]") == 0)
+    return BATCHNORM;
   if (strcmp(type, "[soft]") == 0 || strcmp(type, "[softmax]") == 0)
     return SOFTMAX;
-  if (strcmp(type, "[route]") == 0) return ROUTE;
-  if (strcmp(type, "[upsample]") == 0) return UPSAMPLE;
-  if (strcmp(type, "[empty]") == 0) return EMPTY;
+  if (strcmp(type, "[route]") == 0)
+    return ROUTE;
+  if (strcmp(type, "[upsample]") == 0)
+    return UPSAMPLE;
+  if (strcmp(type, "[empty]") == 0)
+    return EMPTY;
   return BLANK;
 }
 
@@ -113,7 +136,8 @@ void free_section(section* s)
 void parse_data(char* data, float* a, int n)
 {
   int i;
-  if (!data) return;
+  if (!data)
+    return;
   char* curr = data;
   char* next = data;
   int done = 0;
@@ -121,7 +145,8 @@ void parse_data(char* data, float* a, int n)
   {
     while (*++next != '\0' && *next != ',')
       ;
-    if (*next == '\0') done = 1;
+    if (*next == '\0')
+      done = 1;
     *next = '\0';
     sscanf(curr, "%g", &a[i]);
     curr = next + 1;
@@ -155,7 +180,8 @@ local_layer parse_local(list* options, size_params params)
   w = params.w;
   c = params.c;
   batch = params.batch;
-  if (!(h && w && c)) error("Layer before local layer must output image.");
+  if (!(h && w && c))
+    error("Layer before local layer must output image.");
 
   local_layer layer =
       make_local_layer(batch, h, w, c, n, size, stride, pad, activation);
@@ -175,8 +201,10 @@ convolutional_layer parse_convolutional(list* options, size_params params)
   if (stride_x < 1 || stride_y < 1)
   {
     stride = FindOptionInt(options, "stride", 1);
-    if (stride_x < 1) stride_x = stride;
-    if (stride_y < 1) stride_y = stride;
+    if (stride_x < 1)
+      stride_x = stride;
+    if (stride_y < 1)
+      stride_y = stride;
   }
   else
   {
@@ -184,10 +212,12 @@ convolutional_layer parse_convolutional(list* options, size_params params)
   }
   int dilation = FindOptionIntQuiet(options, "dilation", 1);
   int antialiasing = FindOptionIntQuiet(options, "antialiasing", 0);
-  if (size == 1) dilation = 1;
+  if (size == 1)
+    dilation = 1;
   int pad = FindOptionIntQuiet(options, "pad", 0);
   int padding = FindOptionIntQuiet(options, "padding", 0);
-  if (pad) padding = size / 2;
+  if (pad)
+    padding = size / 2;
 
   char* activation_s = FindOptionStr(options, "activation", "logistic");
   ACTIVATION activation = get_activation(activation_s);
@@ -211,7 +241,8 @@ convolutional_layer parse_convolutional(list* options, size_params params)
     error("Layer before convolutional layer must output image.");
   int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
   int cbn = FindOptionIntQuiet(options, "cbn", 0);
-  if (cbn) batch_normalize = 2;
+  if (cbn)
+    batch_normalize = 2;
   int binary = FindOptionIntQuiet(options, "binary", 0);
   int xnor = FindOptionIntQuiet(options, "xnor", 0);
   int use_bin_output = FindOptionIntQuiet(options, "bin_output", 0);
@@ -265,7 +296,8 @@ layer parse_crnn(list* options, size_params params)
   int dilation = FindOptionIntQuiet(options, "dilation", 1);
   int pad = FindOptionIntQuiet(options, "pad", 0);
   int padding = FindOptionIntQuiet(options, "padding", 0);
-  if (pad) padding = size / 2;
+  if (pad)
+    padding = size / 2;
 
   int output_filters = FindOptionInt(options, "output", 1);
   int hidden_filters = FindOptionInt(options, "hidden", 1);
@@ -332,7 +364,8 @@ layer parse_conv_lstm(list* options, size_params params)
   int dilation = FindOptionIntQuiet(options, "dilation", 1);
   int pad = FindOptionIntQuiet(options, "pad", 0);
   int padding = FindOptionIntQuiet(options, "padding", 0);
-  if (pad) padding = size / 2;
+  if (pad)
+    padding = size / 2;
 
   int output_filters = FindOptionInt(options, "output", 1);
   int groups = FindOptionIntQuiet(options, "groups", 1);
@@ -372,7 +405,8 @@ softmax_layer parse_softmax(list* options, size_params params)
   softmax_layer layer = make_softmax_layer(params.batch, params.inputs, groups);
   layer.temperature = FindOptionFloatQuiet(options, "temperature", 1);
   char* tree_file = FindOptionStr(options, "tree", 0);
-  if (tree_file) layer.softmax_tree = read_tree(tree_file);
+  if (tree_file)
+    layer.softmax_tree = read_tree(tree_file);
   layer.w = params.w;
   layer.h = params.h;
   layer.c = params.c;
@@ -391,7 +425,8 @@ int* parse_yolo_mask(char* a, int* num)
     int i;
     for (i = 0; i < len; ++i)
     {
-      if (a[i] == ',') ++n;
+      if (a[i] == ',')
+        ++n;
     }
     mask = (int*)xcalloc(n, sizeof(int));
     for (i = 0; i < n; ++i)
@@ -523,7 +558,8 @@ layer parse_yolo(list* options, size_params params)
   l.random = FindOptionFloatQuiet(options, "random", 0);
 
   char* map_file = FindOptionStr(options, "map", 0);
-  if (map_file) l.map = read_map(map_file);
+  if (map_file)
+    l.map = read_map(map_file);
 
   a = FindOptionStr(options, "anchors", 0);
   if (a)
@@ -533,7 +569,8 @@ layer parse_yolo(list* options, size_params params)
     int i;
     for (i = 0; i < len; ++i)
     {
-      if (a[i] == ',') ++n;
+      if (a[i] == ',')
+        ++n;
     }
     for (i = 0; i < n && i < total * 2; ++i)
     {
@@ -555,7 +592,8 @@ int* parse_gaussian_yolo_mask(char* a, int* num)  // Gaussian_YOLOv3
     int i;
     for (i = 0; i < len; ++i)
     {
-      if (a[i] == ',') ++n;
+      if (a[i] == ',')
+        ++n;
     }
     mask = (int*)calloc(n, sizeof(int));
     for (i = 0; i < n; ++i)
@@ -668,7 +706,8 @@ layer parse_gaussian_yolo(list* options, size_params params)  // Gaussian_YOLOv3
   l.random = FindOptionFloatQuiet(options, "random", 0);
 
   char* map_file = FindOptionStr(options, "map", 0);
-  if (map_file) l.map = read_map(map_file);
+  if (map_file)
+    l.map = read_map(map_file);
 
   a = FindOptionStr(options, "anchors", 0);
   if (a)
@@ -678,7 +717,8 @@ layer parse_gaussian_yolo(list* options, size_params params)  // Gaussian_YOLOv3
     int i;
     for (i = 0; i < len; ++i)
     {
-      if (a[i] == ',') ++n;
+      if (a[i] == ',')
+        ++n;
     }
     for (i = 0; i < n; ++i)
     {
@@ -731,9 +771,11 @@ layer parse_region(list* options, size_params params)
   l.bias_match = FindOptionIntQuiet(options, "bias_match", 0);
 
   char* tree_file = FindOptionStr(options, "tree", 0);
-  if (tree_file) l.softmax_tree = read_tree(tree_file);
+  if (tree_file)
+    l.softmax_tree = read_tree(tree_file);
   char* map_file = FindOptionStr(options, "map", 0);
-  if (map_file) l.map = read_map(map_file);
+  if (map_file)
+    l.map = read_map(map_file);
 
   char* a = FindOptionStr(options, "anchors", 0);
   if (a)
@@ -743,7 +785,8 @@ layer parse_region(list* options, size_params params)
     int i;
     for (i = 0; i < len; ++i)
     {
-      if (a[i] == ',') ++n;
+      if (a[i] == ',')
+        ++n;
     }
     for (i = 0; i < n && i < num * 2; ++i)
     {
@@ -803,7 +846,8 @@ crop_layer parse_crop(list* options, size_params params)
   w = params.w;
   c = params.c;
   batch = params.batch;
-  if (!(h && w && c)) error("Layer before crop layer must output image.");
+  if (!(h && w && c))
+    error("Layer before crop layer must output image.");
 
   int noadjust = FindOptionIntQuiet(options, "noadjust", 0);
 
@@ -824,7 +868,8 @@ layer parse_reorg(list* options, size_params params)
   w = params.w;
   c = params.c;
   batch = params.batch;
-  if (!(h && w && c)) error("Layer before reorg layer must output image.");
+  if (!(h && w && c))
+    error("Layer before reorg layer must output image.");
 
   layer layer = make_reorg_layer(batch, w, h, c, stride, reverse);
   return layer;
@@ -841,7 +886,8 @@ layer parse_reorg_old(list* options, size_params params)
   w = params.w;
   c = params.c;
   batch = params.batch;
-  if (!(h && w && c)) error("Layer before reorg layer must output image.");
+  if (!(h && w && c))
+    error("Layer before reorg layer must output image.");
 
   layer layer = make_reorg_old_layer(batch, w, h, c, stride, reverse);
   return layer;
@@ -890,7 +936,8 @@ maxpool_layer parse_maxpool(list* options, size_params params)
   w = params.w;
   c = params.c;
   batch = params.batch;
-  if (!(h && w && c)) error("Layer before [maxpool] layer must output image.");
+  if (!(h && w && c))
+    error("Layer before [maxpool] layer must output image.");
 
   maxpool_layer layer =
       make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding,
@@ -905,7 +952,8 @@ avgpool_layer parse_avgpool(list* options, size_params params)
   h = params.h;
   c = params.c;
   batch = params.batch;
-  if (!(h && w && c)) error("Layer before avgpool layer must output image.");
+  if (!(h && w && c))
+    error("Layer before avgpool layer must output image.");
 
   avgpool_layer layer = make_avgpool_layer(batch, w, h, c);
   return layer;
@@ -1012,12 +1060,14 @@ layer ParseShortcut(list* options, size_params params, Network* net)
 
   char* l = FindOption(options, "from");
   int len = strlen(l);
-  if (!l) error("Route Layer must specify input layers: from = ...");
+  if (!l)
+    error("Route Layer must specify input layers: from = ...");
   int n = 1;
   int i;
   for (i = 0; i < len; ++i)
   {
-    if (l[i] == ',') ++n;
+    if (l[i] == ',')
+      ++n;
   }
 
   int* layers = (int*)calloc(n, sizeof(int));
@@ -1031,7 +1081,8 @@ layer ParseShortcut(list* options, size_params params, Network* net)
   {
     int index = atoi(l);
     l = strchr(l, ',') + 1;
-    if (index < 0) index = params.index + index;
+    if (index < 0)
+      index = params.index + index;
     layers[i] = index;
     sizes[i] = params.net->layers[index].outputs;
     layers_output[i] = params.net->layers[index].output;
@@ -1075,7 +1126,8 @@ layer ParseScaleChannels(list* options, size_params params, Network* net)
 {
   char* l = FindOption(options, "from");
   int index = atoi(l);
-  if (index < 0) index = params.index + index;
+  if (index < 0)
+    index = params.index + index;
   int scale_wh = FindOptionIntQuiet(options, "scale_wh", 0);
 
   int batch = params.batch;
@@ -1099,7 +1151,8 @@ layer ParseSam(list* options, size_params params, Network* net)
 {
   char* l = FindOption(options, "from");
   int index = atoi(l);
-  if (index < 0) index = params.index + index;
+  if (index < 0)
+    index = params.index + index;
 
   int batch = params.batch;
   layer from = net->layers[index];
@@ -1146,13 +1199,15 @@ layer ParseUpsample(list* options, size_params params)
 route_layer parse_route(list* options, size_params params)
 {
   char* l = FindOption(options, "layers");
-  if (!l) error("Route Layer must specify input layers");
+  if (!l)
+    error("Route Layer must specify input layers");
   int len = strlen(l);
   int n = 1;
   int i;
   for (i = 0; i < len; ++i)
   {
-    if (l[i] == ',') ++n;
+    if (l[i] == ',')
+      ++n;
   }
 
   int* layers = (int*)xcalloc(n, sizeof(int));
@@ -1161,7 +1216,8 @@ route_layer parse_route(list* options, size_params params)
   {
     int index = atoi(l);
     l = strchr(l, ',') + 1;
-    if (index < 0) index = params.index + index;
+    if (index < 0)
+      index = params.index + index;
     layers[i] = index;
     sizes[i] = params.net->layers[index].outputs;
   }
@@ -1218,14 +1274,22 @@ route_layer parse_route(list* options, size_params params)
 
 learning_rate_policy get_policy(char* s)
 {
-  if (strcmp(s, "random") == 0) return RANDOM;
-  if (strcmp(s, "poly") == 0) return POLY;
-  if (strcmp(s, "constant") == 0) return CONSTANT;
-  if (strcmp(s, "step") == 0) return STEP;
-  if (strcmp(s, "exp") == 0) return EXP;
-  if (strcmp(s, "sigmoid") == 0) return SIG;
-  if (strcmp(s, "steps") == 0) return STEPS;
-  if (strcmp(s, "sgdr") == 0) return SGDR;
+  if (strcmp(s, "random") == 0)
+    return RANDOM;
+  if (strcmp(s, "poly") == 0)
+    return POLY;
+  if (strcmp(s, "constant") == 0)
+    return CONSTANT;
+  if (strcmp(s, "step") == 0)
+    return STEP;
+  if (strcmp(s, "exp") == 0)
+    return EXP;
+  if (strcmp(s, "sigmoid") == 0)
+    return SIG;
+  if (strcmp(s, "steps") == 0)
+    return STEPS;
+  if (strcmp(s, "sgdr") == 0)
+    return SGDR;
   fprintf(stderr, "Couldn't find policy %s, going with constant\n", s);
   return CONSTANT;
 }
@@ -1347,7 +1411,8 @@ void ParseNetOptions(list* options, Network* net)
       int i;
       for (i = 0; i < len; ++i)
       {
-        if (l[i] == ',') ++n;
+        if (l[i] == ',')
+          ++n;
       }
       int* steps = (int*)xcalloc(n, sizeof(int));
       float* scales = (float*)xcalloc(n, sizeof(float));
@@ -1449,7 +1514,8 @@ void ParseNetworkCfgCustom(
 {
   list* sections = ReadCfg(filename);
   node* n = sections->front;
-  if (!n) error("Config file has no sections");
+  if (!n)
+    error("Config file has no sections");
 
   AllocateNetwork(net, sections->size - 1);
   net->gpu_index = gpu_index;
@@ -1462,7 +1528,8 @@ void ParseNetworkCfgCustom(
 
   section* s = (section*)n->val;
   list* options = s->options;
-  if (!IsNetwork(s)) error("First section must be [net] or [network]");
+  if (!IsNetwork(s))
+    error("First section must be [net] or [network]");
   ParseNetOptions(options, net);
 
 #ifdef GPU
@@ -1479,11 +1546,16 @@ void ParseNetworkCfgCustom(
   params.w = net->w;
   params.c = net->c;
   params.inputs = net->inputs;
-  if (batch > 0) net->batch = batch;
-  if (time_steps > 0) net->time_steps = time_steps;
-  if (net->batch < 1) net->batch = 1;
-  if (net->time_steps < 1) net->time_steps = 1;
-  if (net->batch < net->time_steps) net->batch = net->time_steps;
+  if (batch > 0)
+    net->batch = batch;
+  if (time_steps > 0)
+    net->time_steps = time_steps;
+  if (net->batch < 1)
+    net->batch = 1;
+  if (net->time_steps < 1)
+    net->time_steps = 1;
+  if (net->batch < net->time_steps)
+    net->batch = net->time_steps;
   params.batch = net->batch;
   params.time_steps = net->time_steps;
   params.net = net;
@@ -1795,9 +1867,12 @@ void ParseNetworkCfgCustom(
     l.learning_rate_scale = FindOptionFloatQuiet(options, "learning_rate", 1);
     UnusedOption(options);
     net->layers[count] = l;
-    if (l.workspace_size > workspace_size) workspace_size = l.workspace_size;
-    if (l.inputs > max_inputs) max_inputs = l.inputs;
-    if (l.outputs > max_outputs) max_outputs = l.outputs;
+    if (l.workspace_size > workspace_size)
+      workspace_size = l.workspace_size;
+    if (l.inputs > max_inputs)
+      max_inputs = l.inputs;
+    if (l.outputs > max_outputs)
+      max_outputs = l.outputs;
     free_section(s);
     n = n->next;
     ++count;
@@ -1818,7 +1893,8 @@ void ParseNetworkCfgCustom(
         params.inputs = l.outputs;
       }
     }
-    if (l.bflops > 0) bflops += l.bflops;
+    if (l.bflops > 0)
+      bflops += l.bflops;
 
     if (l.w > 1 && l.h > 1)
     {
@@ -1842,8 +1918,10 @@ void ParseNetworkCfgCustom(
         if (net->max_delta_gpu_size < delta_size)
         {
           net->max_delta_gpu_size = delta_size;
-          if (net->global_delta_gpu) cuda_free(net->global_delta_gpu);
-          if (net->state_delta_gpu) cuda_free(net->state_delta_gpu);
+          if (net->global_delta_gpu)
+            cuda_free(net->global_delta_gpu);
+          if (net->state_delta_gpu)
+            cuda_free(net->state_delta_gpu);
           assert(net.max_delta_gpu_size > 0);
           net->global_delta_gpu =
               (float*)cuda_make_array(NULL, net->max_delta_gpu_size);
@@ -1943,7 +2021,8 @@ void ParseNetworkCfgCustom(
 list* ReadCfg(char const* filename)
 {
   FILE* file = fopen(filename, "r");
-  if (file == 0) FileError(filename);
+  if (file == 0)
+    FileError(filename);
   char* line;
   int nu = 0;
   list* sections = MakeList();
@@ -2000,7 +2079,8 @@ void save_convolutional_weights_binary(layer l, FILE* fp)
   for (i = 0; i < l.n; ++i)
   {
     float mean = l.binary_weights[i * size];
-    if (mean < 0) mean = -mean;
+    if (mean < 0)
+      mean = -mean;
     fwrite(&mean, sizeof(float), 1, fp);
     for (j = 0; j < size / 8; ++j)
     {
@@ -2008,8 +2088,10 @@ void save_convolutional_weights_binary(layer l, FILE* fp)
       unsigned char c = 0;
       for (k = 0; k < 8; ++k)
       {
-        if (j * 8 + k >= size) break;
-        if (l.binary_weights[index + k] > 0) c = (c | 1 << k);
+        if (j * 8 + k >= size)
+          break;
+        if (l.binary_weights[index + k] > 0)
+          c = (c | 1 << k);
       }
       fwrite(&c, sizeof(char), 1, fp);
     }
@@ -2105,7 +2187,8 @@ void save_weights_upto(Network net, char* filename, int cutoff)
 #endif
   fprintf(stderr, "Saving weights to %s\n", filename);
   FILE* fp = fopen(filename, "wb");
-  if (!fp) FileError(filename);
+  if (!fp)
+    FileError(filename);
 
   int major = MAJOR_VERSION;
   int minor = MINOR_VERSION;
@@ -2291,7 +2374,8 @@ void load_convolutional_weights_binary(layer l, FILE* fp)
       fread(&c, sizeof(char), 1, fp);
       for (k = 0; k < 8; ++k)
       {
-        if (j * 8 + k >= size) break;
+        if (j * 8 + k >= size)
+          break;
         l.weights[index + k] = (c & 1 << k) ? mean : -mean;
       }
     }
@@ -2415,7 +2499,8 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
   fprintf(stderr, "Loading weights from %s...", filename);
   fflush(stdout);
   FILE* fp = fopen(filename, "rb");
-  if (!fp) FileError(filename);
+  if (!fp)
+    FileError(filename);
 
   int major;
   int minor;
@@ -2446,7 +2531,8 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
   for (i = 0; i < net->n && i < cutoff; ++i)
   {
     layer l = net->layers[i];
-    if (l.dontload) continue;
+    if (l.dontload)
+      continue;
     if (l.type == CONVOLUTIONAL && l.share_layer == NULL)
     {
       load_convolutional_weights(l, fp);
@@ -2525,7 +2611,8 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
       }
 #endif
     }
-    if (feof(fp)) break;
+    if (feof(fp))
+      break;
   }
   fprintf(stderr, "Done! Loaded %d layers from weights-file \n", i);
   fclose(fp);

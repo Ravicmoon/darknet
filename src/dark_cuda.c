@@ -38,7 +38,8 @@ void cuda_set_device(int n)
 {
   gpu_index = n;
   cudaError_t status = cudaSetDevice(n);
-  if (status != cudaSuccess) CHECK_CUDA(status);
+  if (status != cudaSuccess)
+    CHECK_CUDA(status);
 }
 
 int cuda_get_device()
@@ -308,7 +309,8 @@ void pre_allocate_pinned_memory(const size_t size)
   if (!pinned_ptr)
   {
     pinned_ptr = (float**)calloc(num_of_blocks, sizeof(float*));
-    if (!pinned_ptr) error("calloc failed in pre_allocate() \n");
+    if (!pinned_ptr)
+      error("calloc failed in pre_allocate() \n");
 
     printf(
         "pre_allocate: size = %Iu MB, num_of_blocks = %Iu, block_size = %Iu MB "
@@ -426,7 +428,8 @@ float* cuda_make_array_pinned(float* x, size_t n)
         cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyDefault, get_cuda_stream());
     CHECK_CUDA(status);
   }
-  if (!x_gpu) error("cudaHostAlloc failed\n");
+  if (!x_gpu)
+    error("cudaHostAlloc failed\n");
   return x_gpu;
 }
 
@@ -448,7 +451,8 @@ float* cuda_make_array(float* x, size_t n)
         cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyDefault, get_cuda_stream());
     CHECK_CUDA(status);
   }
-  if (!x_gpu) error("Cuda malloc failed\n");
+  if (!x_gpu)
+    error("Cuda malloc failed\n");
   return x_gpu;
 }
 
@@ -466,7 +470,8 @@ void** cuda_make_array_pointers(void** x, size_t n)
         cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyDefault, get_cuda_stream());
     CHECK_CUDA(status);
   }
-  if (!x_gpu) error("Cuda malloc failed\n");
+  if (!x_gpu)
+    error("Cuda malloc failed\n");
   return x_gpu;
 }
 
@@ -522,7 +527,8 @@ int* cuda_make_int_array_new_api(int* x, size_t n)
         x_gpu, x, size, cudaMemcpyHostToDevice, get_cuda_stream());
     CHECK_CUDA(status);
   }
-  if (!x_gpu) error("Cuda malloc failed\n");
+  if (!x_gpu)
+    error("Cuda malloc failed\n");
   return x_gpu;
 }
 

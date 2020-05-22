@@ -10,7 +10,6 @@
 #include "gemm.h"
 #include "utils.h"
 
-
 layer make_activation_layer(int batch, int inputs, ACTIVATION activation)
 {
   layer l = {(LAYER_TYPE)0};

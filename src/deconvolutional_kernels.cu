@@ -11,7 +11,6 @@
 #include "im2col.h"
 #include "utils.h"
 
-
 extern "C" void forward_deconvolutional_layer_gpu(
     deconvolutional_layer layer, NetworkState state)
 {

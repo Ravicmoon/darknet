@@ -13,7 +13,8 @@ Metadata GetMetadata(char const* filename)
   list* options = ReadDataCfg(filename);
 
   char* name_list = FindOptionStr(options, "names", 0);
-  if (!name_list) name_list = FindOptionStr(options, "labels", 0);
+  if (!name_list)
+    name_list = FindOptionStr(options, "labels", 0);
   if (!name_list)
   {
     fprintf(stderr, "No names or labels found\n");
@@ -34,7 +35,8 @@ Metadata GetMetadata(char const* filename)
 list* ReadDataCfg(char const* filename)
 {
   FILE* file = fopen(filename, "r");
-  if (file == 0) FileError(filename);
+  if (file == 0)
+    FileError(filename);
   char* line;
   int nu = 0;
   list* options = MakeList();
@@ -77,7 +79,8 @@ int ReadOption(char* s, list* options)
       break;
     }
   }
-  if (i == len - 1) return 0;
+  if (i == len - 1)
+    return 0;
   char* key = s;
   InsertOption(options, key, val);
   return 1;
@@ -110,22 +113,26 @@ char* FindOption(list* l, char* key)
 char* FindOptionStr(list* l, char* key, char* def)
 {
   char* v = FindOption(l, key);
-  if (v) return v;
-  if (def) fprintf(stderr, "%s: Using default '%s'\n", key, def);
+  if (v)
+    return v;
+  if (def)
+    fprintf(stderr, "%s: Using default '%s'\n", key, def);
   return def;
 }
 
 char* FindOptionStrQuiet(list* l, char* key, char* def)
 {
   char* v = FindOption(l, key);
-  if (v) return v;
+  if (v)
+    return v;
   return def;
 }
 
 int FindOptionInt(list* l, char* key, int def)
 {
   char* v = FindOption(l, key);
-  if (v) return atoi(v);
+  if (v)
+    return atoi(v);
   fprintf(stderr, "%s: Using default '%d'\n", key, def);
   return def;
 }
@@ -133,21 +140,24 @@ int FindOptionInt(list* l, char* key, int def)
 int FindOptionIntQuiet(list* l, char* key, int def)
 {
   char* v = FindOption(l, key);
-  if (v) return atoi(v);
+  if (v)
+    return atoi(v);
   return def;
 }
 
 float FindOptionFloatQuiet(list* l, char* key, float def)
 {
   char* v = FindOption(l, key);
-  if (v) return atof(v);
+  if (v)
+    return atof(v);
   return def;
 }
 
 float FindOptionFloat(list* l, char* key, float def)
 {
   char* v = FindOption(l, key);
-  if (v) return atof(v);
+  if (v)
+    return atof(v);
   fprintf(stderr, "%s: Using default '%lf'\n", key, def);
   return def;
 }

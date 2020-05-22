@@ -31,11 +31,13 @@ void transfer_node(list *s, list *d, node *n)
 
 void* list_pop(list* l)
 {
-  if (!l->back) return 0;
+  if (!l->back)
+    return 0;
   node* b = l->back;
   void* val = b->val;
   l->back = b->prev;
-  if (l->back) l->back->next = 0;
+  if (l->back)
+    l->back->next = 0;
   free(b);
   --l->size;
 

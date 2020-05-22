@@ -9,12 +9,14 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-
 COST_TYPE get_cost_type(char* s)
 {
-  if (strcmp(s, "sse") == 0) return SSE;
-  if (strcmp(s, "masked") == 0) return MASKED;
-  if (strcmp(s, "smooth") == 0) return SMOOTH;
+  if (strcmp(s, "sse") == 0)
+    return SSE;
+  if (strcmp(s, "masked") == 0)
+    return MASKED;
+  if (strcmp(s, "smooth") == 0)
+    return SMOOTH;
   fprintf(stderr, "Couldn't find cost type %s, going with SSE\n", s);
   return SSE;
 }
@@ -79,13 +81,15 @@ void resize_cost_layer(cost_layer* l, int inputs)
 
 void forward_cost_layer(cost_layer l, NetworkState state)
 {
-  if (!state.truth) return;
+  if (!state.truth)
+    return;
   if (l.cost_type == MASKED)
   {
     int i;
     for (i = 0; i < l.batch * l.inputs; ++i)
     {
-      if (state.truth[i] == SECRET_NUM) state.input[i] = SECRET_NUM;
+      if (state.truth[i] == SECRET_NUM)
+        state.input[i] = SECRET_NUM;
     }
   }
   if (l.cost_type == SMOOTH)
@@ -120,15 +124,18 @@ void push_cost_layer(cost_layer l)
 int float_abs_compare(const void* a, const void* b)
 {
   float fa = *(const float*)a;
-  if (fa < 0) fa = -fa;
+  if (fa < 0)
+    fa = -fa;
   float fb = *(const float*)b;
-  if (fb < 0) fb = -fb;
+  if (fb < 0)
+    fb = -fb;
   return (fa > fb) - (fa < fb);
 }
 
 void forward_cost_layer_gpu(cost_layer l, NetworkState state)
 {
-  if (!state.truth) return;
+  if (!state.truth)
+    return;
   if (l.cost_type == MASKED)
   {
     mask_ongpu(l.batch * l.inputs, state.input, SECRET_NUM, state.truth);

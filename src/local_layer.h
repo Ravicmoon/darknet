@@ -7,7 +7,6 @@
 #include "layer.h"
 #include "network.h"
 
-
 typedef layer local_layer;
 
 #ifdef __cplusplus

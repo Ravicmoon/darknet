@@ -361,64 +361,84 @@ void resize_conv_lstm_layer(layer* l, int w, int h)
   // if (l->state_gpu) cudaFree(l->state_gpu);
   // l->state_gpu = cuda_make_array(l->state, batch*l->outputs);
 
-  if (l->output_gpu) cudaFree(l->output_gpu);
+  if (l->output_gpu)
+    cudaFree(l->output_gpu);
   l->output_gpu = cuda_make_array(0, batch * outputs * steps);
 
-  if (l->delta_gpu) cudaFree(l->delta_gpu);
+  if (l->delta_gpu)
+    cudaFree(l->delta_gpu);
   l->delta_gpu = cuda_make_array(0, batch * outputs * steps);
 
-  if (l->prev_state_gpu) cudaFree(l->prev_state_gpu);
+  if (l->prev_state_gpu)
+    cudaFree(l->prev_state_gpu);
   l->prev_state_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->prev_cell_gpu) cudaFree(l->prev_cell_gpu);
+  if (l->prev_cell_gpu)
+    cudaFree(l->prev_cell_gpu);
   l->prev_cell_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->cell_gpu) cudaFree(l->cell_gpu);
+  if (l->cell_gpu)
+    cudaFree(l->cell_gpu);
   l->cell_gpu = cuda_make_array(0, batch * outputs * steps);
 
-  if (l->f_gpu) cudaFree(l->f_gpu);
+  if (l->f_gpu)
+    cudaFree(l->f_gpu);
   l->f_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->i_gpu) cudaFree(l->i_gpu);
+  if (l->i_gpu)
+    cudaFree(l->i_gpu);
   l->i_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->g_gpu) cudaFree(l->g_gpu);
+  if (l->g_gpu)
+    cudaFree(l->g_gpu);
   l->g_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->o_gpu) cudaFree(l->o_gpu);
+  if (l->o_gpu)
+    cudaFree(l->o_gpu);
   l->o_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->c_gpu) cudaFree(l->c_gpu);
+  if (l->c_gpu)
+    cudaFree(l->c_gpu);
   l->c_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->h_gpu) cudaFree(l->h_gpu);
+  if (l->h_gpu)
+    cudaFree(l->h_gpu);
   l->h_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->temp_gpu) cudaFree(l->temp_gpu);
+  if (l->temp_gpu)
+    cudaFree(l->temp_gpu);
   l->temp_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->temp2_gpu) cudaFree(l->temp2_gpu);
+  if (l->temp2_gpu)
+    cudaFree(l->temp2_gpu);
   l->temp2_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->temp3_gpu) cudaFree(l->temp3_gpu);
+  if (l->temp3_gpu)
+    cudaFree(l->temp3_gpu);
   l->temp3_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->dc_gpu) cudaFree(l->dc_gpu);
+  if (l->dc_gpu)
+    cudaFree(l->dc_gpu);
   l->dc_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->dh_gpu) cudaFree(l->dh_gpu);
+  if (l->dh_gpu)
+    cudaFree(l->dh_gpu);
   l->dh_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->stored_c_gpu) cudaFree(l->stored_c_gpu);
+  if (l->stored_c_gpu)
+    cudaFree(l->stored_c_gpu);
   l->stored_c_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->stored_h_gpu) cudaFree(l->stored_h_gpu);
+  if (l->stored_h_gpu)
+    cudaFree(l->stored_h_gpu);
   l->stored_h_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->last_prev_state_gpu) cudaFree(l->last_prev_state_gpu);
+  if (l->last_prev_state_gpu)
+    cudaFree(l->last_prev_state_gpu);
   l->last_prev_state_gpu = cuda_make_array(0, batch * outputs);
 
-  if (l->last_prev_cell_gpu) cudaFree(l->last_prev_cell_gpu);
+  if (l->last_prev_cell_gpu)
+    cudaFree(l->last_prev_cell_gpu);
   l->last_prev_cell_gpu = cuda_make_array(0, batch * outputs);
 #endif
 }
@@ -548,12 +568,14 @@ void forward_conv_lstm_layer(layer l, NetworkState state)
     // f = wf + uf + vf
     copy_cpu(l.outputs * l.batch, wf.output, 1, l.f_cpu, 1);
     axpy_cpu(l.outputs * l.batch, 1, uf.output, 1, l.f_cpu, 1);
-    if (l.peephole) axpy_cpu(l.outputs * l.batch, 1, vf.output, 1, l.f_cpu, 1);
+    if (l.peephole)
+      axpy_cpu(l.outputs * l.batch, 1, vf.output, 1, l.f_cpu, 1);
 
     // i = wi + ui + vi
     copy_cpu(l.outputs * l.batch, wi.output, 1, l.i_cpu, 1);
     axpy_cpu(l.outputs * l.batch, 1, ui.output, 1, l.i_cpu, 1);
-    if (l.peephole) axpy_cpu(l.outputs * l.batch, 1, vi.output, 1, l.i_cpu, 1);
+    if (l.peephole)
+      axpy_cpu(l.outputs * l.batch, 1, vi.output, 1, l.i_cpu, 1);
 
     // g = wg + ug
     copy_cpu(l.outputs * l.batch, wg.output, 1, l.g_cpu, 1);
@@ -577,7 +599,8 @@ void forward_conv_lstm_layer(layer l, NetworkState state)
     }
     copy_cpu(l.outputs * l.batch, wo.output, 1, l.o_cpu, 1);
     axpy_cpu(l.outputs * l.batch, 1, uo.output, 1, l.o_cpu, 1);
-    if (l.peephole) axpy_cpu(l.outputs * l.batch, 1, vo.output, 1, l.o_cpu, 1);
+    if (l.peephole)
+      axpy_cpu(l.outputs * l.batch, 1, vo.output, 1, l.o_cpu, 1);
     activate_array(l.o_cpu, l.outputs * l.batch, LOGISTIC);
 
     // h = o * tanh(c)
@@ -654,7 +677,8 @@ void backward_conv_lstm_layer(layer l, NetworkState state)
   increment_layer(&uo, l.steps - 1);
 
   state.input += l.inputs * l.batch * (l.steps - 1);
-  if (state.delta) state.delta += l.inputs * l.batch * (l.steps - 1);
+  if (state.delta)
+    state.delta += l.inputs * l.batch * (l.steps - 1);
 
   l.output += l.outputs * l.batch * (l.steps - 1);
   l.cell_cpu += l.outputs * l.batch * (l.steps - 1);
@@ -676,12 +700,14 @@ void backward_conv_lstm_layer(layer l, NetworkState state)
     // f = wf + uf + vf
     copy_cpu(l.outputs * l.batch, wf.output, 1, l.f_cpu, 1);
     axpy_cpu(l.outputs * l.batch, 1, uf.output, 1, l.f_cpu, 1);
-    if (l.peephole) axpy_cpu(l.outputs * l.batch, 1, vf.output, 1, l.f_cpu, 1);
+    if (l.peephole)
+      axpy_cpu(l.outputs * l.batch, 1, vf.output, 1, l.f_cpu, 1);
 
     // i = wi + ui + vi
     copy_cpu(l.outputs * l.batch, wi.output, 1, l.i_cpu, 1);
     axpy_cpu(l.outputs * l.batch, 1, ui.output, 1, l.i_cpu, 1);
-    if (l.peephole) axpy_cpu(l.outputs * l.batch, 1, vi.output, 1, l.i_cpu, 1);
+    if (l.peephole)
+      axpy_cpu(l.outputs * l.batch, 1, vi.output, 1, l.i_cpu, 1);
 
     // g = wg + ug
     copy_cpu(l.outputs * l.batch, wg.output, 1, l.g_cpu, 1);
@@ -690,7 +716,8 @@ void backward_conv_lstm_layer(layer l, NetworkState state)
     // o = wo + uo + vo
     copy_cpu(l.outputs * l.batch, wo.output, 1, l.o_cpu, 1);
     axpy_cpu(l.outputs * l.batch, 1, uo.output, 1, l.o_cpu, 1);
-    if (l.peephole) axpy_cpu(l.outputs * l.batch, 1, vo.output, 1, l.o_cpu, 1);
+    if (l.peephole)
+      axpy_cpu(l.outputs * l.batch, 1, vo.output, 1, l.o_cpu, 1);
 
     activate_array(l.f_cpu, l.outputs * l.batch, LOGISTIC);
     activate_array(l.i_cpu, l.outputs * l.batch, LOGISTIC);
@@ -811,7 +838,8 @@ void backward_conv_lstm_layer(layer l, NetworkState state)
     copy_cpu(l.outputs * l.batch, l.temp_cpu, 1, l.dc_cpu, 1);
 
     state.input -= l.inputs * l.batch;
-    if (state.delta) state.delta -= l.inputs * l.batch;
+    if (state.delta)
+      state.delta -= l.inputs * l.batch;
     l.output -= l.outputs * l.batch;
     l.cell_cpu -= l.outputs * l.batch;
     l.delta -= l.outputs * l.batch;
@@ -1106,7 +1134,8 @@ void backward_conv_lstm_layer_gpu(layer l, NetworkState state)
   increment_layer(&uo, l.steps - 1);
 
   state.input += l.inputs * l.batch * (l.steps - 1);
-  if (state.delta) state.delta += l.inputs * l.batch * (l.steps - 1);
+  if (state.delta)
+    state.delta += l.inputs * l.batch * (l.steps - 1);
 
   l.output_gpu += l.outputs * l.batch * (l.steps - 1);
   l.cell_gpu += l.outputs * l.batch * (l.steps - 1);

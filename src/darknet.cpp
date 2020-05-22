@@ -49,7 +49,8 @@ void CudaAssert(cudaError_t code, char const* file, int line, bool abort = true)
   {
     fprintf(stderr, "CUDA assert: %s %s %d\n", cudaGetErrorString(code), file,
         line);
-    if (abort) exit(code);
+    if (abort)
+      exit(code);
   }
 }
 
@@ -187,7 +188,8 @@ int main(int argc, char** argv)
       {
         for (int j = 0; j < l->classes; j++)
         {
-          if (detection[i].prob[j] < FLAGS_thresh) continue;
+          if (detection[i].prob[j] < FLAGS_thresh)
+            continue;
 
           box b = detection[i].bbox;
           float left = (b.x - b.w / 2.0f) * input.cols;
@@ -203,7 +205,8 @@ int main(int argc, char** argv)
       FreeDetections(detection, num_boxes);
 
       cv::imshow("demo", input);
-      if (cv::waitKey(1) == 27) break;
+      if (cv::waitKey(1) == 27)
+        break;
     }
 
     // free_ptrs((void**)md.names, md.classes);

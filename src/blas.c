@@ -83,15 +83,18 @@ void weighted_delta_cpu(float* a, float* b, float* s, float* da, float* db,
   int i;
   for (i = 0; i < n; ++i)
   {
-    if (da) da[i] += dc[i] * s[i];
-    if (db) db[i] += dc[i] * (1 - s[i]);
+    if (da)
+      da[i] += dc[i] * s[i];
+    if (db)
+      db[i] += dc[i] * (1 - s[i]);
     ds[i] += dc[i] * (a[i] - b[i]);
   }
 }
 
 static float relu(float src)
 {
-  if (src > 0) return src;
+  if (src > 0)
+    return src;
   return 0;
 }
 
@@ -125,7 +128,8 @@ void shortcut_multilayer_cpu(int size, int src_outputs, int batch, int n,
           const int weights_index =
               src_i / step + i * layer_step;  // [0 or c or (c, h ,w)]
           float w = weights[weights_index];
-          if (max_val < w) max_val = w;
+          if (max_val < w)
+            max_val = w;
         }
       }
       const float eps = 0.0001;
@@ -218,7 +222,8 @@ void backward_shortcut_multilayer_cpu(int size, int src_outputs, int batch,
           const int weights_index =
               src_i / step + i * layer_step;  // [0 or c or (c, h ,w)]
           float w = weights[weights_index];
-          if (max_val < w) max_val = w;
+          if (max_val < w)
+            max_val = w;
         }
       }
       const float eps = 0.0001;
@@ -298,8 +303,10 @@ void shortcut_cpu(int batch, int w1, int h1, int c1, float* add, int w2, int h2,
   int sample = w2 / w1;
   assert(stride == h1 / h2);
   assert(sample == h2 / h1);
-  if (stride < 1) stride = 1;
-  if (sample < 1) sample = 1;
+  if (stride < 1)
+    stride = 1;
+  if (sample < 1)
+    sample = 1;
   int minw = (w1 < w2) ? w1 : w2;
   int minh = (h1 < h2) ? h1 : h2;
   int minc = (c1 < c2) ? c1 : c2;
@@ -435,12 +442,14 @@ void deinter_cpu(int NX, float* X, int NY, float* Y, int B, float* OUT)
   {
     for (i = 0; i < NX; ++i)
     {
-      if (X) X[j * NX + i] += OUT[index];
+      if (X)
+        X[j * NX + i] += OUT[index];
       ++index;
     }
     for (i = 0; i < NY; ++i)
     {
-      if (Y) Y[j * NY + i] += OUT[index];
+      if (Y)
+        Y[j * NY + i] += OUT[index];
       ++index;
     }
   }
@@ -558,7 +567,8 @@ void softmax(float* input, int n, float temp, float* output, int stride)
   float largest = -FLT_MAX;
   for (i = 0; i < n; ++i)
   {
-    if (input[i * stride] > largest) largest = input[i * stride];
+    if (input[i * stride] > largest)
+      largest = input[i * stride];
   }
   for (i = 0; i < n; ++i)
   {
@@ -626,6 +636,7 @@ void fix_nan_and_inf_cpu(float* input, size_t size)
   for (size_t i = 0; i < size; ++i)
   {
     float val = input[i];
-    if (isnan(val) || isinf(val)) input[i] = 1.0f / i;  // pseudo random value
+    if (isnan(val) || isinf(val))
+      input[i] = 1.0f / i;  // pseudo random value
   }
 }

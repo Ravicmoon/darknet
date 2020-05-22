@@ -47,7 +47,8 @@ layer make_shortcut_layer(int batch, int n, int* input_layers, int* input_sizes,
 
   l.index = l.input_layers[0];
 
-  if (train) l.delta = (float*)xcalloc(l.outputs * batch, sizeof(float));
+  if (train)
+    l.delta = (float*)xcalloc(l.outputs * batch, sizeof(float));
   l.output = (float*)xcalloc(l.outputs * batch, sizeof(float));
 
   l.nweights = 0;
@@ -64,7 +65,8 @@ layer make_shortcut_layer(int batch, int n, int* input_layers, int* input_sizes,
       l.weights[i] = 1;  // +0.01*rand_uniform(-1, 1);// scale*rand_uniform(-1,
                          // 1);   // rand_normal();
 
-    if (train) l.weight_updates = (float*)calloc(l.nweights, sizeof(float));
+    if (train)
+      l.weight_updates = (float*)calloc(l.nweights, sizeof(float));
     l.update = update_shortcut_layer;
   }
 
@@ -91,7 +93,8 @@ layer make_shortcut_layer(int batch, int n, int* input_layers, int* input_sizes,
       l.weight_updates_gpu = cuda_make_array(l.weight_updates, l.nweights);
   }
 
-  if (train) l.delta_gpu = cuda_make_array(l.delta, l.outputs * batch);
+  if (train)
+    l.delta_gpu = cuda_make_array(l.delta, l.outputs * batch);
   l.output_gpu = cuda_make_array(l.output, l.outputs * batch);
 
   l.input_sizes_gpu = cuda_make_int_array_new_api(input_sizes, l.n);
@@ -102,7 +105,8 @@ layer make_shortcut_layer(int batch, int n, int* input_layers, int* input_sizes,
 #endif  // GPU
 
   l.bflops = l.out_w * l.out_h * l.out_c * l.n / 1000000000.;
-  if (l.weights_type) l.bflops *= 2;
+  if (l.weights_type)
+    l.bflops *= 2;
   fprintf(stderr, " wt = %d, wn = %d, outputs:%4d x%4d x%4d %5.3f BF\n",
       l.weights_type, l.weights_normalization, l.out_w, l.out_h, l.out_c,
       l.bflops);

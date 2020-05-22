@@ -10,7 +10,6 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-
 #define SECRET_NUM -1234
 
 void softmax_tree(float* input, int batch, int inputs, float temp,

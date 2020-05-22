@@ -138,7 +138,8 @@ float box_intersection(box a, box b)
 {
   float w = overlap(a.x, a.w, b.x, b.w);
   float h = overlap(a.y, a.h, b.y, b.h);
-  if (w < 0 || h < 0) return 0;
+  if (w < 0 || h < 0)
+    return 0;
   float area = w * h;
   return area;
 }
@@ -800,7 +801,8 @@ void do_nms_sort_v2(
     qsort(s, total, sizeof(sortable_bbox), nms_comparator);
     for (i = 0; i < total; ++i)
     {
-      if (probs[s[i].index][k] == 0) continue;
+      if (probs[s[i].index][k] == 0)
+        continue;
       box a = boxes[s[i].index];
       for (j = i + 1; j < total; ++j)
       {
@@ -861,11 +863,13 @@ void do_nms_obj(Detection* dets, int total, int classes, float thresh)
   qsort(dets, total, sizeof(Detection), nms_comparator_v3);
   for (i = 0; i < total; ++i)
   {
-    if (dets[i].objectness == 0) continue;
+    if (dets[i].objectness == 0)
+      continue;
     box a = dets[i].bbox;
     for (j = i + 1; j < total; ++j)
     {
-      if (dets[j].objectness == 0) continue;
+      if (dets[j].objectness == 0)
+        continue;
       box b = dets[j].bbox;
       if (box_iou(a, b) > thresh)
       {
@@ -906,7 +910,8 @@ void do_nms_sort(Detection* dets, int total, int classes, float thresh)
     for (i = 0; i < total; ++i)
     {
       // printf("  k = %d, \t i = %d \n", k, i);
-      if (dets[i].prob[k] == 0) continue;
+      if (dets[i].prob[k] == 0)
+        continue;
       box a = dets[i].bbox;
       for (j = i + 1; j < total; ++j)
       {
@@ -976,7 +981,8 @@ void diounms_sort(Detection* dets, int total, int classes, float thresh,
     qsort(dets, total, sizeof(Detection), nms_comparator_v3);
     for (i = 0; i < total; ++i)
     {
-      if (dets[i].prob[k] == 0) continue;
+      if (dets[i].prob[k] == 0)
+        continue;
       box a = dets[i].bbox;
       for (j = i + 1; j < total; ++j)
       {

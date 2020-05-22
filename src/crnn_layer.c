@@ -144,7 +144,8 @@ void resize_crnn_layer(layer* l, int w, int h)
       l->state, l->batch * l->hidden * (l->steps + 1) * sizeof(float));
 
 #ifdef GPU
-  if (l->state_gpu) cudaFree(l->state_gpu);
+  if (l->state_gpu)
+    cudaFree(l->state_gpu);
   l->state_gpu =
       cuda_make_array(l->state, l->batch * l->hidden * (l->steps + 1));
 
@@ -205,7 +206,8 @@ void forward_crnn_layer(layer l, NetworkState state)
     forward_convolutional_layer(self_layer, s);
 
     float* old_state = l.state;
-    if (state.train) l.state += l.hidden * l.batch;
+    if (state.train)
+      l.state += l.hidden * l.batch;
     if (l.shortcut)
     {
       copy_cpu(l.hidden * l.batch, old_state, 1, l.state, 1);
@@ -265,7 +267,8 @@ void backward_crnn_layer(layer l, NetworkState state)
 
     s.input = l.state;
     s.delta = self_layer.delta - l.hidden * l.batch;
-    if (i == 0) s.delta = 0;
+    if (i == 0)
+      s.delta = 0;
     backward_convolutional_layer(self_layer, s);
 
     copy_cpu(l.hidden * l.batch, self_layer.delta, 1, input_layer.delta, 1);
@@ -358,7 +361,8 @@ void forward_crnn_layer_gpu(layer l, NetworkState state)
     forward_convolutional_layer_gpu(self_layer, s);
 
     float* old_state = l.state_gpu;
-    if (state.train) l.state_gpu += l.hidden * l.batch;
+    if (state.train)
+      l.state_gpu += l.hidden * l.batch;
     if (l.shortcut)
     {
       copy_ongpu(l.hidden * l.batch, old_state, 1, l.state_gpu, 1);
@@ -414,7 +418,8 @@ void backward_crnn_layer_gpu(layer l, NetworkState state)
 
     s.input = l.state_gpu;
     s.delta = self_layer.delta_gpu - l.hidden * l.batch;
-    if (i == 0) s.delta = 0;
+    if (i == 0)
+      s.delta = 0;
     backward_convolutional_layer_gpu(self_layer, s);
 
     if (i > 0 && l.shortcut)

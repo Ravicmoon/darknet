@@ -182,7 +182,8 @@ box get_gaussian_yolo_box(float* x, float* biases, int n, int index, int i,
 
 static inline float fix_nan_inf(float val)
 {
-  if (isnan(val) || isinf(val)) val = 0;
+  if (isnan(val) || isinf(val))
+    val = 0;
   return val;
 }
 
@@ -414,7 +415,8 @@ void averages_gaussian_yolo_deltas(
   int c;
   for (c = 0; c < classes; ++c)
   {
-    if (delta[class_index + stride * c] > 0) classes_in_one_box++;
+    if (delta[class_index + stride * c] > 0)
+      classes_in_one_box++;
   }
 
   if (classes_in_one_box > 0)
@@ -446,7 +448,8 @@ void delta_gaussian_yolo_class(float* output, float* delta, int index,
 
     if (classes_multipliers)
       delta[index + stride * class_id] *= classes_multipliers[class_id];
-    if (avg_cat) *avg_cat += output[index + stride * class_id];
+    if (avg_cat)
+      *avg_cat += output[index + stride * class_id];
     return;
   }
   for (n = 0; n < classes; ++n)
@@ -458,7 +461,8 @@ void delta_gaussian_yolo_class(float* output, float* delta, int index,
 
     if (classes_multipliers && n == class_id)
       delta[index + stride * class_id] *= classes_multipliers[class_id];
-    if (n == class_id && avg_cat) *avg_cat += output[index + stride * n];
+    if (n == class_id && avg_cat)
+      *avg_cat += output[index + stride * n];
   }
 }
 
@@ -520,7 +524,8 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
 #endif
 
   memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
-  if (!state.train) return;
+  if (!state.train)
+    return;
   float avg_iou = 0;
   float recall = 0;
   float recall75 = 0;
@@ -566,7 +571,8 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
               continue;  // if label contains class_id more than number of
                          // classes in the cfg-file
             }
-            if (!truth.x) break;
+            if (!truth.x)
+              break;
 
             int class_index =
                 entry_gaussian_index(l, b, n * l.w * l.h + j * l.w + i, 9);
@@ -602,7 +608,8 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
                 entry_gaussian_index(l, b, n * l.w * l.h + j * l.w + i, 9);
             int stride = l.w * l.h;
             float scale = pred.w * pred.h;
-            if (scale > 0) scale = sqrt(scale);
+            if (scale > 0)
+              scale = sqrt(scale);
             l.delta[obj_index] =
                 scale * l.cls_normalizer * (0 - l.output[obj_index]);
             int cl_id;
@@ -619,7 +626,8 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
             l.delta[obj_index] = l.cls_normalizer * (1 - l.output[obj_index]);
 
             int class_id = state.truth[best_t * (4 + 1) + b * l.truths + 4];
-            if (l.map) class_id = l.map[class_id];
+            if (l.map)
+              class_id = l.map[class_id];
             int class_index =
                 entry_gaussian_index(l, b, n * l.w * l.h + j * l.w + i, 9);
             delta_gaussian_yolo_class(l.output, l.delta, class_index, class_id,
@@ -644,7 +652,8 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
       box truth =
           float_to_box_stride(state.truth + t * (4 + 1) + b * l.truths, 1);
 
-      if (!truth.x) break;
+      if (!truth.x)
+        break;
       float best_iou = 0;
       int best_n = 0;
       i = (truth.x * l.w);
@@ -687,7 +696,8 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
       if (mask_n >= 0)
       {
         int class_id = state.truth[t * (4 + 1) + b * l.truths + 4];
-        if (l.map) class_id = l.map[class_id];
+        if (l.map)
+          class_id = l.map[class_id];
 
         int box_index =
             entry_gaussian_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
@@ -713,8 +723,10 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
 
         ++count;
         ++class_count;
-        if (iou > .5) recall += 1;
-        if (iou > .75) recall75 += 1;
+        if (iou > .5)
+          recall += 1;
+        if (iou > .75)
+          recall75 += 1;
         avg_iou += iou;
       }
 
@@ -734,7 +746,8 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
           if (iou > l.iou_thresh)
           {
             int class_id = state.truth[t * (4 + 1) + b * l.truths + 4];
-            if (l.map) class_id = l.map[class_id];
+            if (l.map)
+              class_id = l.map[class_id];
 
             int box_index =
                 entry_gaussian_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
@@ -761,8 +774,10 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
 
             ++count;
             ++class_count;
-            if (iou > .5) recall += 1;
-            if (iou > .75) recall75 += 1;
+            if (iou > .5)
+              recall += 1;
+            if (iou > .75)
+              recall75 += 1;
             avg_iou += iou;
           }
         }
@@ -984,7 +999,8 @@ int get_gaussian_yolo_detections(layer l, int w, int h, int netw, int neth,
     {
       int obj_index = entry_gaussian_index(l, 0, n * l.w * l.h + i, 8);
       float objectness = predictions[obj_index];
-      if (objectness <= thresh) continue;  // incorrect behavior for Nan values
+      if (objectness <= thresh)
+        continue;  // incorrect behavior for Nan values
 
       if (objectness > thresh)
       {
@@ -1087,7 +1103,8 @@ void forward_gaussian_yolo_layer_gpu(const layer l, NetworkState state)
   // forward_yolo_layer(l, state);
   cuda_push_array(l.delta_gpu, l.delta, l.batch * l.outputs);
   free(in_cpu);
-  if (cpu_state.truth) free(cpu_state.truth);
+  if (cpu_state.truth)
+    free(cpu_state.truth);
 }
 
 void backward_gaussian_yolo_layer_gpu(const layer l, NetworkState state)

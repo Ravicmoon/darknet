@@ -12,7 +12,6 @@
 #include "gemm.h"
 #include "utils.h"
 
-
 size_t get_connected_workspace_size(layer l)
 {
 #ifdef CUDNN
@@ -265,7 +264,8 @@ void backward_connected_layer(connected_layer l, NetworkState state)
   b = l.weights;
   c = state.delta;
 
-  if (c) gemm(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
+  if (c)
+    gemm(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
 }
 
 void denormalize_connected_layer(layer l)
@@ -459,7 +459,8 @@ void backward_connected_layer_gpu(connected_layer l, NetworkState state)
   b = l.weights_gpu;
   c = state.delta;
 
-  if (c) gemm_ongpu(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
+  if (c)
+    gemm_ongpu(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
 #endif  // CUDNN
 }
 #endif

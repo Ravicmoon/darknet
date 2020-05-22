@@ -6,7 +6,6 @@
 #include "layer.h"
 #include "network.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif

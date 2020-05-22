@@ -11,7 +11,6 @@
 #include "gemm.h"
 #include "utils.h"
 
-
 static void increment_layer(layer* l, int steps)
 {
   int num = l->outputs * l->batch * steps;
@@ -112,7 +111,8 @@ void forward_rnn_layer(layer l, NetworkState state)
   fill_cpu(l.outputs * l.batch * l.steps, 0, output_layer.delta, 1);
   fill_cpu(l.hidden * l.batch * l.steps, 0, self_layer.delta, 1);
   fill_cpu(l.hidden * l.batch * l.steps, 0, input_layer.delta, 1);
-  if (state.train) fill_cpu(l.hidden * l.batch, 0, l.state, 1);
+  if (state.train)
+    fill_cpu(l.hidden * l.batch, 0, l.state, 1);
 
   for (i = 0; i < l.steps; ++i)
   {
@@ -123,7 +123,8 @@ void forward_rnn_layer(layer l, NetworkState state)
     forward_connected_layer(self_layer, s);
 
     float* old_state = l.state;
-    if (state.train) l.state += l.hidden * l.batch;
+    if (state.train)
+      l.state += l.hidden * l.batch;
     if (l.shortcut)
     {
       copy_cpu(l.hidden * l.batch, old_state, 1, l.state, 1);
@@ -181,7 +182,8 @@ void backward_rnn_layer(layer l, NetworkState state)
 
     s.input = l.state;
     s.delta = self_layer.delta - l.hidden * l.batch;
-    if (i == 0) s.delta = 0;
+    if (i == 0)
+      s.delta = 0;
     backward_connected_layer(self_layer, s);
 
     copy_cpu(l.hidden * l.batch, self_layer.delta, 1, input_layer.delta, 1);
@@ -241,7 +243,8 @@ void forward_rnn_layer_gpu(layer l, NetworkState state)
   fill_ongpu(l.outputs * l.batch * l.steps, 0, output_layer.delta_gpu, 1);
   fill_ongpu(l.hidden * l.batch * l.steps, 0, self_layer.delta_gpu, 1);
   fill_ongpu(l.hidden * l.batch * l.steps, 0, input_layer.delta_gpu, 1);
-  if (state.train) fill_ongpu(l.hidden * l.batch, 0, l.state_gpu, 1);
+  if (state.train)
+    fill_ongpu(l.hidden * l.batch, 0, l.state_gpu, 1);
 
   for (i = 0; i < l.steps; ++i)
   {
@@ -252,7 +255,8 @@ void forward_rnn_layer_gpu(layer l, NetworkState state)
     forward_connected_layer_gpu(self_layer, s);
 
     float* old_state = l.state_gpu;
-    if (state.train) l.state_gpu += l.hidden * l.batch;
+    if (state.train)
+      l.state_gpu += l.hidden * l.batch;
     if (l.shortcut)
     {
       copy_ongpu(l.hidden * l.batch, old_state, 1, l.state_gpu, 1);
@@ -301,7 +305,8 @@ void backward_rnn_layer_gpu(layer l, NetworkState state)
 
     s.input = l.state_gpu;
     s.delta = self_layer.delta_gpu - l.hidden * l.batch;
-    if (i == 0) s.delta = 0;
+    if (i == 0)
+      s.delta = 0;
     backward_connected_layer_gpu(self_layer, s);
 
     // copy_ongpu(l.hidden*l.batch, self_layer.delta_gpu, 1,

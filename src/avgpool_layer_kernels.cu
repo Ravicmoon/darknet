@@ -5,12 +5,12 @@
 #include "avgpool_layer.h"
 #include "dark_cuda.h"
 
-
 __global__ void forward_avgpool_layer_kernel(
     int n, int w, int h, int c, float* input, float* output)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= n) return;
+  if (id >= n)
+    return;
 
   int k = id % c;
   id /= c;
@@ -31,7 +31,8 @@ __global__ void backward_avgpool_layer_kernel(
     int n, int w, int h, int c, float* in_delta, float* out_delta)
 {
   int id = (blockIdx.x + blockIdx.y * gridDim.x) * blockDim.x + threadIdx.x;
-  if (id >= n) return;
+  if (id >= n)
+    return;
 
   int k = id % c;
   id /= c;
