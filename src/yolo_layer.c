@@ -875,44 +875,6 @@ void correct_yolo_boxes(Detection* dets, int n, int w, int h, int netw,
   }
 }
 
-/*
-void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int
-neth, int relative, int letter)
-{
-    int i;
-    int new_w=0;
-    int new_h=0;
-    if (letter) {
-        if (((float)netw / w) < ((float)neth / h)) {
-            new_w = netw;
-            new_h = (h * netw) / w;
-        }
-        else {
-            new_h = neth;
-            new_w = (w * neth) / h;
-        }
-    }
-    else {
-        new_w = netw;
-        new_h = neth;
-    }
-    for (i = 0; i < n; ++i){
-        box b = dets[i].bbox;
-        b.x =  (b.x - (netw - new_w)/2./netw) / ((float)new_w/netw);
-        b.y =  (b.y - (neth - new_h)/2./neth) / ((float)new_h/neth);
-        b.w *= (float)netw/new_w;
-        b.h *= (float)neth/new_h;
-        if(!relative){
-            b.x *= w;
-            b.w *= w;
-            b.y *= h;
-            b.h *= h;
-        }
-        dets[i].bbox = b;
-    }
-}
-*/
-
 int YoloNumDetections(layer l, float thresh)
 {
   int count = 0;
@@ -923,24 +885,6 @@ int YoloNumDetections(layer l, float thresh)
       int obj_index = entry_index(l, 0, n * l.w * l.h + i, 4);
       if (l.output[obj_index] > thresh)
         ++count;
-    }
-  }
-  return count;
-}
-
-int yolo_num_detections_batch(layer l, float thresh, int batch)
-{
-  int i, n;
-  int count = 0;
-  for (i = 0; i < l.w * l.h; ++i)
-  {
-    for (n = 0; n < l.n; ++n)
-    {
-      int obj_index = entry_index(l, batch, n * l.w * l.h + i, 4);
-      if (l.output[obj_index] > thresh)
-      {
-        ++count;
-      }
     }
   }
   return count;

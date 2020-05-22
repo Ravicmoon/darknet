@@ -1922,7 +1922,7 @@ void ParseNetworkCfgCustom(
             cuda_free(net->global_delta_gpu);
           if (net->state_delta_gpu)
             cuda_free(net->state_delta_gpu);
-          assert(net.max_delta_gpu_size > 0);
+          assert(net->max_delta_gpu_size > 0);
           net->global_delta_gpu =
               (float*)cuda_make_array(NULL, net->max_delta_gpu_size);
           net->state_delta_gpu =
