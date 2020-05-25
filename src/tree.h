@@ -1,6 +1,6 @@
 #ifndef TREE_H
 #define TREE_H
-#include "darknet.h"
+#include "yolo_core.h"
 
 // typedef struct{
 //    int *leaf;

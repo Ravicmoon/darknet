@@ -612,7 +612,7 @@ void show_cuda_cudnn_info()
 
 #else  // GPU
 
-#include "darknet.h"
+#include "yolo_core.h"
 void cuda_set_device(int n) {}
 
 #endif  // GPU

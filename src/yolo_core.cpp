@@ -1,4 +1,4 @@
-#include "darknet.h"
+#include "yolo_core.h"
 
 #include <stdio.h>
 #include <stdlib.h>

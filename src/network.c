@@ -14,7 +14,6 @@
 #include "cost_layer.h"
 #include "crnn_layer.h"
 #include "crop_layer.h"
-#include "darknet.h"
 #include "data.h"
 #include "detection_layer.h"
 #include "dropout_layer.h"
@@ -36,7 +35,9 @@
 #include "softmax_layer.h"
 #include "upsample_layer.h"
 #include "utils.h"
+#include "yolo_core.h"
 #include "yolo_layer.h"
+
 
 load_args get_base_args(Network* net)
 {

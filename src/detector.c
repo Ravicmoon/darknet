@@ -2,12 +2,13 @@
 
 #include "box.h"
 #include "cost_layer.h"
-#include "darknet.h"
 #include "network.h"
 #include "option_list.h"
 #include "parser.h"
 #include "region_layer.h"
 #include "utils.h"
+#include "yolo_core.h"
+
 
 #ifndef __COMPAR_FN_T
 #define __COMPAR_FN_T

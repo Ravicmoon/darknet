@@ -1,7 +1,7 @@
-# Config file for the Darknet package
+# Config file for the yolo_core package
 
-get_filename_component(Darknet_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-list(APPEND CMAKE_MODULE_PATH "${Darknet_CMAKE_DIR}")
+get_filename_component(YOLO_CORE_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+list(APPEND CMAKE_MODULE_PATH "${YOLO_CORE_CMAKE_DIR}")
 
 include(CMakeFindDependencyMacro)
 
@@ -35,11 +35,11 @@ if(@OPENMP_FOUND@)
 endif()
 
 # Our library dependencies (contains definitions for IMPORTED targets)
-include("${Darknet_CMAKE_DIR}/DarknetTargets.cmake")
-include("${Darknet_CMAKE_DIR}/DarknetConfigVersion.cmake")
+include("${YOLO_CORE_CMAKE_DIR}/YoloCoreTargets.cmake")
+include("${YOLO_CORE_CMAKE_DIR}/YoloCoreConfigVersion.cmake")
 
-get_target_property(FULL_DARKNET_INCLUDE_DIRS Darknet::dark INTERFACE_INCLUDE_DIRECTORIES)
-list(GET FULL_DARKNET_INCLUDE_DIRS 0 Darknet_INCLUDE_DIR)
-get_filename_component(Darknet_INCLUDE_DIR "${Darknet_INCLUDE_DIR}" REALPATH)
+get_target_property(FULL_YOLO_CORE_INCLUDE_DIRS yolo_core::yolo_core INTERFACE_INCLUDE_DIRECTORIES)
+list(GET FULL_YOLO_CORE_INCLUDE_DIRS 0 YOLO_CORE_INCLUDE_DIR)
+get_filename_component(YOLO_CORE_INCLUDE_DIR "${YOLO_CORE_INCLUDE_DIR}" REALPATH)
 
-find_package_handle_standard_args(Darknet REQUIRED_VARS Darknet_INCLUDE_DIR VERSION_VAR PACKAGE_VERSION)
+find_package_handle_standard_args(yolo_core REQUIRED_VARS YOLO_CORE_INCLUDE_DIR VERSION_VAR PACKAGE_VERSION)

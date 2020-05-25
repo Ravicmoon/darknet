@@ -2,7 +2,7 @@
 #define BLAS_H
 #include <stdlib.h>
 
-#include "darknet.h"
+#include "yolo_core.h"
 
 #ifdef GPU
 #include "dark_cuda.h"

@@ -1,9 +1,10 @@
 #ifndef ACTIVATIONS_H
 #define ACTIVATIONS_H
 #include "dark_cuda.h"
-#include "darknet.h"
 #include "math.h"
 #include "utils.h"
+#include "yolo_core.h"
+
 
 // typedef enum{
 //    LOGISTIC, RELU, RELIE, LINEAR, RAMP, TANH, PLSE, LEAKY, ELU, LOGGY, STAIR,

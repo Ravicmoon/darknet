@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 
-set(Darknet_MAJOR_VERSION 0)
-set(Darknet_MINOR_VERSION 2)
-set(Darknet_PATCH_VERSION 5)
-set(Darknet_TWEAK_VERSION 2)
-set(Darknet_VERSION ${Darknet_MAJOR_VERSION}.${Darknet_MINOR_VERSION}.${Darknet_PATCH_VERSION}.${Darknet_TWEAK_VERSION})
+set(YOLO_CORE_MAJOR_VERSION 0)
+set(YOLO_CORE_MINOR_VERSION 2)
+set(YOLO_CORE_PATCH_VERSION 5)
+set(YOLO_CORE_TWEAK_VERSION 2)
+set(YOLO_CORE_VERSION ${YOLO_CORE_MAJOR_VERSION}.${YOLO_CORE_MINOR_VERSION}.${YOLO_CORE_PATCH_VERSION}.${YOLO_CORE_TWEAK_VERSION})
 
 option(CMAKE_VERBOSE_MAKEFILE "Create verbose makefile" OFF)
 option(CUDA_VERBOSE_BUILD "Create verbose CUDA build" OFF)
-option(BUILD_AS_CPP "Build Darknet using C++ compiler also for C files" ON)
+option(BUILD_AS_CPP "Build yolo_core using C++ compiler also for C files" ON)
 option(ENABLE_CUDA "Enable CUDA support" ON)
 option(ENABLE_CUDNN "Enable CUDNN" ON)
 option(ENABLE_CUDNN_HALF "Enable CUDNN Half precision" ON)
@@ -20,7 +20,7 @@ if(ENABLE_VCPKG_INTEGRATION AND DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TO
   message(STATUS "Using VCPKG integration")
 endif()
 
-project(darknet VERSION ${Darknet_VERSION})
+project(yolo_core VERSION ${YOLO_CORE_VERSION})
 
 if(WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   set(USE_INTEGRATED_LIBS "TRUE" CACHE BOOL "Use libs distributed with this repo")
@@ -206,8 +206,8 @@ list(APPEND sources
   ${CMAKE_CURRENT_LIST_DIR}/src/utils.cpp
   ${CMAKE_CURRENT_LIST_DIR}/src/image_opencv.cpp
 )
-#remove darknet.cpp file which is necessary only for the executable, not for the lib
-list(REMOVE_ITEM sources ${CMAKE_CURRENT_LIST_DIR}/src/darknet.cpp)
+#remove yolo_core.cpp file which is necessary only for the executable, not for the lib
+list(REMOVE_ITEM sources ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp)
 #remove windows only files
 if(NOT WIN32)
   list(REMOVE_ITEM sources
@@ -224,122 +224,122 @@ if(BUILD_AS_CPP)
   set_source_files_properties(${sources} PROPERTIES LANGUAGE CXX)
 endif()
 
-add_library(libdarknet ${sources} ${headers} ${cuda_sources})
-target_compile_definitions(libdarknet PRIVATE LIB_EXPORTS=1)
-set_target_properties(libdarknet PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(lib_yolo_core ${sources} ${headers} ${cuda_sources})
+target_compile_definitions(lib_yolo_core PRIVATE LIB_EXPORTS=1)
+set_target_properties(lib_yolo_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(ENABLE_CUDA)
-  set_target_properties(libdarknet PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+  set_target_properties(lib_yolo_core PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif()
 if(BUILD_AS_CPP)
-  set_target_properties(libdarknet PROPERTIES LINKER_LANGUAGE CXX)
+  set_target_properties(lib_yolo_core PROPERTIES LINKER_LANGUAGE CXX)
 endif()
 
-add_executable(darknet ${CMAKE_CURRENT_LIST_DIR}/src/darknet.cpp)
-add_dependencies(darknet libdarknet)
+add_executable(yolo_core ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp)
+add_dependencies(yolo_core lib_yolo_core)
 if(BUILD_AS_CPP)
-  set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/src/darknet.cpp PROPERTIES LANGUAGE CXX)
-  set_target_properties(darknet PROPERTIES LINKER_LANGUAGE CXX)
+  set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp PROPERTIES LANGUAGE CXX)
+  set_target_properties(yolo_core PROPERTIES LINKER_LANGUAGE CXX)
 endif()
 
-target_include_directories(darknet PUBLIC
+target_include_directories(yolo_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/src>
   $<BUILD_INTERFACE:${Stb_INCLUDE_DIR}>
 )
-target_include_directories(libdarknet PUBLIC
+target_include_directories(lib_yolo_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/src>
   $<BUILD_INTERFACE:${Stb_INCLUDE_DIR}>
 )
 
-target_compile_definitions(darknet PRIVATE -DUSE_CMAKE_LIBS)
-target_compile_definitions(libdarknet PRIVATE -DUSE_CMAKE_LIBS)
+target_compile_definitions(yolo_core PRIVATE -DUSE_CMAKE_LIBS)
+target_compile_definitions(lib_yolo_core PRIVATE -DUSE_CMAKE_LIBS)
 
-target_link_libraries(darknet PRIVATE libdarknet)
+target_link_libraries(yolo_core PRIVATE lib_yolo_core)
 
-target_include_directories(darknet PRIVATE ${GFLAGS_INCLUDE_DIRS})
-target_link_libraries(darknet PRIVATE ${GFLAGS_LIBRARIES})
+target_include_directories(yolo_core PRIVATE ${GFLAGS_INCLUDE_DIRS})
+target_link_libraries(yolo_core PRIVATE ${GFLAGS_LIBRARIES})
 
 if(CUDNN_FOUND)
-  target_link_libraries(libdarknet PRIVATE CuDNN::CuDNN)
-  target_compile_definitions(libdarknet PUBLIC -DCUDNN)
+  target_link_libraries(lib_yolo_core PRIVATE CuDNN::CuDNN)
+  target_compile_definitions(lib_yolo_core PUBLIC -DCUDNN)
   if(ENABLE_CUDNN_HALF)
-    target_compile_definitions(libdarknet PUBLIC -DCUDNN_HALF)
+    target_compile_definitions(lib_yolo_core PUBLIC -DCUDNN_HALF)
   endif()
 endif()
 
 if(OpenCV_FOUND)
-  target_link_libraries(darknet PRIVATE ${OpenCV_LINKED_COMPONENTS})
-  target_link_libraries(libdarknet PUBLIC ${OpenCV_LINKED_COMPONENTS})
-  target_include_directories(libdarknet PUBLIC $<BUILD_INTERFACE:${OpenCV_INCLUDE_DIRS}>)
-  target_compile_definitions(darknet PRIVATE -DOPENCV)
-  target_compile_definitions(libdarknet PUBLIC -DOPENCV)
+  target_link_libraries(yolo_core PRIVATE ${OpenCV_LINKED_COMPONENTS})
+  target_link_libraries(lib_yolo_core PUBLIC ${OpenCV_LINKED_COMPONENTS})
+  target_include_directories(lib_yolo_core PUBLIC $<BUILD_INTERFACE:${OpenCV_INCLUDE_DIRS}>)
+  target_compile_definitions(yolo_core PRIVATE -DOPENCV)
+  target_compile_definitions(lib_yolo_core PUBLIC -DOPENCV)
 endif()
 
 if(OPENMP_FOUND)
-  target_link_libraries(libdarknet PUBLIC OpenMP::OpenMP_CXX)
-  target_link_libraries(libdarknet PUBLIC OpenMP::OpenMP_C)
+  target_link_libraries(lib_yolo_core PUBLIC OpenMP::OpenMP_CXX)
+  target_link_libraries(lib_yolo_core PUBLIC OpenMP::OpenMP_C)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
-  target_link_libraries(darknet PRIVATE m)
-  target_link_libraries(libdarknet PUBLIC m)
+  target_link_libraries(yolo_core PRIVATE m)
+  target_link_libraries(lib_yolo_core PUBLIC m)
 endif()
 
 if(MSVC)
-  target_link_libraries(libdarknet PUBLIC PThreads_windows::PThreads_windows)
-  target_link_libraries(libdarknet PUBLIC wsock32 ws2_32)
-  target_compile_definitions(darknet PRIVATE -D_CRT_RAND_S -DNOMINMAX -D_USE_MATH_DEFINES)
-  target_compile_definitions(libdarknet PRIVATE -D_CRT_RAND_S -DNOMINMAX -D_USE_MATH_DEFINES)
-  target_compile_definitions(libdarknet PUBLIC -D_CRT_SECURE_NO_WARNINGS)
+  target_link_libraries(lib_yolo_core PUBLIC PThreads_windows::PThreads_windows)
+  target_link_libraries(lib_yolo_core PUBLIC wsock32 ws2_32)
+  target_compile_definitions(yolo_core PRIVATE -D_CRT_RAND_S -DNOMINMAX -D_USE_MATH_DEFINES)
+  target_compile_definitions(lib_yolo_core PRIVATE -D_CRT_RAND_S -DNOMINMAX -D_USE_MATH_DEFINES)
+  target_compile_definitions(lib_yolo_core PUBLIC -D_CRT_SECURE_NO_WARNINGS)
 endif()
 
-target_link_libraries(libdarknet PUBLIC Threads::Threads)
+target_link_libraries(lib_yolo_core PUBLIC Threads::Threads)
 
 if(ENABLE_CUDA)
-  target_include_directories(darknet PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-  target_include_directories(libdarknet PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-  target_link_libraries(darknet PRIVATE cuda cudart cublas curand)
-  target_link_libraries(libdarknet PRIVATE cuda cublas curand)
-  set_target_properties(libdarknet PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
-  target_compile_definitions(darknet PRIVATE -DGPU)
-  target_compile_definitions(libdarknet PUBLIC -DGPU)
+  target_include_directories(yolo_core PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+  target_include_directories(lib_yolo_core PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+  target_link_libraries(yolo_core PRIVATE cuda cudart cublas curand)
+  target_link_libraries(lib_yolo_core PRIVATE cuda cublas curand)
+  set_target_properties(lib_yolo_core PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS ON)
+  target_compile_definitions(yolo_core PRIVATE -DGPU)
+  target_compile_definitions(lib_yolo_core PUBLIC -DGPU)
 endif()
 
 if(USE_INTEGRATED_LIBS)
-  target_compile_definitions(darknet PRIVATE -D_TIMESPEC_DEFINED)
-  target_compile_definitions(libdarknet PRIVATE -D_TIMESPEC_DEFINED)
+  target_compile_definitions(yolo_core PRIVATE -D_TIMESPEC_DEFINED)
+  target_compile_definitions(lib_yolo_core PRIVATE -D_TIMESPEC_DEFINED)
 endif()
 
-set_target_properties(libdarknet PROPERTIES PUBLIC_HEADER ${CMAKE_CURRENT_LIST_DIR}/src/darknet.h)
-set_target_properties(libdarknet PROPERTIES CXX_VISIBILITY_PRESET hidden)
+set_target_properties(lib_yolo_core PROPERTIES PUBLIC_HEADER ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.h)
+set_target_properties(lib_yolo_core PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
-install(TARGETS darknet
+install(TARGETS yolo_core
   DESTINATION ${INSTALL_BIN_DIR}
 )
-install(TARGETS libdarknet EXPORT DarknetTargets
+install(TARGETS lib_yolo_core EXPORT YoloCoreTargets
   RUNTIME DESTINATION ${INSTALL_BIN_DIR}
   LIBRARY DESTINATION ${INSTALL_LIB_DIR}
   ARCHIVE DESTINATION ${INSTALL_LIB_DIR}
   PUBLIC_HEADER DESTINATION ${INSTALL_INCLUDE_DIR}
   COMPONENT dev
 )
-install(EXPORT DarknetTargets
-  FILE DarknetTargets.cmake
-  NAMESPACE darknet::
+install(EXPORT YoloCoreTargets
+  FILE YoloCoreTargets.cmake
+  NAMESPACE yolo_core::
   DESTINATION ${INSTALL_CMAKE_DIR}
 )
 
 # Export the package for use from the build-tree (this registers the build-tree with a global CMake-registry)
-export(PACKAGE darknet)
+export(PACKAGE yolo_core)
 
-# Create the DarknetConfig.cmake
-configure_file(DarknetConfig.cmake.in ${PROJECT_BINARY_DIR}/DarknetConfig.cmake @ONLY)
+# Create the YoloCoreConfig.cmake
+configure_file(YoloCoreConfig.cmake.in ${PROJECT_BINARY_DIR}/YoloCoreConfig.cmake @ONLY)
 
-# Create the DarknetConfigVersion.cmake
+# Create the YoloCoreConfigVersion.cmake
 include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${PROJECT_BINARY_DIR}/DarknetConfigVersion.cmake COMPATIBILITY SameMajorVersion)
+write_basic_package_version_file(${PROJECT_BINARY_DIR}/YoloCoreConfigVersion.cmake COMPATIBILITY SameMajorVersion)
 
 install(FILES
-  ${PROJECT_BINARY_DIR}/DarknetConfig.cmake
-  ${PROJECT_BINARY_DIR}/DarknetConfigVersion.cmake
+  ${PROJECT_BINARY_DIR}/YoloCoreConfig.cmake
+  ${PROJECT_BINARY_DIR}/YoloCoreConfigVersion.cmake
   DESTINATION ${INSTALL_CMAKE_DIR}
 )

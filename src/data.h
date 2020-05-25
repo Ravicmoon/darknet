@@ -2,10 +2,11 @@
 #define DATA_H
 #include <pthread.h>
 
-#include "darknet.h"
 #include "image.h"
 #include "list.h"
 #include "matrix.h"
+#include "yolo_core.h"
+
 
 #ifdef __cplusplus
 extern "C" {

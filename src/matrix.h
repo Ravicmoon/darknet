@@ -1,6 +1,6 @@
 #ifndef MATRIX_H
 #define MATRIX_H
-#include "darknet.h"
+#include "yolo_core.h"
 
 // typedef struct matrix{
 //    int rows, cols;

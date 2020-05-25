@@ -1,7 +1,7 @@
 #ifndef BOX_H
 #define BOX_H
 
-#include "darknet.h"
+#include "yolo_core.h"
 
 // typedef struct{
 //    float x, y, w, h;

@@ -5,7 +5,7 @@
 #include <windows.h>
 #include <winsock2.h>
 
-#include "darknet.h"
+#include "yolo_core.h"
 
 #define CLOCK_REALTIME (1)
 #define BILLION (1E9)

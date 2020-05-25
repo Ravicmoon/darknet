@@ -2,9 +2,10 @@
 #ifndef GAUSSIAN_YOLO_LAYER_H
 #define GAUSSIAN_YOLO_LAYER_H
 
-#include "darknet.h"
 #include "layer.h"
 #include "network.h"
+#include "yolo_core.h"
+
 
 layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total,
     int* mask, int classes, int max_boxes);

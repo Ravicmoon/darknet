@@ -1,7 +1,8 @@
 #ifndef OPTION_LIST_H
 #define OPTION_LIST_H
-#include "darknet.h"
 #include "list.h"
+#include "yolo_core.h"
+
 
 typedef struct
 {

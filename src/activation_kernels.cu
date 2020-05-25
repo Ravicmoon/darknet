@@ -5,7 +5,7 @@
 
 #include "activations.h"
 #include "dark_cuda.h"
-#include "darknet.h"
+#include "yolo_core.h"
 
 __device__ float lhtan_activate_kernel(float x)
 {

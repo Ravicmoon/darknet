@@ -7,8 +7,9 @@
 #include <string.h>
 
 #include "box.h"
-#include "darknet.h"
 #include "image_opencv.h"
+#include "yolo_core.h"
+
 
 #ifdef __cplusplus
 extern "C" {

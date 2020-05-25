@@ -1,6 +1,6 @@
 #ifndef DARKCUDA_H
 #define DARKCUDA_H
-#include "darknet.h"
+#include "yolo_core.h"
 
 #ifdef __cplusplus
 extern "C" {

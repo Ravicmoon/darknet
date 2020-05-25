@@ -2,11 +2,12 @@
 #define NETWORK_H
 #include <stdint.h>
 
-#include "darknet.h"
 #include "data.h"
 #include "image.h"
 #include "layer.h"
 #include "tree.h"
+#include "yolo_core.h"
+
 
 #ifdef __cplusplus
 extern "C" {
