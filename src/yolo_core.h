@@ -1,5 +1,5 @@
-#ifndef DARKNET_API
-#define DARKNET_API
+#ifndef YOLO_CORE_API
+#define YOLO_CORE_API
 
 #if defined(_MSC_VER) && _MSC_VER < 1900
 #define inline __inline
@@ -1088,4 +1088,4 @@ LIB_API void init_cpu();
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
-#endif  // DARKNET_API
+#endif  // YOLO_CORE_API

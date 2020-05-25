@@ -36,11 +36,3 @@ Thumbs.db
 
 # Managed by CMake
 src/version.h
-
-# Build artifacts
-lib/
-share/
-include/darknet/
-uselib
-uselib_track
-darknet
