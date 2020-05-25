@@ -608,7 +608,7 @@ int resize_network(Network* net, int w, int h)
     }
     else if (l.type == YOLO)
     {
-      resize_yolo_layer(&l, w, h);
+      ResizeYoloLayer(&l, w, h);
     }
     else if (l.type == GAUSSIAN_YOLO)
     {
@@ -881,8 +881,7 @@ void custom_get_region_detections(layer l, int w, int h, int net_w, int net_h,
   free_ptrs((void**)probs, l.w * l.h * l.n);
 
   // correct_region_boxes(dets, l.w*l.h*l.n, w, h, net_w, net_h, relative);
-  correct_yolo_boxes(
-      dets, l.w * l.h * l.n, w, h, net_w, net_h, relative, letter);
+  CorrectYoloBoxes(dets, l.w * l.h * l.n, w, h, net_w, net_h, relative, letter);
 }
 
 void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
@@ -895,7 +894,7 @@ void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
     layer l = net->layers[j];
     if (l.type == YOLO)
     {
-      int count = get_yolo_detections(
+      int count = GetYoloDetections(
           l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
       dets += count;
       if (prev_classes < 0)

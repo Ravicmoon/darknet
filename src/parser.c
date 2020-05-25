@@ -480,7 +480,7 @@ layer parse_yolo(list* options, size_params params)
   char* a = FindOptionStr(options, "mask", 0);
   int* mask = parse_yolo_mask(a, &num);
   int max_boxes = FindOptionIntQuiet(options, "max", 90);
-  layer l = make_yolo_layer(
+  layer l = MakeYoloLayer(
       params.batch, params.w, params.h, num, total, mask, classes, max_boxes);
   if (l.outputs != params.inputs)
   {

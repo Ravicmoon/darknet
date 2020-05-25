@@ -12,7 +12,7 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-layer make_yolo_layer(int batch, int w, int h, int n, int total, int* mask,
+layer MakeYoloLayer(int batch, int w, int h, int n, int total, int* mask,
     int classes, int max_boxes)
 {
   int i;
@@ -53,11 +53,11 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int* mask,
     l.biases[i] = .5;
   }
 
-  l.forward = forward_yolo_layer;
-  l.backward = backward_yolo_layer;
+  l.forward = ForwardYoloLayer;
+  l.backward = BackwardYoloLayer;
 #ifdef GPU
-  l.forward_gpu = forward_yolo_layer_gpu;
-  l.backward_gpu = backward_yolo_layer_gpu;
+  l.forward_gpu = ForwardYoloLayerGpu;
+  l.backward_gpu = BackwardYoloLayerGpu;
   l.output_gpu = cuda_make_array(l.output, batch * l.outputs);
   l.delta_gpu = cuda_make_array(l.delta, batch * l.outputs);
 
@@ -88,7 +88,7 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int* mask,
   return l;
 }
 
-void resize_yolo_layer(layer* l, int w, int h)
+void ResizeYoloLayer(layer* l, int w, int h)
 {
   l->w = w;
   l->h = h;
@@ -393,7 +393,7 @@ static int entry_index(layer l, int batch, int location, int entry)
          entry * l.w * l.h + loc;
 }
 
-void forward_yolo_layer(const layer l, NetworkState state)
+void ForwardYoloLayer(const layer l, NetworkState state)
 {
   int i, j, b, t, n;
   memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
@@ -803,7 +803,7 @@ void forward_yolo_layer(const layer l, NetworkState state)
       recall75 / count, count, classification_loss, iou_loss, loss);
 }
 
-void backward_yolo_layer(const layer l, NetworkState state)
+void BackwardYoloLayer(const layer l, NetworkState state)
 {
   axpy_cpu(l.batch * l.inputs, 1, l.delta, 1, state.delta, 1);
 }
@@ -812,8 +812,8 @@ void backward_yolo_layer(const layer l, NetworkState state)
 // w,h: image width,height
 // netw,neth: network width,height
 // relative: 1 (all callers seems to pass TRUE)
-void correct_yolo_boxes(Detection* dets, int n, int w, int h, int netw,
-    int neth, int relative, int letter)
+void CorrectYoloBoxes(Detection* dets, int n, int w, int h, int netw, int neth,
+    int relative, int letter)
 {
   int i;
   // network height (or width)
@@ -923,7 +923,7 @@ void avg_flipped_yolo(layer l)
   }
 }
 
-int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
+int GetYoloDetections(layer l, int w, int h, int netw, int neth, float thresh,
     int* map, int relative, Detection* dets, int letter)
 {
   // printf("\n l.batch = %d, l.w = %d, l.h = %d, l.n = %d \n", l.batch, l.w,
@@ -963,54 +963,13 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
       }
     }
   }
-  correct_yolo_boxes(dets, count, w, h, netw, neth, relative, letter);
-  return count;
-}
-
-int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth,
-    float thresh, int* map, int relative, Detection* dets, int letter,
-    int batch)
-{
-  int i, j, n;
-  float* predictions = l.output;
-  // if (l.batch == 2) avg_flipped_yolo(l);
-  int count = 0;
-  for (i = 0; i < l.w * l.h; ++i)
-  {
-    int row = i / l.w;
-    int col = i % l.w;
-    for (n = 0; n < l.n; ++n)
-    {
-      int obj_index = entry_index(l, batch, n * l.w * l.h + i, 4);
-      float objectness = predictions[obj_index];
-      // if(objectness <= thresh) continue;    // incorrect behavior for Nan
-      // values
-      if (objectness > thresh)
-      {
-        // printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n",
-        // objectness, thresh, i, n);
-        int box_index = entry_index(l, batch, n * l.w * l.h + i, 0);
-        dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n],
-            box_index, col, row, l.w, l.h, netw, neth, l.w * l.h);
-        dets[count].objectness = objectness;
-        dets[count].classes = l.classes;
-        for (j = 0; j < l.classes; ++j)
-        {
-          int class_index = entry_index(l, batch, n * l.w * l.h + i, 4 + 1 + j);
-          float prob = objectness * predictions[class_index];
-          dets[count].prob[j] = (prob > thresh) ? prob : 0;
-        }
-        ++count;
-      }
-    }
-  }
-  correct_yolo_boxes(dets, count, w, h, netw, neth, relative, letter);
+  CorrectYoloBoxes(dets, count, w, h, netw, neth, relative, letter);
   return count;
 }
 
 #ifdef GPU
 
-void forward_yolo_layer_gpu(const layer l, NetworkState state)
+void ForwardYoloLayerGpu(const layer l, NetworkState state)
 {
   // copy_ongpu(l.batch*l.inputs, state.input, 1, l.output_gpu, 1);
   simple_copy_ongpu(l.batch * l.inputs, state.input, l.output_gpu);
@@ -1058,15 +1017,14 @@ void forward_yolo_layer_gpu(const layer l, NetworkState state)
   cpu_state.train = state.train;
   cpu_state.truth = truth_cpu;
   cpu_state.input = in_cpu;
-  forward_yolo_layer(l, cpu_state);
-  // forward_yolo_layer(l, state);
+  ForwardYoloLayer(l, cpu_state);
   cuda_push_array(l.delta_gpu, l.delta, l.batch * l.outputs);
   free(in_cpu);
   if (cpu_state.truth)
     free(cpu_state.truth);
 }
 
-void backward_yolo_layer_gpu(const layer l, NetworkState state)
+void BackwardYoloLayerGpu(const layer l, NetworkState state)
 {
   axpy_ongpu(l.batch * l.inputs, state.net->loss_scale, l.delta_gpu, 1,
       state.delta, 1);

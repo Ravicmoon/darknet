@@ -883,9 +883,15 @@ typedef struct Detection
   float* mask;
   float objectness;
   int sort_class;
-  float* uc;   // Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
-  int points;  // bit-0 - center, bit-1 - top-left-corner, bit-2 -
-               // bottom-right-corner
+
+  // Gaussian YOLOv3
+  // tx, ty, tw, th uncertainty
+  float* uc;
+
+  // bit-0: center
+  // bit-1: top-left
+  // bit-2: bottom-right
+  int points;
 } Detection;
 
 // network.c -batch inference
