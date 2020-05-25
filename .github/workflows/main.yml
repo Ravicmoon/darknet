@@ -36,7 +36,7 @@ jobs:
       - name: Build with CMake and Ninja
         uses: lukka/run-cmake@v2
         with:
-          cmakeListOrSettingJson: CMakeListTxtAdvanced
+          cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
           cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
           useVcpkgToolchainFile: true
           buildDirectory: '${{ runner.workspace }}/build'
@@ -91,7 +91,7 @@ jobs:
           LD_LIBRARY_PATH: "/usr/local/cuda-10.2/lib64:/usr/local/cuda-10.2/lib64/stubs:$LD_LIBRARY_PATH"
         uses: lukka/run-cmake@v2
         with:
-          cmakeListOrSettingJson: CMakeListTxtAdvanced
+          cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
           cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
           useVcpkgToolchainFile: true
           buildDirectory: '${{ runner.workspace }}/build'
@@ -123,7 +123,7 @@ jobs:
       - name: Build with CMake and Ninja
         uses: lukka/run-cmake@v2
         with:
-          cmakeListOrSettingJson: CMakeListTxtAdvanced
+          cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
           cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
           useVcpkgToolchainFile: true
           buildDirectory: '${{ runner.workspace }}/build'
@@ -152,10 +152,10 @@ jobs:
       - name: Restore from cache and run vcpkg
         env:
           vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_windows_cuda.diff  
-          CUDA_PATH: "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDA_PATH_V10_2: "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDA_TOOLKIT_ROOT_DIR: "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDACXX: "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\bin\\nvcc.exe"
+          CUDA_PATH: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDA_PATH_V10_2: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDA_TOOLKIT_ROOT_DIR: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDACXX: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\bin\\nvcc.exe"
         uses: lukka/run-vcpkg@v2
         with:
           vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
@@ -165,13 +165,13 @@ jobs:
       
       - name: Build with CMake and Ninja      
         env:
-          CUDA_PATH: "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDA_PATH_V10_2: "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDA_TOOLKIT_ROOT_DIR: "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDACXX: "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\bin\\nvcc.exe"
+          CUDA_PATH: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDA_PATH_V10_2: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDA_TOOLKIT_ROOT_DIR: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
+          CUDACXX: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\bin\\nvcc.exe"
         uses: lukka/run-cmake@v2
         with:
-          cmakeListOrSettingJson: CMakeListTxtAdvanced
+          cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
           cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
           useVcpkgToolchainFile: true
           buildDirectory: '${{ runner.workspace }}/build'
