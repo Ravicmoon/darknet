@@ -8,7 +8,6 @@ set(YOLO_CORE_VERSION ${YOLO_CORE_MAJOR_VERSION}.${YOLO_CORE_MINOR_VERSION}.${YO
 
 option(CMAKE_VERBOSE_MAKEFILE "Create verbose makefile" OFF)
 option(CUDA_VERBOSE_BUILD "Create verbose CUDA build" OFF)
-option(BUILD_AS_CPP "Build yolo_core using C++ compiler also for C files" ON)
 option(ENABLE_CUDA "Enable CUDA support" ON)
 option(ENABLE_CUDNN "Enable CUDNN" ON)
 option(ENABLE_CUDNN_HALF "Enable CUDNN Half precision" ON)
@@ -199,13 +198,8 @@ if(NOT WIN32)
   )
 endif()
 
-#look for all *.c files in src folder
-file(GLOB sources ${CMAKE_CURRENT_LIST_DIR}/src/*.c)
-#add also .cpp files
-list(APPEND sources
-  ${CMAKE_CURRENT_LIST_DIR}/src/utils.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/src/image_opencv.cpp
-)
+#look for all *.c and *.cpp files in src folder
+file(GLOB sources ${CMAKE_CURRENT_LIST_DIR}/src/*.c ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp)
 #remove yolo_core.cpp file which is necessary only for the executable, not for the lib
 list(REMOVE_ITEM sources ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp)
 #remove windows only files
@@ -220,26 +214,19 @@ if(ENABLE_CUDA)
   file(GLOB cuda_sources ${CMAKE_CURRENT_LIST_DIR}/src/*.cu)
 endif()
 
-if(BUILD_AS_CPP)
-  set_source_files_properties(${sources} PROPERTIES LANGUAGE CXX)
-endif()
-
 add_library(lib_yolo_core ${sources} ${headers} ${cuda_sources})
 target_compile_definitions(lib_yolo_core PRIVATE LIB_EXPORTS=1)
+set_source_files_properties(${sources} PROPERTIES LANGUAGE CXX)
 set_target_properties(lib_yolo_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(lib_yolo_core PROPERTIES LINKER_LANGUAGE CXX)
 if(ENABLE_CUDA)
   set_target_properties(lib_yolo_core PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-endif()
-if(BUILD_AS_CPP)
-  set_target_properties(lib_yolo_core PROPERTIES LINKER_LANGUAGE CXX)
 endif()
 
 add_executable(yolo_core ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp)
 add_dependencies(yolo_core lib_yolo_core)
-if(BUILD_AS_CPP)
-  set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp PROPERTIES LANGUAGE CXX)
-  set_target_properties(yolo_core PROPERTIES LINKER_LANGUAGE CXX)
-endif()
+set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp PROPERTIES LANGUAGE CXX)
+set_target_properties(yolo_core PROPERTIES LINKER_LANGUAGE CXX)
 
 target_include_directories(yolo_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/src>

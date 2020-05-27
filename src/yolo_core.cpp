@@ -237,18 +237,19 @@ int main(int argc, char** argv)
 
   if (FLAGS_mode == "video")
   {
-    Metadata md = GetMetadata(FLAGS_data_file.c_str());
+    float const nms = 0.45f;
+    int num_boxes = 0;
 
+    Metadata md = GetMetadata(FLAGS_data_file.c_str());
     Network* net = LoadNetworkCustom(
         FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);
     layer* l = &net->layers[net->n - 1];
-    net->benchmark_layers = FLAGS_benchmark_layers;
-    srand(2222222);
-
-    float const nms = 0.45f;
     Image image = {0, 0, 0, nullptr};
     Detection* dets = nullptr;
-    int num_boxes = 0;
+
+    net->benchmark_layers = FLAGS_benchmark_layers;
+
+    srand(2222222);
 
     cv::Mat input, resize;
     cv::VideoCapture video_capture(FLAGS_input_file);

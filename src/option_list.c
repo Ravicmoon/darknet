@@ -15,20 +15,19 @@ Metadata GetMetadata(char const* filename)
   char* name_list = FindOptionStr(options, "names", 0);
   if (!name_list)
     name_list = FindOptionStr(options, "labels", 0);
+
   if (!name_list)
-  {
     fprintf(stderr, "No names or labels found\n");
-  }
   else
-  {
     m.names = GetLabels(name_list);
-  }
+
   m.classes = FindOptionInt(options, "classes", 2);
+
   free_list(options);
+
   if (name_list)
-  {
     printf("Loaded - names_list: %s, classes = %d \n", name_list, m.classes);
-  }
+
   return m;
 }
 
