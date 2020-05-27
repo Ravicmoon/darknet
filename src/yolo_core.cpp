@@ -2,10 +2,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
 #if defined(_MSC_VER) && defined(_DEBUG)
 #include <crtdbg.h>
 #endif
+
+#include <algorithm>
 
 #ifdef GPU
 #include <cuda.h>
@@ -96,7 +97,7 @@ void Mat2Image(cv::Mat const& mat, Image* image)
   }
 
   unsigned char* data = (unsigned char*)mat.data;
-  int step = mat.step;
+  size_t step = mat.step;
 
   for (int y = 0; y < h; y++)
   {
@@ -107,6 +108,89 @@ void Mat2Image(cv::Mat const& mat, Image* image)
         image->data[k * w * h + y * w + x] =
             data[y * step + x * c + k] / 255.0f;
       }
+    }
+  }
+}
+
+float GetRandColor(int c, int x, int max)
+{
+  static float const colors[6][3] = {
+      {1, 0, 1}, {0, 0, 1}, {0, 1, 1}, {0, 1, 0}, {1, 1, 0}, {1, 0, 0}};
+
+  float ratio = ((float)x / max) * 5.0f;
+  int i = floor(ratio);
+  int j = ceil(ratio);
+  ratio -= i;
+
+  return (1 - ratio) * colors[i][c] + ratio * colors[j][c];
+}
+
+cv::Scalar GetRandColor(int offset, int max)
+{
+  float r = 256 * GetRandColor(2, offset, max);
+  float g = 256 * GetRandColor(1, offset, max);
+  float b = 256 * GetRandColor(0, offset, max);
+
+  return cv::Scalar(int(r), int(g), int(b));
+}
+
+void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
+    float thresh, Metadata const& md)
+{
+  for (int i = 0; i < num_boxes; i++)
+  {
+    char label[1024] = {0};
+    int class_id = -1;
+    for (int j = 0; j < md.classes; j++)
+    {
+      if (dets[i].prob[j] < thresh)
+        continue;
+
+      if (class_id < 0)
+      {
+        class_id = j;
+        strcat(label, md.names[j]);
+
+        char prob[10];
+        sprintf(prob, "(%2.0f%%)", dets[i].prob[j] * 100);
+        strcat(label, prob);
+      }
+      else
+      {
+        strcat(label, ", ");
+        strcat(label, md.names[j]);
+      }
+    }
+
+    if (class_id >= 0)
+    {
+      box b = dets[i].bbox;
+      float left = (b.x - b.w / 2.0f) * img.cols;
+      float right = (b.x + b.w / 2.0f) * img.cols;
+      float top = (b.y - b.h / 2.0) * img.rows;
+      float bottom = (b.y + b.h / 2.0) * img.rows;
+
+      int font_face = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
+      cv::Size text_size = cv::getTextSize(label, font_face, 1, 1, 0);
+
+      cv::Point2f pt1(left, top);
+      cv::Point2f pt2(right, bottom);
+      cv::Point2f pt_text(left, top - 4);
+      cv::Point2f pt_text_bg1(left, top - 21);
+      cv::Point2f pt_text_bg2(right, top);
+      if (right - left < text_size.width)
+        pt_text_bg2.x = left + text_size.width;
+
+      int offset = class_id * 123457 % md.classes;
+      cv::Scalar color = GetRandColor(offset, md.classes);
+
+      int width = (int)std::max(1.0f, img.rows * 0.002f);
+
+      cv::rectangle(img, pt1, pt2, color, width, 8, 0);
+      cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
+      cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1, 8, 0);
+      cv::putText(
+          img, label, pt_text, font_face, 1, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
     }
   }
 }
@@ -163,7 +247,7 @@ int main(int argc, char** argv)
 
     float const nms = 0.45f;
     Image image = {0, 0, 0, nullptr};
-    Detection* detection = nullptr;
+    Detection* dets = nullptr;
     int num_boxes = 0;
 
     cv::Mat input, resize;
@@ -175,34 +259,18 @@ int main(int argc, char** argv)
       Mat2Image(resize, &image);
       NetworkPredict(net, image.data);
 
-      detection = GetNetworkBoxes(net, net->w, net->h, FLAGS_thresh,
+      dets = GetNetworkBoxes(net, net->w, net->h, FLAGS_thresh,
           FLAGS_hier_thresh, 0, 1, &num_boxes, 0);
 
       if (l->nms_kind == DEFAULT_NMS)
-        do_nms_sort(detection, num_boxes, l->classes, nms);
+        do_nms_sort(dets, num_boxes, l->classes, nms);
       else
         diounms_sort(
-            detection, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
+            dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
 
-      for (int i = 0; i < num_boxes; i++)
-      {
-        for (int j = 0; j < l->classes; j++)
-        {
-          if (detection[i].prob[j] < FLAGS_thresh)
-            continue;
+      DrawYoloDetections(input, dets, num_boxes, FLAGS_thresh, md);
 
-          box b = detection[i].bbox;
-          float left = (b.x - b.w / 2.0f) * input.cols;
-          float right = (b.x + b.w / 2.0f) * input.cols;
-          float top = (b.y - b.h / 2.0f) * input.rows;
-          float bottom = (b.y + b.h / 2.0f) * input.rows;
-
-          cv::rectangle(input, cv::Point2f(left, top),
-              cv::Point2f(right, bottom), CV_RGB(255, 0, 0), 2);
-        }
-      }
-
-      FreeDetections(detection, num_boxes);
+      FreeDetections(dets, num_boxes);
 
       cv::imshow("demo", input);
       if (cv::waitKey(1) == 27)

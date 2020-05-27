@@ -10,7 +10,6 @@
 #include "image_opencv.h"
 #include "yolo_core.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,10 +31,6 @@ void draw_bbox(Image a, box bbox, int w, float r, float g, float b);
 void draw_label(Image a, int r, int c, Image label, const float* rgb);
 void write_label(
     Image a, int r, int c, Image* characters, char* string, float* rgb);
-void draw_detections(Image im, int num, float thresh, box* boxes, float** probs,
-    char** names, Image** labels, int classes);
-void draw_detections_v3(Image im, Detection* dets, int num, float thresh,
-    char** names, Image** alphabet, int classes, int ext_output);
 Image image_distance(Image a, Image b);
 void scale_image(Image m, float s);
 // image crop_image(image im, int dx, int dy, int w, int h);

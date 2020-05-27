@@ -89,10 +89,6 @@ Image get_image_from_stream_letterbox(
 void save_cv_png(mat_cv* img, const char* name);
 void save_cv_jpg(mat_cv* img, const char* name);
 
-// Draw Detection
-void draw_detections_cv_v3(mat_cv* show_img, Detection* dets, int num,
-    float thresh, char** names, Image** alphabet, int classes, int ext_output);
-
 // Draw Loss & Accuracy chart
 mat_cv* draw_train_chart(char* windows_name, float max_img_loss,
     int max_batches, int number_of_lines, int img_size, int dont_show,
