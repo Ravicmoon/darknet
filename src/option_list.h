@@ -22,7 +22,7 @@ class LIB_API Metadata
 
  private:
   class MetadataImpl;
-  MetadataImpl* impl_;
+  MetadataImpl const* impl_;
 };
 
 list* ReadDataCfg(char const* filename);
