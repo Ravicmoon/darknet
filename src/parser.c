@@ -1160,7 +1160,7 @@ route_layer parse_route(list* options, size_params params)
   return layer;
 }
 
-learning_rate_policy get_policy(char* s)
+LearningRatePolicy GetPolicy(char* s)
 {
   if (strcmp(s, "random") == 0)
     return RANDOM;
@@ -1261,7 +1261,7 @@ void ParseNetOptions(list* options, Network* net)
     error("No input parameters supplied");
 
   char* policy_s = FindOptionStr(options, "policy", "constant");
-  net->policy = get_policy(policy_s);
+  net->policy = GetPolicy(policy_s);
   net->burn_in = FindOptionIntQuiet(options, "burn_in", 0);
 #ifdef GPU
   if (net->gpu_index >= 0)
