@@ -163,11 +163,11 @@ void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
 
     if (class_id >= 0)
     {
-      box b = dets[i].bbox;
-      float left = (b.x - b.w / 2.0f) * img.cols;
-      float right = (b.x + b.w / 2.0f) * img.cols;
-      float top = (b.y - b.h / 2.0) * img.rows;
-      float bottom = (b.y + b.h / 2.0) * img.rows;
+      Box::AbsBox b(dets[i].bbox);
+      float left = b.left * img.cols;
+      float right = b.right * img.cols;
+      float top = b.top * img.rows;
+      float bottom = b.bottom * img.rows;
 
       int font_face = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
       cv::Size text_size = cv::getTextSize(label, font_face, 1, 1, 0);
@@ -263,10 +263,9 @@ int main(int argc, char** argv)
           FLAGS_hier_thresh, 0, 1, &num_boxes, 0);
 
       if (l->nms_kind == DEFAULT_NMS)
-        do_nms_sort(dets, num_boxes, l->classes, nms);
+        NmsSort(dets, num_boxes, l->classes, nms);
       else
-        diounms_sort(
-            dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
+        DiouNmsSort(dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
 
       DrawYoloDetections(input, dets, num_boxes, FLAGS_thresh, md);
 

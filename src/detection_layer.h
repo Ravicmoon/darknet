@@ -14,7 +14,7 @@ detection_layer make_detection_layer(int batch, int inputs, int n, int size,
 void forward_detection_layer(const detection_layer l, NetworkState state);
 void backward_detection_layer(const detection_layer l, NetworkState state);
 void get_detection_boxes(layer l, int w, int h, float thresh, float** probs,
-    box* boxes, int only_objectness);
+    Box* boxes, int only_objectness);
 void get_detection_detections(
     layer l, int w, int h, float thresh, Detection* dets);
 

@@ -153,10 +153,10 @@ void resize_gaussian_yolo_layer(layer* l, int w, int h)
 #endif
 }
 
-box get_gaussian_yolo_box(float* x, float* biases, int n, int index, int i,
+Box get_gaussian_yolo_box(float* x, float* biases, int n, int index, int i,
     int j, int lw, int lh, int w, int h, int stride, YOLO_POINT yolo_point)
 {
-  box b;
+  Box b;
 
   b.w = exp(x[index + 4 * stride]) * biases[2 * n] / w;
   b.h = exp(x[index + 6 * stride]) * biases[2 * n + 1] / h;
@@ -196,20 +196,20 @@ static inline float clip_value(float val, const float max_val)
   return val;
 }
 
-float delta_gaussian_yolo_box(box truth, float* x, float* biases, int n,
+float delta_gaussian_yolo_box(Box truth, float* x, float* biases, int n,
     int index, int i, int j, int lw, int lh, int w, int h, float* delta,
     float scale, int stride, float iou_normalizer, IOU_LOSS iou_loss,
     float uc_normalizer, int accumulate, YOLO_POINT yolo_point, float max_delta)
 {
-  box pred = get_gaussian_yolo_box(
+  Box pred = get_gaussian_yolo_box(
       x, biases, n, index, i, j, lw, lh, w, h, stride, yolo_point);
 
   float iou;
-  ious all_ious = {0};
-  all_ious.iou = box_iou(pred, truth);
-  all_ious.giou = box_giou(pred, truth);
-  all_ious.diou = box_diou(pred, truth);
-  all_ious.ciou = box_ciou(pred, truth);
+  Ious all_ious = {0};
+  all_ious.iou = Box::Iou(pred, truth);
+  all_ious.giou = Box::Giou(pred, truth);
+  all_ious.diou = Box::Diou(pred, truth);
+  all_ious.ciou = Box::Ciou(pred, truth);
   if (pred.w == 0)
   {
     pred.w = 1.0;
@@ -322,7 +322,7 @@ float delta_gaussian_yolo_box(box truth, float* x, float* biases, int n,
     // https://giou.stanford.edu/
     // https://arxiv.org/abs/1911.08287v1
     // https://github.com/Zzh-tju/DIoU-darknet
-    all_ious.dx_iou = dx_box_iou(pred, truth, iou_loss);
+    all_ious.dx_iou = Box::DxIou(pred, truth, iou_loss);
 
     float dx, dy, dw, dh;
 
@@ -545,7 +545,7 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
         {
           int box_index =
               entry_gaussian_index(l, b, n * l.w * l.h + j * l.w + i, 0);
-          box pred = get_gaussian_yolo_box(l.output, l.biases, l.mask[n],
+          Box pred = get_gaussian_yolo_box(l.output, l.biases, l.mask[n],
               box_index, i, j, l.w, l.h, state.net->w, state.net->h, l.w * l.h,
               l.yolo_point);
           float best_match_iou = 0;
@@ -554,8 +554,7 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
           int best_t = 0;
           for (t = 0; t < l.max_boxes; ++t)
           {
-            box truth = float_to_box_stride(
-                state.truth + t * (4 + 1) + b * l.truths, 1);
+            Box truth(state.truth + t * (4 + 1) + b * l.truths);
             int class_id = state.truth[t * (4 + 1) + b * l.truths + 4];
             if (class_id >= l.classes)
             {
@@ -582,7 +581,7 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
             int class_id_match = compare_gaussian_yolo_class(l.output,
                 l.classes, class_index, l.w * l.h, objectness, class_id, 0.25f);
 
-            float iou = box_iou(pred, truth);
+            float iou = Box::Iou(pred, truth);
             if (iou > best_match_iou && class_id_match == 1)
             {
               best_match_iou = iou;
@@ -633,8 +632,7 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
             delta_gaussian_yolo_class(l.output, l.delta, class_index, class_id,
                 l.classes, l.w * l.h, 0, l.label_smooth_eps,
                 l.classes_multipliers);
-            box truth = float_to_box_stride(
-                state.truth + best_t * (4 + 1) + b * l.truths, 1);
+            Box truth(state.truth + best_t * (4 + 1) + b * l.truths);
             const float class_multiplier = (l.classes_multipliers) ?
                                                l.classes_multipliers[class_id] :
                                                1.0f;
@@ -649,8 +647,7 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
     }
     for (t = 0; t < l.max_boxes; ++t)
     {
-      box truth =
-          float_to_box_stride(state.truth + t * (4 + 1) + b * l.truths, 1);
+      Box truth(state.truth + t * (4 + 1) + b * l.truths);
 
       if (!truth.x)
         break;
@@ -677,14 +674,14 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
             l.h - 1, max_val_cmp(0, ((truth.y + truth.h / 2) * l.h)));
       }
 
-      box truth_shift = truth;
+      Box truth_shift = truth;
       truth_shift.x = truth_shift.y = 0;
       for (n = 0; n < l.total; ++n)
       {
-        box pred = {0};
+        Box pred;
         pred.w = l.biases[2 * n] / state.net->w;
         pred.h = l.biases[2 * n + 1] / state.net->h;
-        float iou = box_iou(pred, truth_shift);
+        float iou = Box::Iou(pred, truth_shift);
         if (iou > best_iou)
         {
           best_iou = iou;
@@ -736,12 +733,10 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
         int mask_n = int_index(l.mask, n, l.n);
         if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
         {
-          box pred = {0};
+          Box pred;
           pred.w = l.biases[2 * n] / state.net->w;
           pred.h = l.biases[2 * n + 1] / state.net->h;
-          float iou = box_iou_kind(pred, truth_shift,
-              l.iou_thresh_kind);  // IOU, GIOU, MSE, DIOU, CIOU
-          // iou, n
+          float iou = Box::Iou(pred, truth_shift, l.iou_thresh_kind);
 
           if (iou > l.iou_thresh)
           {
@@ -922,7 +917,7 @@ void correct_gaussian_yolo_boxes(Detection* dets, int n, int w, int h, int netw,
   */
   for (i = 0; i < n; ++i)
   {
-    box b = dets[i].bbox;
+    Box b = dets[i].bbox;
     b.x = (b.x - (netw - new_w) / 2. / netw) / ((float)new_w / netw);
     b.y = (b.y - (neth - new_h) / 2. / neth) / ((float)new_h / neth);
     b.w *= (float)netw / new_w;

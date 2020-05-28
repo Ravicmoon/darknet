@@ -1549,8 +1549,7 @@ void assisted_excitation_forward(convolutional_layer l, NetworkState state)
     int t;
     for (t = 0; t < state.net->num_boxes; ++t)
     {
-      box truth =
-          float_to_box_stride(state.truth + t * (4 + 1) + b * l.truths, 1);
+      Box truth(state.truth + t * (4 + 1) + b * l.truths);
       if (!truth.x)
         break;  // continue;
 

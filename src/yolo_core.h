@@ -27,6 +27,7 @@
 #endif  // CUDNN
 #endif  // GPU
 
+#include "box.h"
 #include "libapi.h"
 #include "option_list.h"
 
@@ -109,23 +110,6 @@ typedef enum
 } ACTIVATION;
 
 // parser.h
-typedef enum
-{
-  IOU,
-  GIOU,
-  MSE,
-  DIOU,
-  CIOU
-} IOU_LOSS;
-
-// parser.h
-typedef enum
-{
-  DEFAULT_NMS,
-  GREEDY_NMS,
-  DIOU_NMS,
-  CORNERS_NMS
-} NMS_KIND;
 
 // parser.h
 typedef enum
@@ -825,52 +809,6 @@ typedef struct Image
   float* data;
 } Image;
 
-// box.h
-typedef struct box
-{
-  float x, y, w, h;
-} box;
-
-// box.h
-typedef struct boxabs
-{
-  float left, right, top, bot;
-} boxabs;
-
-// box.h
-typedef struct dxrep
-{
-  float dt, db, dl, dr;
-} dxrep;
-
-// box.h
-typedef struct ious
-{
-  float iou, giou, diou, ciou;
-  dxrep dx_iou;
-  dxrep dx_giou;
-} ious;
-
-// box.h
-typedef struct Detection
-{
-  box bbox;
-  int classes;
-  float* prob;
-  float* mask;
-  float objectness;
-  int sort_class;
-
-  // Gaussian YOLOv3
-  // tx, ty, tw, th uncertainty
-  float* uc;
-
-  // bit-0: center
-  // bit-1: top-left
-  // bit-2: bottom-right
-  int points;
-} Detection;
-
 // network.c -batch inference
 typedef struct det_num_pair
 {
@@ -893,7 +831,7 @@ typedef struct data
   matrix y;
   int shallow;
   int* num_boxes;
-  box** boxes;
+  Box** boxes;
 } data;
 
 // data.h
@@ -983,12 +921,6 @@ LIB_API void FreeNetwork(Network* net);
 
 // network.c
 LIB_API load_args get_base_args(Network* net);
-
-// box.h
-LIB_API void do_nms_sort(Detection* dets, int total, int classes, float thresh);
-LIB_API void do_nms_obj(Detection* dets, int total, int classes, float thresh);
-LIB_API void diounms_sort(Detection* dets, int total, int classes, float thresh,
-    NMS_KIND nms_kind, float beta1);
 
 // network.h
 LIB_API float* NetworkPredict(Network* net, float* input);

@@ -1286,7 +1286,7 @@ extern "C" Image image_data_augmentation(mat_cv* mat, int w, int h, int pleft,
         int t;
         for (t = 0; t < num_boxes; ++t)
         {
-          box b = float_to_box_stride(truth + t * (4 + 1), 1);
+          Box b(truth + t * (4 + 1));
           if (!b.x)
             break;
           int left = (b.x - b.w / 2.) * sized.cols;

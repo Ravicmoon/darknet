@@ -38,7 +38,6 @@
 #include "yolo_core.h"
 #include "yolo_layer.h"
 
-
 load_args get_base_args(Network* net)
 {
   load_args args = {0};
@@ -861,7 +860,7 @@ void custom_get_region_detections(layer l, int w, int h, int net_w, int net_h,
     float thresh, int* map, float hier, int relative, Detection* dets,
     int letter)
 {
-  box* boxes = (box*)xcalloc(l.w * l.h * l.n, sizeof(box));
+  Box* boxes = (Box*)xcalloc(l.w * l.h * l.n, sizeof(Box));
   float** probs = (float**)xcalloc(l.w * l.h * l.n, sizeof(float*));
   int i, j;
   for (j = 0; j < l.w * l.h * l.n; ++j)

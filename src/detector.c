@@ -9,7 +9,6 @@
 #include "utils.h"
 #include "yolo_core.h"
 
-
 #ifndef __COMPAR_FN_T
 #define __COMPAR_FN_T
 typedef int (*__compar_fn_t)(const void*, const void*);
@@ -487,7 +486,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 
 typedef struct
 {
-  box b;
+  Box b;
   float p;
   int class_id;
   int image_index;
@@ -661,11 +660,10 @@ float ValidateDetector(char const* data_file, char const* model_file,
       if (nms)
       {
         if (l.nms_kind == DEFAULT_NMS)
-          do_nms_sort(dets, nboxes, l.classes, nms);
+          NmsSort(dets, nboxes, l.classes, nms);
         else
-          diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+          DiouNmsSort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
       }
-      // if (nms) do_nms_obj(dets, nboxes, l.classes, nms);
 
       char label_file[4096];
       ReplaceImage2Label(path, label_file);
@@ -715,11 +713,11 @@ float ValidateDetector(char const* data_file, char const* model_file,
             float max_iou = 0;
             for (j = 0; j < num_labels; ++j)
             {
-              box t = {truth[j].x, truth[j].y, truth[j].w, truth[j].h};
+              Box t(truth[j].x, truth[j].y, truth[j].w, truth[j].h);
               // printf(" IoU = %f, prob = %f, class_id = %d, truth[j].id = %d
               // \n",
               //    box_iou(dets[i].bbox, t), prob, class_id, truth[j].id);
-              float current_iou = box_iou(dets[i].bbox, t);
+              float current_iou = Box::Iou(dets[i].bbox, t);
               if (current_iou > iou_thresh && class_id == truth[j].id)
               {
                 if (current_iou > max_iou)
@@ -741,9 +739,9 @@ float ValidateDetector(char const* data_file, char const* model_file,
               // if object is difficult then remove detection
               for (j = 0; j < num_labels_dif; ++j)
               {
-                box t = {truth_dif[j].x, truth_dif[j].y, truth_dif[j].w,
-                    truth_dif[j].h};
-                float current_iou = box_iou(dets[i].bbox, t);
+                Box t(truth_dif[j].x, truth_dif[j].y, truth_dif[j].w,
+                    truth_dif[j].h);
+                float current_iou = Box::Iou(dets[i].bbox, t);
                 if (current_iou > iou_thresh && class_id == truth_dif[j].id)
                 {
                   --detections_count;

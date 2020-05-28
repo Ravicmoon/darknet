@@ -279,89 +279,17 @@ void draw_box_width(
   }
 }
 
-void draw_bbox(Image a, box bbox, int w, float r, float g, float b)
+void draw_bbox(Image a, Box bbox, int w, float r, float g, float b)
 {
   int left = (bbox.x - bbox.w / 2) * a.w;
   int right = (bbox.x + bbox.w / 2) * a.w;
   int top = (bbox.y - bbox.h / 2) * a.h;
   int bot = (bbox.y + bbox.h / 2) * a.h;
 
-  int i;
-  for (i = 0; i < w; ++i)
+  for (int i = 0; i < w; ++i)
   {
     draw_box(a, left + i, top + i, right - i, bot - i, r, g, b);
   }
-}
-
-Image** load_alphabet()
-{
-  int i, j;
-  const int nsize = 8;
-  Image** alphabets = (Image**)xcalloc(nsize, sizeof(Image*));
-  for (j = 0; j < nsize; ++j)
-  {
-    alphabets[j] = (Image*)xcalloc(128, sizeof(Image));
-    for (i = 32; i < 127; ++i)
-    {
-      char buff[256];
-      sprintf(buff, "data/labels/%d_%d.png", i, j);
-      alphabets[j][i] = load_image_color(buff, 0, 0);
-    }
-  }
-  return alphabets;
-}
-
-// Creates array of detections with prob > thresh and fills best_class for them
-detection_with_class* get_actual_detections(Detection* dets, int dets_num,
-    float thresh, int* selected_detections_num, char** names)
-{
-  int selected_num = 0;
-  detection_with_class* result_arr =
-      (detection_with_class*)xcalloc(dets_num, sizeof(detection_with_class));
-  int i;
-  for (i = 0; i < dets_num; ++i)
-  {
-    int best_class = -1;
-    float best_class_prob = thresh;
-    int j;
-    for (j = 0; j < dets[i].classes; ++j)
-    {
-      int show = strncmp(names[j], "dont_show", 9);
-      if (dets[i].prob[j] > best_class_prob && show)
-      {
-        best_class = j;
-        best_class_prob = dets[i].prob[j];
-      }
-    }
-    if (best_class >= 0)
-    {
-      result_arr[selected_num].det = dets[i];
-      result_arr[selected_num].best_class = best_class;
-      ++selected_num;
-    }
-  }
-  if (selected_detections_num)
-    *selected_detections_num = selected_num;
-  return result_arr;
-}
-
-// compare to sort detection** by bbox.x
-int compare_by_lefts(const void* a_ptr, const void* b_ptr)
-{
-  const detection_with_class* a = (detection_with_class*)a_ptr;
-  const detection_with_class* b = (detection_with_class*)b_ptr;
-  const float delta =
-      (a->det.bbox.x - a->det.bbox.w / 2) - (b->det.bbox.x - b->det.bbox.w / 2);
-  return delta < 0 ? -1 : delta > 0 ? 1 : 0;
-}
-
-// compare to sort detection** by best_class probability
-int compare_by_probs(const void* a_ptr, const void* b_ptr)
-{
-  const detection_with_class* a = (detection_with_class*)a_ptr;
-  const detection_with_class* b = (detection_with_class*)b_ptr;
-  float delta = a->det.prob[a->best_class] - b->det.prob[b->best_class];
-  return delta < 0 ? -1 : delta > 0 ? 1 : 0;
 }
 
 void transpose_image(Image im)
@@ -1560,7 +1488,7 @@ Image load_image(char const* filename, int w, int h, int c)
   // image out = load_image_stb(filename, c);
   Image out = load_image_cv(filename, c);
 #else
-  image out = load_image_stb(filename, c);  // without OpenCV
+  Image out = load_image_stb(filename, c);  // without OpenCV
 #endif  // OPENCV
 
   if ((h && w) && (h != out.h || w != out.w))

@@ -1196,8 +1196,7 @@ void assisted_excitation_forward_gpu(convolutional_layer l, NetworkState state)
     int t;
     for (t = 0; t < state.net->num_boxes; ++t)
     {
-      box truth =
-          float_to_box_stride(truth_cpu + t * (4 + 1) + b * l.truths, 1);
+      Box truth(truth_cpu + t * (4 + 1) + b * l.truths);
       if (!truth.x)
         break;  // continue;
       float beta = 0;

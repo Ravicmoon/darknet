@@ -27,7 +27,7 @@ void draw_box(
     Image a, int x1, int y1, int x2, int y2, float r, float g, float b);
 void draw_box_width(
     Image a, int x1, int y1, int x2, int y2, int w, float r, float g, float b);
-void draw_bbox(Image a, box bbox, int w, float r, float g, float b);
+void draw_bbox(Image a, Box bbox, int w, float r, float g, float b);
 void draw_label(Image a, int r, int c, Image label, const float* rgb);
 void write_label(
     Image a, int r, int c, Image* characters, char* string, float* rgb);
@@ -87,8 +87,6 @@ Image copy_image(Image p);
 void copy_image_inplace(Image src, Image dst);
 Image load_image(char const* filename, int w, int h, int c);
 Image load_image_stb_resize(char* filename, int w, int h, int c);
-// LIB_API image load_image_color(char *filename, int w, int h);
-Image** load_alphabet();
 
 // float get_pixel(image m, int x, int y, int c);
 // float get_pixel_extend(image m, int x, int y, int c);

@@ -1338,7 +1338,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
         int t;
         for (t = 0; t < boxes; ++t)
         {
-          box b = float_to_box_stride(d.y.vals[i] + t * (4 + 1), 1);
+          Box b(d.y.vals[i] + t * (4 + 1));
           if (!b.x)
             break;
           int left = (b.x - b.w / 2.) * ai.w;
@@ -1546,7 +1546,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
         int t;
         for (t = 0; t < boxes; ++t)
         {
-          box b = float_to_box_stride(d.y.vals[i] + t * (4 + 1), 1);
+          Box b(d.y.vals[i] + t * (4 + 1));
           if (!b.x)
             break;
           int left = (b.x - b.w / 2.) * sized.w;

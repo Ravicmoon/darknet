@@ -118,7 +118,7 @@ void forward_detection_layer(const detection_layer l, NetworkState state)
           avg_allcat += l.output[class_index + j];
         }
 
-        box truth = float_to_box(state.truth + truth_index + 1 + l.classes);
+        Box truth(state.truth + truth_index + 1 + l.classes);
         truth.x /= l.side;
         truth.y /= l.side;
 
@@ -126,7 +126,7 @@ void forward_detection_layer(const detection_layer l, NetworkState state)
         {
           int box_index =
               index + locations * (l.classes + l.n) + (i * l.n + j) * l.coords;
-          box out = float_to_box(l.output + box_index);
+          Box out(l.output + box_index);
           out.x /= l.side;
           out.y /= l.side;
 
@@ -136,9 +136,9 @@ void forward_detection_layer(const detection_layer l, NetworkState state)
             out.h = out.h * out.h;
           }
 
-          float iou = box_iou(out, truth);
+          float iou = Box::Iou(out, truth);
           // iou = 0;
-          float rmse = box_rmse(out, truth);
+          float rmse = Box::Rmse(out, truth);
           if (best_iou > 0 || iou > 0)
           {
             if (iou > best_iou)
@@ -177,7 +177,7 @@ void forward_detection_layer(const detection_layer l, NetworkState state)
                         (i * l.n + best_index) * l.coords;
         int tbox_index = truth_index + 1 + l.classes;
 
-        box out = float_to_box(l.output + box_index);
+        Box out(l.output + box_index);
         out.x /= l.side;
         out.y /= l.side;
         if (l.sqrt)
@@ -185,7 +185,7 @@ void forward_detection_layer(const detection_layer l, NetworkState state)
           out.w = out.w * out.w;
           out.h = out.h * out.h;
         }
-        float iou = box_iou(out, truth);
+        float iou = Box::Iou(out, truth);
 
         // printf("%d,", best_index);
         int p_index = index + locations * l.classes + i * l.n + best_index;
@@ -275,7 +275,7 @@ void backward_detection_layer(const detection_layer l, NetworkState state)
 }
 
 void get_detection_boxes(layer l, int w, int h, float thresh, float** probs,
-    box* boxes, int only_objectness)
+    Box* boxes, int only_objectness)
 {
   int i, j, n;
   float* predictions = l.output;
@@ -362,7 +362,7 @@ void get_detection_detections(
       int p_index = l.side * l.side * l.classes + i * l.n + n;
       float scale = predictions[p_index];
       int box_index = l.side * l.side * (l.classes + l.n) + (i * l.n + n) * 4;
-      box b;
+      Box b;
       b.x = (predictions[box_index + 0] + col) / l.side * w;
       b.y = (predictions[box_index + 1] + row) / l.side * h;
       b.w = pow(predictions[box_index + 2], (l.sqrt ? 2 : 1)) * w;

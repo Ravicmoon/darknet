@@ -138,10 +138,10 @@ void ResizeYoloLayer(layer* l, int w, int h)
 #endif
 }
 
-box get_yolo_box(float* x, float* biases, int n, int index, int i, int j,
+Box get_yolo_box(float* x, float* biases, int n, int index, int i, int j,
     int lw, int lh, int w, int h, int stride)
 {
-  box b;
+  Box b;
   // ln - natural logarithm (base = e)
   // x` = t.x * lw - i;   // x = ln(x`/(1-x`))   // x - output of previous
   // conv-layer y` = t.y * lh - i;   // y = ln(y`/(1-y`))   // y - output of
@@ -177,19 +177,19 @@ static inline float clip_value(float val, const float max_val)
   return val;
 }
 
-ious delta_yolo_box(box truth, float* x, float* biases, int n, int index, int i,
+Ious delta_yolo_box(Box truth, float* x, float* biases, int n, int index, int i,
     int j, int lw, int lh, int w, int h, float* delta, float scale, int stride,
     float iou_normalizer, IOU_LOSS iou_loss, int accumulate, float max_delta)
 {
-  ious all_ious = {0};
+  Ious all_ious = {0};
   // i - step in layer width
   // j - step in layer height
   //  Returns a box in absolute coordinates
-  box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride);
-  all_ious.iou = box_iou(pred, truth);
-  all_ious.giou = box_giou(pred, truth);
-  all_ious.diou = box_diou(pred, truth);
-  all_ious.ciou = box_ciou(pred, truth);
+  Box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride);
+  all_ious.iou = Box::Iou(pred, truth);
+  all_ious.giou = Box::Giou(pred, truth);
+  all_ious.diou = Box::Diou(pred, truth);
+  all_ious.ciou = Box::Ciou(pred, truth);
   // avoid nan in dx_box_iou
   if (pred.w == 0)
   {
@@ -225,7 +225,7 @@ ious delta_yolo_box(box truth, float* x, float* biases, int n, int index, int i,
     // https://github.com/generalized-iou/g-darknet
     // https://arxiv.org/abs/1902.09630v2
     // https://giou.stanford.edu/
-    all_ious.dx_iou = dx_box_iou(pred, truth, iou_loss);
+    all_ious.dx_iou = Box::DxIou(pred, truth, iou_loss);
 
     // jacobian^t (transpose)
     // float dx = (all_ious.dx_iou.dl + all_ious.dx_iou.dr);
@@ -443,7 +443,7 @@ void ForwardYoloLayer(const layer l, NetworkState state)
         for (n = 0; n < l.n; ++n)
         {
           int box_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
-          box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i,
+          Box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i,
               j, l.w, l.h, state.net->w, state.net->h, l.w * l.h);
           float best_match_iou = 0;
           int best_match_t = 0;
@@ -451,8 +451,7 @@ void ForwardYoloLayer(const layer l, NetworkState state)
           int best_t = 0;
           for (t = 0; t < l.max_boxes; ++t)
           {
-            box truth = float_to_box_stride(
-                state.truth + t * (4 + 1) + b * l.truths, 1);
+            Box truth(state.truth + t * (4 + 1) + b * l.truths);
             int class_id = state.truth[t * (4 + 1) + b * l.truths + 4];
             if (class_id >= l.classes || class_id < 0)
             {
@@ -481,7 +480,7 @@ void ForwardYoloLayer(const layer l, NetworkState state)
             int class_id_match = compare_yolo_class(l.output, l.classes,
                 class_index, l.w * l.h, objectness, class_id, 0.25f);
 
-            float iou = box_iou(pred, truth);
+            float iou = Box::Iou(pred, truth);
             if (iou > best_match_iou && class_id_match == 1)
             {
               best_match_iou = iou;
@@ -531,8 +530,7 @@ void ForwardYoloLayer(const layer l, NetworkState state)
             delta_yolo_class(l.output, l.delta, class_index, class_id,
                 l.classes, l.w * l.h, 0, l.focal_loss, l.label_smooth_eps,
                 l.classes_multipliers);
-            box truth = float_to_box_stride(
-                state.truth + best_t * (4 + 1) + b * l.truths, 1);
+            Box truth(state.truth + best_t * (4 + 1) + b * l.truths);
             const float class_multiplier = (l.classes_multipliers) ?
                                                l.classes_multipliers[class_id] :
                                                1.0f;
@@ -547,8 +545,7 @@ void ForwardYoloLayer(const layer l, NetworkState state)
     }
     for (t = 0; t < l.max_boxes; ++t)
     {
-      box truth =
-          float_to_box_stride(state.truth + t * (4 + 1) + b * l.truths, 1);
+      Box truth(state.truth + t * (4 + 1) + b * l.truths);
       if (truth.x < 0 || truth.y < 0 || truth.x > 1 || truth.y > 1 ||
           truth.w < 0 || truth.h < 0)
       {
@@ -574,14 +571,14 @@ void ForwardYoloLayer(const layer l, NetworkState state)
       int best_n = 0;
       i = (truth.x * l.w);
       j = (truth.y * l.h);
-      box truth_shift = truth;
+      Box truth_shift = truth;
       truth_shift.x = truth_shift.y = 0;
       for (n = 0; n < l.total; ++n)
       {
-        box pred = {0};
+        Box pred;
         pred.w = l.biases[2 * n] / state.net->w;
         pred.h = l.biases[2 * n + 1] / state.net->h;
-        float iou = box_iou(pred, truth_shift);
+        float iou = Box::Iou(pred, truth_shift);
         if (iou > best_iou)
         {
           best_iou = iou;
@@ -599,7 +596,7 @@ void ForwardYoloLayer(const layer l, NetworkState state)
         int box_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
         const float class_multiplier =
             (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
-        ious all_ious = delta_yolo_box(truth, l.output, l.biases, best_n,
+        Ious all_ious = delta_yolo_box(truth, l.output, l.biases, best_n,
             box_index, i, j, l.w, l.h, state.net->w, state.net->h, l.delta,
             (2 - truth.w * truth.h), l.w * l.h,
             l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta);
@@ -648,12 +645,10 @@ void ForwardYoloLayer(const layer l, NetworkState state)
         int mask_n = int_index(l.mask, n, l.n);
         if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
         {
-          box pred = {0};
+          Box pred;
           pred.w = l.biases[2 * n] / state.net->w;
           pred.h = l.biases[2 * n + 1] / state.net->h;
-          float iou = box_iou_kind(pred, truth_shift,
-              l.iou_thresh_kind);  // IOU, GIOU, MSE, DIOU, CIOU
-          // iou, n
+          float iou = Box::Iou(pred, truth_shift, l.iou_thresh_kind);
 
           if (iou > l.iou_thresh)
           {
@@ -666,7 +661,7 @@ void ForwardYoloLayer(const layer l, NetworkState state)
             const float class_multiplier = (l.classes_multipliers) ?
                                                l.classes_multipliers[class_id] :
                                                1.0f;
-            ious all_ious = delta_yolo_box(truth, l.output, l.biases, n,
+            Ious all_ious = delta_yolo_box(truth, l.output, l.biases, n,
                 box_index, i, j, l.w, l.h, state.net->w, state.net->h, l.delta,
                 (2 - truth.w * truth.h), l.w * l.h,
                 l.iou_normalizer * class_multiplier, l.iou_loss, 1,
@@ -851,7 +846,7 @@ void CorrectYoloBoxes(Detection* dets, int n, int w, int h, int netw, int neth,
   float ratioh = (float)new_h / neth;
   for (i = 0; i < n; ++i)
   {
-    box b = dets[i].bbox;
+    Box b = dets[i].bbox;
     // x = ( x - (deltaw/2)/netw ) / ratiow;
     //   x - [(1/2 the difference of the network width and rotated width) /
     //   (network width)]
