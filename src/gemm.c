@@ -1057,9 +1057,9 @@ void convolution_2d_old(int w, int h, int ksize, int n, int c, int pad,
     int stride, float* weights, float* input, float* output)
 {
   // const int out_h = (h + 2 * pad - ksize) / stride + 1;    //
-  // output_height=input_height for stride=1 and pad=1 const int out_w = (w + 2 *
-  // pad - ksize) / stride + 1;    // output_width=input_width for stride=1 and
-  // pad=1
+  // output_height=input_height for stride=1 and pad=1 const int out_w = (w + 2
+  // * pad - ksize) / stride + 1;    // output_width=input_width for stride=1
+  // and pad=1
 
   int fil;
 // filter index
@@ -1111,9 +1111,9 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
     float* weights, float* input, float* output, float* mean)
 {
   // const int out_h = (h + 2 * pad - ksize) / stride + 1;    //
-  // output_height=input_height for stride=1 and pad=1 const int out_w = (w + 2 *
-  // pad - ksize) / stride + 1;    // output_width=input_width for stride=1 and
-  // pad=1
+  // output_height=input_height for stride=1 and pad=1 const int out_w = (w + 2
+  // * pad - ksize) / stride + 1;    // output_width=input_width for stride=1
+  // and pad=1
   int i;
 
 #if defined(_OPENMP)
@@ -1152,7 +1152,7 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 
   ///__m256i src256 = _mm256_loadu_si256((__m256i *)(&src[i]));
   ///__m256i result256 = _mm256_and_si256(src256, all256_sing1); // check sign
-  ///in 8 x 32-bit floats
+  /// in 8 x 32-bit floats
 
   int fil;
 // filter index
@@ -1207,15 +1207,15 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
               __m256 w = _mm256_set1_ps(weights[weights_index]);
               //__m256 w_sign = _mm256_and_ps(w,
               //_mm256_castsi256_ps(all256_sing1)); // check sign in 8 x 32-bit
-              //floats
+              // floats
               __m256 xor256 = _mm256_xor_ps(w, in);
               // printf("\n xor256_1 = %f, xor256_2 = %f \n",
-              // xor256.m256_f32[0], xor256.m256_f32[1]); printf("\n in = %f, w =
-              // %f, xor256 = %f \n", in.m256_f32[0], w_sign.m256_f32[0],
+              // xor256.m256_f32[0], xor256.m256_f32[1]); printf("\n in = %f, w
+              // = %f, xor256 = %f \n", in.m256_f32[0], w_sign.m256_f32[0],
               // xor256.m256_f32[0]);
 
               //__m256 pn1 = _mm256_and_ps(_mm256_castsi256_ps(all256i_one),
-              //xor256);
+              // xor256);
 
               // sum256 = xor256;
               sum256 = _mm256_add_ps(xor256, sum256);
@@ -1856,9 +1856,9 @@ void im2col_cpu_custom_bin(float* data_im, int channels, int height, int width,
           int col_index = c * new_ldb + h * width_col + w;
 
           //__m256i src256 = _mm256_loadu_si256((__m256i *)(&data_im[im_col +
-          //width*(im_row + height*c_im)]));
+          // width*(im_row + height*c_im)]));
           //__m256i result256 = _mm256_and_si256(src256, all256_sing1); // check
-          //sign in 8 x 32-bit floats uint16_t mask =
+          // sign in 8 x 32-bit floats uint16_t mask =
           // _mm256_movemask_ps(_mm256_castsi256_ps(result256)); // (val >= 0) ?
           // 0 : 1 mask = ~mask;   // inverse mask,  (val >= 0) ? 1 : 0
 
@@ -2021,14 +2021,14 @@ void float_to_bit(float* src, unsigned char* dst, size_t size)
 
   size_t i;
   //__m256i all256_sing1 = _mm256_set_epi32(0x80000000, 0x80000000, 0x80000000,
-  //0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000);
+  // 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000);
   __m256 float_zero256 = _mm256_set1_ps(0.0);
 
   for (i = 0; i < size; i += 8)
   {
     //__m256i src256 = _mm256_loadu_si256((__m256i *)(&src[i]));
     //__m256i result256 = _mm256_and_si256(src256, all256_sing1); // check sign
-    //in 8 x 32-bit floats uint32_t mask =
+    // in 8 x 32-bit floats uint32_t mask =
     // _mm256_movemask_ps(_mm256_castsi256_ps(result256)); // (val >= 0) ? 0 : 1
     ////mask = ~mask;   // inverse mask,  (val >= 0) ? 1 : 0
 
@@ -2287,14 +2287,7 @@ void gemm_nn_bin_32bit_packed(int M, int N, int K, float ALPHA, uint32_t* A,
 void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
     float* weights, float* input, float* output, float* mean)
 {
-  const int out_h = (h + 2 * pad - ksize) / stride +
-                    1;  // output_height=input_height for stride=1 and pad=1
-  const int out_w = (w + 2 * pad - ksize) / stride +
-                    1;  // output_width=input_width for stride=1 and pad=1
-  // int i, f, j;
-
-  int fil;
-// filter index
+  int fil;  // filter index
 #pragma omp parallel for  // "omp parallel for" - automatic parallelization of
                           // loop by using OpenMP
   for (fil = 0; fil < n; ++fil)

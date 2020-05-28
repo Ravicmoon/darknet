@@ -371,23 +371,20 @@ void forward_connected_layer_gpu(connected_layer l, NetworkState state)
 {
   fill_ongpu(l.outputs * l.batch, 0, l.output_gpu, 1);
 
+#ifdef CUDNN
+  float alpha = 1, beta = 0;
+
+  CHECK_CUDNN(cudnnConvolutionForward(cudnn_handle(), &alpha, l.srcTensorDesc,
+      state.input, l.weightDesc, l.weights_gpu, l.convDesc, l.fw_algo,
+      state.workspace, l.workspace_size, &beta, l.dstTensorDesc, l.output_gpu));
+#else   // CUDNN
   int m = l.batch;
   int k = l.inputs;
   int n = l.outputs;
   float* a = state.input;
   float* b = l.weights_gpu;
   float* c = l.output_gpu;
-#ifdef CUDNN
-  float one = 1;  // alpha[0], beta[0]
-  float alpha = 1, beta = 0;
 
-  CHECK_CUDNN(cudnnConvolutionForward(cudnn_handle(),
-      &alpha,  //&one,
-      l.srcTensorDesc, state.input, l.weightDesc, l.weights_gpu, l.convDesc,
-      l.fw_algo, state.workspace, l.workspace_size,
-      &beta,  //&one,
-      l.dstTensorDesc, l.output_gpu));
-#else   // CUDNN
   gemm_ongpu(0, 1, m, n, k, 1, a, k, b, k, 1, c, n);
 #endif  // CUDNN
 
@@ -399,8 +396,7 @@ void forward_connected_layer_gpu(connected_layer l, NetworkState state)
   {
     add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.outputs, 1);
   }
-  // for(i = 0; i < l.batch; ++i) axpy_ongpu(l.outputs, 1, l.biases_gpu, 1,
-  // l.output_gpu + i*l.outputs, 1);
+
   activate_array_ongpu(l.output_gpu, l.outputs * l.batch, l.activation);
 }
 

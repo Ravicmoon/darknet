@@ -363,9 +363,7 @@ float gradient(float x, ACTIVATION a)
     case RELU6:
       return relu6_gradient(x);
     case NORM_CHAN:
-      // return relu_gradient(x);
     case NORM_CHAN_SOFTMAX_MAXVAL:
-      //...
     case NORM_CHAN_SOFTMAX:
       printf(
           " Error: should be used custom NORM_CHAN or "
@@ -394,6 +392,8 @@ float gradient(float x, ACTIVATION a)
       return hardtan_gradient(x);
     case LHTAN:
       return lhtan_gradient(x);
+    default:
+      return 0;
   }
   return 0;
 }

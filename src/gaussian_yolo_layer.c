@@ -549,7 +549,6 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
               box_index, i, j, l.w, l.h, state.net->w, state.net->h, l.w * l.h,
               l.yolo_point);
           float best_match_iou = 0;
-          int best_match_t = 0;
           float best_iou = 0;
           int best_t = 0;
           for (t = 0; t < l.max_boxes; ++t)
@@ -583,10 +582,8 @@ void forward_gaussian_yolo_layer(const layer l, NetworkState state)
 
             float iou = Box::Iou(pred, truth);
             if (iou > best_match_iou && class_id_match == 1)
-            {
               best_match_iou = iou;
-              best_match_t = t;
-            }
+
             if (iou > best_iou)
             {
               best_iou = iou;
