@@ -16,29 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef LIB_API
-#ifdef LIB_EXPORTS
-#if defined(_MSC_VER)
-#define LIB_API __declspec(dllexport)
-#else
-#define LIB_API __attribute__((visibility("default")))
-#endif
-#else
-#if defined(_MSC_VER)
-#define LIB_API
-#else
-#define LIB_API
-#endif
-#endif
-#endif
-
-#define SECRET_NUM -1234
-
-typedef enum
-{
-  UNUSED_DEF_VAL
-} UNUSED_ENUM_TYPE;
-
 #ifdef GPU
 
 #include <cublas_v2.h>
@@ -49,6 +26,16 @@ typedef enum
 #include <cudnn.h>
 #endif  // CUDNN
 #endif  // GPU
+
+#include "libapi.h"
+#include "option_list.h"
+
+#define SECRET_NUM -1234
+
+typedef enum
+{
+  UNUSED_DEF_VAL
+} UNUSED_ENUM_TYPE;
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,20 +62,10 @@ typedef struct load_args load_args;
 struct data;
 typedef struct data data;
 
-struct Metadata;
-typedef struct Metadata Metadata;
-
 struct tree;
 typedef struct tree tree;
 
 extern int gpu_index;
-
-// option_list.h
-typedef struct Metadata
-{
-  int classes;
-  char** names;
-} Metadata;
 
 // tree.h
 typedef struct tree
@@ -1078,9 +1055,6 @@ LIB_API void top_k(float* a, int n, int k, int* index);
 
 // tree.h
 LIB_API tree* read_tree(char* filename);
-
-// option_list.h
-LIB_API Metadata GetMetadata(char const* file);
 
 // gemm.h
 LIB_API void init_cpu();

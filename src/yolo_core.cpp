@@ -139,9 +139,9 @@ void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
 {
   for (int i = 0; i < num_boxes; i++)
   {
-    char label[1024] = {0};
+    std::string label;
     int class_id = -1;
-    for (int j = 0; j < md.classes; j++)
+    for (int j = 0; j < md.NumClasses(); j++)
     {
       if (dets[i].prob[j] < thresh)
         continue;
@@ -149,16 +149,15 @@ void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
       if (class_id < 0)
       {
         class_id = j;
-        strcat(label, md.names[j]);
+        label += md.NameAt(j);
 
         char prob[10];
         sprintf(prob, "(%2.0f%%)", dets[i].prob[j] * 100);
-        strcat(label, prob);
+        label += prob;
       }
       else
       {
-        strcat(label, ", ");
-        strcat(label, md.names[j]);
+        label += ", " + md.NameAt(j);
       }
     }
 
@@ -181,8 +180,8 @@ void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
       if (right - left < text_size.width)
         pt_text_bg2.x = left + text_size.width;
 
-      int offset = class_id * 123457 % md.classes;
-      cv::Scalar color = GetRandColor(offset, md.classes);
+      int offset = class_id * 123457 % md.NumClasses();
+      cv::Scalar color = GetRandColor(offset, md.NumClasses());
 
       int width = (int)std::max(1.0f, img.rows * 0.002f);
 
@@ -240,7 +239,7 @@ int main(int argc, char** argv)
     float const nms = 0.45f;
     int num_boxes = 0;
 
-    Metadata md = GetMetadata(FLAGS_data_file.c_str());
+    Metadata md(FLAGS_data_file.c_str());
     Network* net = LoadNetworkCustom(
         FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);
     layer* l = &net->layers[net->n - 1];
@@ -277,8 +276,6 @@ int main(int argc, char** argv)
       if (cv::waitKey(1) == 27)
         break;
     }
-
-    // free_ptrs((void**)md.names, md.classes);
 
     FreeNetwork(net);
     free(net);

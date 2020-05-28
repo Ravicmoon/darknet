@@ -215,7 +215,6 @@ if(ENABLE_CUDA)
 endif()
 
 add_library(lib_yolo_core ${sources} ${headers} ${cuda_sources})
-target_compile_definitions(lib_yolo_core PRIVATE LIB_EXPORTS=1)
 set_source_files_properties(${sources} PROPERTIES LANGUAGE CXX)
 set_target_properties(lib_yolo_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_target_properties(lib_yolo_core PROPERTIES LINKER_LANGUAGE CXX)

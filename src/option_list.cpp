@@ -4,44 +4,78 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <fstream>
+#include <vector>
+
 #include "data.h"
 #include "utils.h"
 
-Metadata GetMetadata(char const* filename)
+class Metadata::MetadataImpl
 {
-  Metadata m = {0};
+ public:
+  MetadataImpl(char const* filename);
+
+ public:
+  int classes_;
+  std::vector<std::string> names_;
+};
+
+Metadata::MetadataImpl::MetadataImpl(char const* filename)
+{
   list* options = ReadDataCfg(filename);
 
-  char* name_list = FindOptionStr(options, "names", 0);
-  if (!name_list)
-    name_list = FindOptionStr(options, "labels", 0);
+  char* name_file = FindOptionStr(options, "names", 0);
+  if (name_file == nullptr)
+  {
+    printf("Invalid metadata file: name file not found");
+    exit(EXIT_FAILURE);
+  }
 
-  if (!name_list)
-    fprintf(stderr, "No names or labels found\n");
-  else
-    m.names = GetLabels(name_list);
+  classes_ = FindOptionInt(options, "classes", 2);
+  names_.clear();
 
-  m.classes = FindOptionInt(options, "classes", 2);
+  std::ifstream instream(name_file);
+  while (instream.is_open() && !instream.eof())
+  {
+    char buffer[256];
+    instream.getline(buffer, sizeof(buffer));
+
+    if (std::string(buffer).empty())
+      break;
+
+    names_.push_back(buffer);
+  }
+  instream.close();
+
+  if (names_.size() != classes_)
+  {
+    printf("Invalid metadata file: %d != %d", names_.size(), classes_);
+    exit(EXIT_FAILURE);
+  }
 
   free_list(options);
-
-  if (name_list)
-    printf("Loaded - names_list: %s, classes = %d \n", name_list, m.classes);
-
-  return m;
 }
+
+Metadata::Metadata(char const* filename) : impl_(new MetadataImpl(filename)) {}
+
+Metadata::~Metadata() { delete impl_; }
+
+int Metadata::NumClasses() const { return impl_->classes_; }
+
+std::string Metadata::NameAt(int idx) const { return impl_->names_[idx]; }
 
 list* ReadDataCfg(char const* filename)
 {
   FILE* file = fopen(filename, "r");
-  if (file == 0)
+  if (file == nullptr)
     FileError(filename);
+
   char* line;
-  int nu = 0;
+  int num_line = 0;
   list* options = MakeList();
   while ((line = fgetl(file)) != 0)
   {
-    ++nu;
+    num_line++;
     strip(line);
     switch (line[0])
     {
@@ -53,18 +87,19 @@ list* ReadDataCfg(char const* filename)
       default:
         if (!ReadOption(line, options))
         {
-          fprintf(
-              stderr, "Config file error line %d, could parse: %s\n", nu, line);
+          printf(
+              "Config file error line %d, could parse: %s\n", num_line, line);
           free(line);
         }
         break;
     }
   }
   fclose(file);
+
   return options;
 }
 
-int ReadOption(char* s, list* options)
+bool ReadOption(char* s, list* options)
 {
   size_t i;
   size_t len = strlen(s);
@@ -79,10 +114,10 @@ int ReadOption(char* s, list* options)
     }
   }
   if (i == len - 1)
-    return 0;
-  char* key = s;
-  InsertOption(options, key, val);
-  return 1;
+    return false;
+
+  InsertOption(options, s, val);
+  return true;
 }
 
 void InsertOption(list* l, char* key, char* val)
@@ -109,6 +144,7 @@ char* FindOption(list* l, char* key)
   }
   return 0;
 }
+
 char* FindOptionStr(list* l, char* key, char* def)
 {
   char* v = FindOption(l, key);

@@ -1,8 +1,8 @@
-#ifndef OPTION_LIST_H
-#define OPTION_LIST_H
-#include "list.h"
-#include "yolo_core.h"
+#pragma once
+#include <string>
 
+#include "libapi.h"
+#include "list.h"
 
 typedef struct
 {
@@ -11,12 +11,22 @@ typedef struct
   int used;
 } kvp;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class LIB_API Metadata
+{
+ public:
+  Metadata(char const* filename);
+  ~Metadata();
+
+  int NumClasses() const;
+  std::string NameAt(int idx) const;
+
+ private:
+  class MetadataImpl;
+  MetadataImpl* impl_;
+};
 
 list* ReadDataCfg(char const* filename);
-int ReadOption(char* s, list* options);
+bool ReadOption(char* s, list* options);
 void InsertOption(list* l, char* key, char* val);
 char* FindOption(list* l, char* key);
 char* FindOptionStr(list* l, char* key, char* def);
@@ -26,8 +36,3 @@ int FindOptionIntQuiet(list* l, char* key, int def);
 float FindOptionFloat(list* l, char* key, float def);
 float FindOptionFloatQuiet(list* l, char* key, float def);
 void UnusedOption(list* l);
-
-#ifdef __cplusplus
-}
-#endif
-#endif
