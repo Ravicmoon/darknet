@@ -174,11 +174,6 @@ typedef enum
   SCALE_CHANNELS,
   SAM,
   ACTIVE,
-  RNN,
-  GRU,
-  LSTM,
-  CONV_LSTM,
-  CRNN,
   BATCHNORM,
   NETWORK,
   XNOR,
@@ -526,7 +521,6 @@ struct layer
 
   size_t workspace_size;
 
-  //#ifdef GPU
   int* indexes_gpu;
 
   float* z_gpu;
@@ -656,7 +650,6 @@ struct layer
   UNUSED_ENUM_TYPE bf_algo, bf_algo16;
   void* poolingDesc;
 #endif  // CUDNN
-  //#endif  // GPU
 };
 
 // network.h
@@ -933,10 +926,7 @@ LIB_API char* Detection2Json(Detection* dets, int nboxes, int classes,
     char** names, long long int frame_id, char const* filename);
 
 LIB_API layer* get_network_layer(Network* net, int i);
-// LIB_API detection *get_network_boxes(network *net, int w, int h, float
-// thresh, float hier, int *map, int relative, int *num, int letter);
 LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
-LIB_API void reset_rnn(Network* net);
 LIB_API float* network_predict_image(Network* net, Image im);
 LIB_API float* network_predict_image_letterbox(Network* net, Image im);
 

@@ -9,13 +9,11 @@
 #include "connected_layer.h"
 #include "convolutional_layer.h"
 #include "cost_layer.h"
-#include "crnn_layer.h"
 #include "crop_layer.h"
 #include "dark_cuda.h"
 #include "data.h"
 #include "detection_layer.h"
 #include "dropout_layer.h"
-#include "gru_layer.h"
 #include "image.h"
 #include "local_layer.h"
 #include "maxpool_layer.h"
@@ -24,7 +22,6 @@
 #include "parser.h"
 #include "region_layer.h"
 #include "reorg_layer.h"
-#include "rnn_layer.h"
 #include "route_layer.h"
 #include "shortcut_layer.h"
 #include "softmax_layer.h"
@@ -325,47 +322,6 @@ void ForwardBackwardNetworkGpu(Network* net, float* x, float* y)
       {
         assert((l.nweights) > 0);
         cuda_convert_f32_to_f16(l.weights_gpu, l.nweights, l.weights_gpu16);
-      }
-      else if (l.type == CRNN && l.input_layer->weights_gpu &&
-               l.input_layer->weights_gpu16)
-      {
-        assert((l.input_layer->c * l.input_layer->n * l.input_layer->size *
-                   l.input_layer->size) > 0);
-        cuda_convert_f32_to_f16(l.input_layer->weights_gpu,
-            l.input_layer->nweights, l.input_layer->weights_gpu16);
-        cuda_convert_f32_to_f16(l.self_layer->weights_gpu,
-            l.self_layer->nweights, l.self_layer->weights_gpu16);
-        cuda_convert_f32_to_f16(l.output_layer->weights_gpu,
-            l.output_layer->nweights, l.output_layer->weights_gpu16);
-      }
-      else if (l.type == CONV_LSTM && l.wf->weights_gpu && l.wf->weights_gpu16)
-      {
-        assert((l.wf->c * l.wf->n * l.wf->size * l.wf->size) > 0);
-        if (l.peephole)
-        {
-          cuda_convert_f32_to_f16(
-              l.vf->weights_gpu, l.vf->nweights, l.vf->weights_gpu16);
-          cuda_convert_f32_to_f16(
-              l.vi->weights_gpu, l.vi->nweights, l.vi->weights_gpu16);
-          cuda_convert_f32_to_f16(
-              l.vo->weights_gpu, l.vo->nweights, l.vo->weights_gpu16);
-        }
-        cuda_convert_f32_to_f16(
-            l.wf->weights_gpu, l.wf->nweights, l.wf->weights_gpu16);
-        cuda_convert_f32_to_f16(
-            l.wi->weights_gpu, l.wi->nweights, l.wi->weights_gpu16);
-        cuda_convert_f32_to_f16(
-            l.wg->weights_gpu, l.wg->nweights, l.wg->weights_gpu16);
-        cuda_convert_f32_to_f16(
-            l.wo->weights_gpu, l.wo->nweights, l.wo->weights_gpu16);
-        cuda_convert_f32_to_f16(
-            l.uf->weights_gpu, l.uf->nweights, l.uf->weights_gpu16);
-        cuda_convert_f32_to_f16(
-            l.ui->weights_gpu, l.ui->nweights, l.ui->weights_gpu16);
-        cuda_convert_f32_to_f16(
-            l.ug->weights_gpu, l.ug->nweights, l.ug->weights_gpu16);
-        cuda_convert_f32_to_f16(
-            l.uo->weights_gpu, l.uo->nweights, l.uo->weights_gpu16);
       }
     }
   }

@@ -8,7 +8,6 @@
 #include "tree.h"
 #include "yolo_core.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -69,10 +68,6 @@ float GetNetworkCost(Network* net);
 int get_network_nuisance(Network net);
 int get_network_background(Network net);
 void copy_weights_net(Network net_train, Network* net_map);
-void free_network_recurrent_state(Network net);
-void randomize_network_recurrent_state(Network net);
-void remember_network_recurrent_state(Network net);
-void restore_network_recurrent_state(Network net);
 
 #ifdef __cplusplus
 }

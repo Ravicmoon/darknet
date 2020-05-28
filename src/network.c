@@ -9,16 +9,13 @@
 #include "batchnorm_layer.h"
 #include "blas.h"
 #include "connected_layer.h"
-#include "conv_lstm_layer.h"
 #include "convolutional_layer.h"
 #include "cost_layer.h"
-#include "crnn_layer.h"
 #include "crop_layer.h"
 #include "data.h"
 #include "detection_layer.h"
 #include "dropout_layer.h"
 #include "gaussian_yolo_layer.h"
-#include "gru_layer.h"
 #include "image.h"
 #include "local_layer.h"
 #include "maxpool_layer.h"
@@ -27,7 +24,6 @@
 #include "region_layer.h"
 #include "reorg_layer.h"
 #include "reorg_old_layer.h"
-#include "rnn_layer.h"
 #include "route_layer.h"
 #include "sam_layer.h"
 #include "scale_channels_layer.h"
@@ -81,8 +77,6 @@ void reset_network_state(Network* net, int b)
 #endif
   }
 }
-
-void reset_rnn(Network* net) { reset_network_state(net, 0); }
 
 float GetCurrentSeqSubdivisions(Network* net)
 {
@@ -189,14 +183,6 @@ char* get_layer_string(LAYER_TYPE a)
       return "deconvolutional";
     case CONNECTED:
       return "connected";
-    case RNN:
-      return "rnn";
-    case GRU:
-      return "gru";
-    case LSTM:
-      return "lstm";
-    case CRNN:
-      return "crnn";
     case MAXPOOL:
       return "maxpool";
     case REORG:
@@ -577,14 +563,6 @@ int resize_network(Network* net, int w, int h)
     if (l.type == CONVOLUTIONAL)
     {
       resize_convolutional_layer(&l, w, h);
-    }
-    else if (l.type == CRNN)
-    {
-      resize_crnn_layer(&l, w, h);
-    }
-    else if (l.type == CONV_LSTM)
-    {
-      resize_conv_lstm_layer(&l, w, h);
     }
     else if (l.type == CROP)
     {
@@ -1478,79 +1456,15 @@ void copy_weights_net(Network net_train, Network* net_map)
     net_map->layers[k] = net_train.layers[k];
     copy_cudnn_descriptors(tmp_layer, &net_map->layers[k]);
 
-    if (l->type == CRNN)
-    {
-      layer tmp_input_layer, tmp_self_layer, tmp_output_layer;
-      copy_cudnn_descriptors(*net_map->layers[k].input_layer, &tmp_input_layer);
-      copy_cudnn_descriptors(*net_map->layers[k].self_layer, &tmp_self_layer);
-      copy_cudnn_descriptors(
-          *net_map->layers[k].output_layer, &tmp_output_layer);
-      net_map->layers[k].input_layer = net_train.layers[k].input_layer;
-      net_map->layers[k].self_layer = net_train.layers[k].self_layer;
-      net_map->layers[k].output_layer = net_train.layers[k].output_layer;
-      // net_map->layers[k].output_gpu =
-      // net_map->layers[k].output_layer->output_gpu;  // already copied out of
-      // if()
-
-      copy_cudnn_descriptors(tmp_input_layer, net_map->layers[k].input_layer);
-      copy_cudnn_descriptors(tmp_self_layer, net_map->layers[k].self_layer);
-      copy_cudnn_descriptors(tmp_output_layer, net_map->layers[k].output_layer);
-    }
-    else if (l->input_layer)  // for AntiAliasing
+    if (l->input_layer)  // for AntiAliasing
     {
       layer tmp_input_layer;
       copy_cudnn_descriptors(*net_map->layers[k].input_layer, &tmp_input_layer);
       net_map->layers[k].input_layer = net_train.layers[k].input_layer;
       copy_cudnn_descriptors(tmp_input_layer, net_map->layers[k].input_layer);
     }
+
     net_map->layers[k].batch = 1;
     net_map->layers[k].steps = 1;
-  }
-}
-
-void free_network_recurrent_state(Network net)
-{
-  int k;
-  for (k = 0; k < net.n; ++k)
-  {
-    if (net.layers[k].type == CONV_LSTM)
-      free_state_conv_lstm(net.layers[k]);
-    if (net.layers[k].type == CRNN)
-      free_state_crnn(net.layers[k]);
-  }
-}
-
-void randomize_network_recurrent_state(Network net)
-{
-  int k;
-  for (k = 0; k < net.n; ++k)
-  {
-    if (net.layers[k].type == CONV_LSTM)
-      randomize_state_conv_lstm(net.layers[k]);
-    if (net.layers[k].type == CRNN)
-      free_state_crnn(net.layers[k]);
-  }
-}
-
-void remember_network_recurrent_state(Network net)
-{
-  int k;
-  for (k = 0; k < net.n; ++k)
-  {
-    if (net.layers[k].type == CONV_LSTM)
-      remember_state_conv_lstm(net.layers[k]);
-    // if (net.layers[k].type == CRNN) free_state_crnn(net.layers[k]);
-  }
-}
-
-void restore_network_recurrent_state(Network net)
-{
-  int k;
-  for (k = 0; k < net.n; ++k)
-  {
-    if (net.layers[k].type == CONV_LSTM)
-      restore_state_conv_lstm(net.layers[k]);
-    if (net.layers[k].type == CRNN)
-      free_state_crnn(net.layers[k]);
   }
 }

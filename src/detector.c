@@ -530,8 +530,6 @@ float ValidateDetector(char const* data_file, char const* model_file,
     char* train_images = FindOptionStr(options, "train", "data/train.txt");
     valid_images = FindOptionStr(options, "valid", train_images);
     net = *existing_net;
-    remember_network_recurrent_state(*existing_net);
-    free_network_recurrent_state(*existing_net);
   }
   else
   {
@@ -1026,17 +1024,9 @@ float ValidateDetector(char const* data_file, char const* model_file,
   free_list_contents_kvp(options);
   free_list(options);
 
-  if (existing_net)
-  {
-    // set_batch_network(&net, initial_batch);
-    // free_network_recurrent_state(*existing_net);
-    restore_network_recurrent_state(*existing_net);
-    // randomize_network_recurrent_state(*existing_net);
-  }
-  else
-  {
+  if (!existing_net)
     FreeNetwork(&net);
-  }
+
   if (val)
     free(val);
   if (val_resized)

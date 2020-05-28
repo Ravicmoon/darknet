@@ -12,25 +12,20 @@
 #include "batchnorm_layer.h"
 #include "blas.h"
 #include "connected_layer.h"
-#include "conv_lstm_layer.h"
 #include "convolutional_layer.h"
 #include "cost_layer.h"
-#include "crnn_layer.h"
 #include "crop_layer.h"
 #include "detection_layer.h"
 #include "dropout_layer.h"
 #include "gaussian_yolo_layer.h"
-#include "gru_layer.h"
 #include "list.h"
 #include "local_layer.h"
-#include "lstm_layer.h"
 #include "maxpool_layer.h"
 #include "normalization_layer.h"
 #include "option_list.h"
 #include "region_layer.h"
 #include "reorg_layer.h"
 #include "reorg_old_layer.h"
-#include "rnn_layer.h"
 #include "route_layer.h"
 #include "sam_layer.h"
 #include "scale_channels_layer.h"
@@ -77,16 +72,6 @@ LAYER_TYPE string_to_layer_type(char* type)
     return ACTIVE;
   if (strcmp(type, "[net]") == 0 || strcmp(type, "[network]") == 0)
     return NETWORK;
-  if (strcmp(type, "[crnn]") == 0)
-    return CRNN;
-  if (strcmp(type, "[gru]") == 0)
-    return GRU;
-  if (strcmp(type, "[lstm]") == 0)
-    return LSTM;
-  if (strcmp(type, "[conv_lstm]") == 0)
-    return CONV_LSTM;
-  if (strcmp(type, "[rnn]") == 0)
-    return RNN;
   if (strcmp(type, "[conn]") == 0 || strcmp(type, "[connected]") == 0)
     return CONNECTED;
   if (strcmp(type, "[max]") == 0 || strcmp(type, "[maxpool]") == 0)
@@ -287,103 +272,6 @@ convolutional_layer parse_convolutional(list* options, size_params params)
   }
 
   return layer;
-}
-
-layer parse_crnn(list* options, size_params params)
-{
-  int size = FindOptionIntQuiet(options, "size", 3);
-  int stride = FindOptionIntQuiet(options, "stride", 1);
-  int dilation = FindOptionIntQuiet(options, "dilation", 1);
-  int pad = FindOptionIntQuiet(options, "pad", 0);
-  int padding = FindOptionIntQuiet(options, "padding", 0);
-  if (pad)
-    padding = size / 2;
-
-  int output_filters = FindOptionInt(options, "output", 1);
-  int hidden_filters = FindOptionInt(options, "hidden", 1);
-  int groups = FindOptionIntQuiet(options, "groups", 1);
-  char* activation_s = FindOptionStr(options, "activation", "logistic");
-  ACTIVATION activation = get_activation(activation_s);
-  int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
-  int xnor = FindOptionIntQuiet(options, "xnor", 0);
-
-  layer l = make_crnn_layer(params.batch, params.h, params.w, params.c,
-      hidden_filters, output_filters, groups, params.time_steps, size, stride,
-      dilation, padding, activation, batch_normalize, xnor, params.train);
-
-  l.shortcut = FindOptionIntQuiet(options, "shortcut", 0);
-
-  return l;
-}
-
-layer parse_rnn(list* options, size_params params)
-{
-  int output = FindOptionInt(options, "output", 1);
-  int hidden = FindOptionInt(options, "hidden", 1);
-  char* activation_s = FindOptionStr(options, "activation", "logistic");
-  ACTIVATION activation = get_activation(activation_s);
-  int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
-  int logistic = FindOptionIntQuiet(options, "logistic", 0);
-
-  layer l = make_rnn_layer(params.batch, params.inputs, hidden, output,
-      params.time_steps, activation, batch_normalize, logistic);
-
-  l.shortcut = FindOptionIntQuiet(options, "shortcut", 0);
-
-  return l;
-}
-
-layer parse_gru(list* options, size_params params)
-{
-  int output = FindOptionInt(options, "output", 1);
-  int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
-
-  layer l = make_gru_layer(
-      params.batch, params.inputs, output, params.time_steps, batch_normalize);
-
-  return l;
-}
-
-layer parse_lstm(list* options, size_params params)
-{
-  int output = FindOptionInt(options, "output", 1);
-  int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
-
-  layer l = make_lstm_layer(
-      params.batch, params.inputs, output, params.time_steps, batch_normalize);
-
-  return l;
-}
-
-layer parse_conv_lstm(list* options, size_params params)
-{
-  // a ConvLSTM with a larger transitional kernel should be able to capture
-  // faster motions
-  int size = FindOptionIntQuiet(options, "size", 3);
-  int stride = FindOptionIntQuiet(options, "stride", 1);
-  int dilation = FindOptionIntQuiet(options, "dilation", 1);
-  int pad = FindOptionIntQuiet(options, "pad", 0);
-  int padding = FindOptionIntQuiet(options, "padding", 0);
-  if (pad)
-    padding = size / 2;
-
-  int output_filters = FindOptionInt(options, "output", 1);
-  int groups = FindOptionIntQuiet(options, "groups", 1);
-  char* activation_s = FindOptionStr(options, "activation", "LINEAR");
-  ACTIVATION activation = get_activation(activation_s);
-  int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
-  int xnor = FindOptionIntQuiet(options, "xnor", 0);
-  int peephole = FindOptionIntQuiet(options, "peephole", 0);
-
-  layer l = make_conv_lstm_layer(params.batch, params.h, params.w, params.c,
-      output_filters, groups, params.time_steps, size, stride, dilation,
-      padding, activation, batch_normalize, peephole, xnor, params.train);
-
-  l.state_constrain =
-      FindOptionIntQuiet(options, "state_constrain", params.time_steps * 32);
-  l.shortcut = FindOptionIntQuiet(options, "shortcut", 0);
-
-  return l;
 }
 
 connected_layer parse_connected(list* options, size_params params)
@@ -1469,38 +1357,12 @@ void SetTrainOnlyBn(Network* net)
   int i;
   for (i = net->n - 1; i >= 0; --i)
   {
+    // set l.train_only_bn for all previous layers
     if (net->layers[i].train_only_bn)
-      train_only_bn =
-          net->layers[i]
-              .train_only_bn;  // set l.train_only_bn for all previous layers
-    if (train_only_bn)
-    {
-      net->layers[i].train_only_bn = train_only_bn;
+      train_only_bn = net->layers[i].train_only_bn;
 
-      if (net->layers[i].type == CONV_LSTM)
-      {
-        net->layers[i].wf->train_only_bn = train_only_bn;
-        net->layers[i].wi->train_only_bn = train_only_bn;
-        net->layers[i].wg->train_only_bn = train_only_bn;
-        net->layers[i].wo->train_only_bn = train_only_bn;
-        net->layers[i].uf->train_only_bn = train_only_bn;
-        net->layers[i].ui->train_only_bn = train_only_bn;
-        net->layers[i].ug->train_only_bn = train_only_bn;
-        net->layers[i].uo->train_only_bn = train_only_bn;
-        if (net->layers[i].peephole)
-        {
-          net->layers[i].vf->train_only_bn = train_only_bn;
-          net->layers[i].vi->train_only_bn = train_only_bn;
-          net->layers[i].vo->train_only_bn = train_only_bn;
-        }
-      }
-      else if (net->layers[i].type == CRNN)
-      {
-        net->layers[i].input_layer->train_only_bn = train_only_bn;
-        net->layers[i].self_layer->train_only_bn = train_only_bn;
-        net->layers[i].output_layer->train_only_bn = train_only_bn;
-      }
-    }
+    if (train_only_bn)
+      net->layers[i].train_only_bn = train_only_bn;
   }
 }
 
@@ -1598,26 +1460,6 @@ void ParseNetworkCfgCustom(
     else if (lt == ACTIVE)
     {
       l = parse_activation(options, params);
-    }
-    else if (lt == RNN)
-    {
-      l = parse_rnn(options, params);
-    }
-    else if (lt == GRU)
-    {
-      l = parse_gru(options, params);
-    }
-    else if (lt == LSTM)
-    {
-      l = parse_lstm(options, params);
-    }
-    else if (lt == CONV_LSTM)
-    {
-      l = parse_conv_lstm(options, params);
-    }
-    else if (lt == CRNN)
-    {
-      l = parse_crnn(options, params);
     }
     else if (lt == CONNECTED)
     {
@@ -2221,55 +2063,6 @@ void save_weights_upto(Network net, char* filename, int cutoff)
     {
       save_batchnorm_weights(l, fp);
     }
-    if (l.type == RNN)
-    {
-      save_connected_weights(*(l.input_layer), fp);
-      save_connected_weights(*(l.self_layer), fp);
-      save_connected_weights(*(l.output_layer), fp);
-    }
-    if (l.type == GRU)
-    {
-      save_connected_weights(*(l.input_z_layer), fp);
-      save_connected_weights(*(l.input_r_layer), fp);
-      save_connected_weights(*(l.input_h_layer), fp);
-      save_connected_weights(*(l.state_z_layer), fp);
-      save_connected_weights(*(l.state_r_layer), fp);
-      save_connected_weights(*(l.state_h_layer), fp);
-    }
-    if (l.type == LSTM)
-    {
-      save_connected_weights(*(l.wf), fp);
-      save_connected_weights(*(l.wi), fp);
-      save_connected_weights(*(l.wg), fp);
-      save_connected_weights(*(l.wo), fp);
-      save_connected_weights(*(l.uf), fp);
-      save_connected_weights(*(l.ui), fp);
-      save_connected_weights(*(l.ug), fp);
-      save_connected_weights(*(l.uo), fp);
-    }
-    if (l.type == CONV_LSTM)
-    {
-      if (l.peephole)
-      {
-        save_convolutional_weights(*(l.vf), fp);
-        save_convolutional_weights(*(l.vi), fp);
-        save_convolutional_weights(*(l.vo), fp);
-      }
-      save_convolutional_weights(*(l.wf), fp);
-      save_convolutional_weights(*(l.wi), fp);
-      save_convolutional_weights(*(l.wg), fp);
-      save_convolutional_weights(*(l.wo), fp);
-      save_convolutional_weights(*(l.uf), fp);
-      save_convolutional_weights(*(l.ui), fp);
-      save_convolutional_weights(*(l.ug), fp);
-      save_convolutional_weights(*(l.uo), fp);
-    }
-    if (l.type == CRNN)
-    {
-      save_convolutional_weights(*(l.input_layer), fp);
-      save_convolutional_weights(*(l.self_layer), fp);
-      save_convolutional_weights(*(l.output_layer), fp);
-    }
     if (l.type == LOCAL)
     {
 #ifdef GPU
@@ -2548,55 +2341,6 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
     if (l.type == BATCHNORM)
     {
       load_batchnorm_weights(l, fp);
-    }
-    if (l.type == CRNN)
-    {
-      load_convolutional_weights(*(l.input_layer), fp);
-      load_convolutional_weights(*(l.self_layer), fp);
-      load_convolutional_weights(*(l.output_layer), fp);
-    }
-    if (l.type == RNN)
-    {
-      load_connected_weights(*(l.input_layer), fp, transpose);
-      load_connected_weights(*(l.self_layer), fp, transpose);
-      load_connected_weights(*(l.output_layer), fp, transpose);
-    }
-    if (l.type == GRU)
-    {
-      load_connected_weights(*(l.input_z_layer), fp, transpose);
-      load_connected_weights(*(l.input_r_layer), fp, transpose);
-      load_connected_weights(*(l.input_h_layer), fp, transpose);
-      load_connected_weights(*(l.state_z_layer), fp, transpose);
-      load_connected_weights(*(l.state_r_layer), fp, transpose);
-      load_connected_weights(*(l.state_h_layer), fp, transpose);
-    }
-    if (l.type == LSTM)
-    {
-      load_connected_weights(*(l.wf), fp, transpose);
-      load_connected_weights(*(l.wi), fp, transpose);
-      load_connected_weights(*(l.wg), fp, transpose);
-      load_connected_weights(*(l.wo), fp, transpose);
-      load_connected_weights(*(l.uf), fp, transpose);
-      load_connected_weights(*(l.ui), fp, transpose);
-      load_connected_weights(*(l.ug), fp, transpose);
-      load_connected_weights(*(l.uo), fp, transpose);
-    }
-    if (l.type == CONV_LSTM)
-    {
-      if (l.peephole)
-      {
-        load_convolutional_weights(*(l.vf), fp);
-        load_convolutional_weights(*(l.vi), fp);
-        load_convolutional_weights(*(l.vo), fp);
-      }
-      load_convolutional_weights(*(l.wf), fp);
-      load_convolutional_weights(*(l.wi), fp);
-      load_convolutional_weights(*(l.wg), fp);
-      load_convolutional_weights(*(l.wo), fp);
-      load_convolutional_weights(*(l.uf), fp);
-      load_convolutional_weights(*(l.ui), fp);
-      load_convolutional_weights(*(l.ug), fp);
-      load_convolutional_weights(*(l.uo), fp);
     }
     if (l.type == LOCAL)
     {

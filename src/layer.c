@@ -23,41 +23,6 @@ void free_layer_custom(layer l, int keep_cudnn_desc)
   {
     free_sublayer(l.input_layer);
   }
-  if (l.type == CONV_LSTM)
-  {
-    if (l.peephole)
-    {
-      free_sublayer(l.vf);
-      free_sublayer(l.vi);
-      free_sublayer(l.vo);
-    }
-    else
-    {
-      free(l.vf);
-      free(l.vi);
-      free(l.vo);
-    }
-    free_sublayer(l.wf);
-    free_sublayer(l.wi);
-    free_sublayer(l.wg);
-    free_sublayer(l.wo);
-    free_sublayer(l.uf);
-    free_sublayer(l.ui);
-    free_sublayer(l.ug);
-    free_sublayer(l.uo);
-  }
-  if (l.type == CRNN)
-  {
-    free_sublayer(l.input_layer);
-    free_sublayer(l.self_layer);
-    free_sublayer(l.output_layer);
-    l.output = NULL;
-    l.delta = NULL;
-#ifdef GPU
-    l.output_gpu = NULL;
-    l.delta_gpu = NULL;
-#endif  // GPU
-  }
   if (l.type == DROPOUT)
   {
     if (l.rand)
