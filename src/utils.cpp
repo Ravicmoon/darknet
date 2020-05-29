@@ -280,7 +280,7 @@ void find_replace_extension(char* str, char* orig, char* rep, char* output)
   sprintf(buffer, "%s", str);
   char* p = strstr(buffer, orig);
   int offset = (p - buffer);
-  int chars_from_end = strlen(buffer) - offset;
+  size_t chars_from_end = strlen(buffer) - offset;
   if (!p || chars_from_end != strlen(orig))
   {  // Is 'orig' even in 'str' AND is 'orig' found at the end of 'str'?
     sprintf(output, "%s", buffer);

@@ -446,7 +446,6 @@ void ForwardYoloLayer(const layer l, NetworkState state)
           Box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i,
               j, l.w, l.h, state.net->w, state.net->h, l.w * l.h);
           float best_match_iou = 0;
-          int best_match_t = 0;
           float best_iou = 0;
           int best_t = 0;
           for (t = 0; t < l.max_boxes; ++t)
@@ -484,7 +483,6 @@ void ForwardYoloLayer(const layer l, NetworkState state)
             if (iou > best_match_iou && class_id_match == 1)
             {
               best_match_iou = iou;
-              best_match_t = t;
             }
             if (iou > best_iou)
             {

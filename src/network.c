@@ -1247,13 +1247,6 @@ void FreeNetwork(Network* net)
 #endif
 }
 
-static float relu(float src)
-{
-  if (src > 0)
-    return src;
-  return 0;
-}
-
 static float lrelu(float src)
 {
   const float eps = 0.001;
@@ -1287,9 +1280,8 @@ void FuseConvBatchNorm(Network* net)
                          (double)l->scales[f] * l->rolling_mean[f] /
                              (sqrt((double)l->rolling_variance[f] + .00001));
 
-          const size_t filter_size = l->size * l->size * l->c / l->groups;
-          int i;
-          for (i = 0; i < filter_size; ++i)
+          int const filter_size = l->size * l->size * l->c / l->groups;
+          for (int i = 0; i < filter_size; ++i)
           {
             int w_index = f * filter_size + i;
 

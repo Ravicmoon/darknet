@@ -25,7 +25,6 @@
 #include <opencv2/core/types.hpp>
 #include <opencv2/imgcodecs/imgcodecs.hpp>
 #include <opencv2/videoio/videoio.hpp>
-
 #endif
 
 // OpenCV includes for OpenCV 2.x
@@ -37,8 +36,6 @@
 #include <opencv2/core/version.hpp>
 
 #endif
-
-// using namespace cv;
 
 using std::cerr;
 using std::endl;
@@ -82,23 +79,11 @@ using std::endl;
 
 extern "C" {
 
-// struct mat_cv : cv::Mat {  };
-// struct cap_cv : cv::VideoCapture { };
-// struct write_cv : cv::VideoWriter {  };
-
-// struct mat_cv : cv::Mat { int a[0]; };
-// struct cap_cv : cv::VideoCapture { int a[0]; };
-// struct write_cv : cv::VideoWriter { int a[0]; };
-
 // ====================================================================
 // cv::Mat
 // ====================================================================
 Image mat_to_image(cv::Mat mat);
 cv::Mat image_to_mat(Image img);
-//    image ipl_to_image(mat_cv* src);
-//    mat_cv *image_to_ipl(image img);
-//    cv::Mat ipl_to_mat(IplImage *ipl);
-//    IplImage *mat_to_ipl(cv::Mat mat);
 
 extern "C" mat_cv* load_image_mat_cv(const char* filename, int flag)
 {
@@ -244,91 +229,6 @@ extern "C" void release_mat(mat_cv** mat)
   }
 }
 
-// ====================================================================
-// IplImage
-// ====================================================================
-/*
-extern "C" int get_width_cv(mat_cv *ipl_src)
-{
-IplImage *ipl = (IplImage *)ipl_src;
-return ipl->width;
-}
-// ----------------------------------------
-
-extern "C" int get_height_cv(mat_cv *ipl_src)
-{
-IplImage *ipl = (IplImage *)ipl_src;
-return ipl->height;
-}
-// ----------------------------------------
-
-extern "C" void release_ipl(mat_cv **ipl)
-{
-IplImage **ipl_img = (IplImage **)ipl;
-if (*ipl_img) cvReleaseImage(ipl_img);
-*ipl_img = NULL;
-}
-// ----------------------------------------
-
-// ====================================================================
-// image-to-ipl, ipl-to-image, image_to_mat, mat_to_image
-// ====================================================================
-
-extern "C" mat_cv *image_to_ipl(image im)
-{
-int x, y, c;
-IplImage *disp = cvCreateImage(cvSize(im.w, im.h), IPL_DEPTH_8U, im.c);
-int step = disp->widthStep;
-for (y = 0; y < im.h; ++y) {
-    for (x = 0; x < im.w; ++x) {
-        for (c = 0; c < im.c; ++c) {
-            float val = im.data[c*im.h*im.w + y*im.w + x];
-            disp->imageData[y*step + x*im.c + c] = (unsigned char)(val * 255);
-        }
-    }
-}
-return (mat_cv *)disp;
-}
-// ----------------------------------------
-
-extern "C" image ipl_to_image(mat_cv* src_ptr)
-{
-IplImage* src = (IplImage*)src_ptr;
-int h = src->height;
-int w = src->width;
-int c = src->nChannels;
-image im = make_image(w, h, c);
-unsigned char *data = (unsigned char *)src->imageData;
-int step = src->widthStep;
-int i, j, k;
-
-for (i = 0; i < h; ++i) {
-    for (k = 0; k < c; ++k) {
-        for (j = 0; j < w; ++j) {
-            im.data[k*w*h + i*w + j] = data[i*step + j*c + k] / 255.;
-        }
-    }
-}
-return im;
-}
-// ----------------------------------------
-
-cv::Mat ipl_to_mat(IplImage *ipl)
-{
-Mat m = cvarrToMat(ipl, true);
-return m;
-}
-// ----------------------------------------
-
-IplImage *mat_to_ipl(cv::Mat mat)
-{
-IplImage *ipl = new IplImage;
-*ipl = mat;
-return ipl;
-}
-// ----------------------------------------
-*/
-
 extern "C" cv::Mat image_to_mat(Image img)
 {
   int channels = img.c;
@@ -366,10 +266,6 @@ extern "C" Image mat_to_image(cv::Mat mat)
     {
       for (int x = 0; x < w; ++x)
       {
-        // uint8_t val = mat.ptr<uint8_t>(y)[c * x + k];
-        // uint8_t val = mat.at<Vec3b>(y, x).val[k];
-        // im.data[k*w*h + y*w + x] = val / 255.0f;
-
         im.data[k * w * h + y * w + x] = data[y * step + x * c + k] / 255.0f;
       }
     }
@@ -465,13 +361,6 @@ extern "C" void make_window(char* name, int w, int h, int fullscreen)
 }
 // ----------------------------------------
 
-static float get_pixel(Image m, int x, int y, int c)
-{
-  assert(x < m.w && y < m.h && c < m.c);
-  return m.data[c * m.h * m.w + y * m.w + x];
-}
-// ----------------------------------------
-
 extern "C" void show_image_cv(Image p, const char* name)
 {
   try
@@ -494,18 +383,6 @@ extern "C" void show_image_cv(Image p, const char* name)
   }
 }
 // ----------------------------------------
-
-/*
-extern "C" void show_image_cv_ipl(mat_cv *disp, const char *name)
-{
-if (disp == NULL) return;
-char buff[256];
-sprintf(buff, "%s", name);
-cv::namedWindow(buff, WINDOW_NORMAL);
-cvShowImage(buff, disp);
-}
-// ----------------------------------------
-*/
 
 extern "C" void show_image_mat(mat_cv* mat_ptr, const char* name)
 {
@@ -587,39 +464,6 @@ extern "C" void release_video_writer(write_cv** output_video_writer)
   }
 }
 
-/*
-extern "C" void *open_video_stream(const char *f, int c, int w, int h, int fps)
-{
-VideoCapture *cap;
-if(f) cap = new VideoCapture(f);
-else cap = new VideoCapture(c);
-if(!cap->isOpened()) return 0;
-if(w) cap->set(CV_CAP_PROP_FRAME_WIDTH, w);
-if(h) cap->set(CV_CAP_PROP_FRAME_HEIGHT, w);
-if(fps) cap->set(CV_CAP_PROP_FPS, w);
-return (void *) cap;
-}
-
-
-extern "C" image get_image_from_stream(void *p)
-{
-VideoCapture *cap = (VideoCapture *)p;
-Mat m;
-*cap >> m;
-if(m.empty()) return make_empty_image(0,0,0);
-return mat_to_image(m);
-}
-
-extern "C" int show_image_cv(image im, const char* name, int ms)
-{
-Mat m = image_to_mat(im);
-imshow(name, m);
-int c = waitKey(ms);
-if (c != -1) c = c%256;
-return c;
-}
-*/
-
 // ====================================================================
 // Video Capture
 // ====================================================================
@@ -646,8 +490,6 @@ extern "C" cap_cv* get_capture_webcam(int index)
   try
   {
     cap = new cv::VideoCapture(index);
-    // cap->set(CV_CAP_PROP_FRAME_WIDTH, 1280);
-    // cap->set(CV_CAP_PROP_FRAME_HEIGHT, 960);
   }
   catch (...)
   {
@@ -1414,21 +1256,19 @@ extern "C" void cv_draw_object(Image sized, float* truth_cpu, int max_boxes,
 
   int it_trackbar_value = 200;
   std::string const it_trackbar_name = "iterations";
-  int it_tb_res = cv::createTrackbar(
-      it_trackbar_name, window_name, &it_trackbar_value, 1000);
+  cv::createTrackbar(it_trackbar_name, window_name, &it_trackbar_value, 1000);
 
   int lr_trackbar_value = 10;
   std::string const lr_trackbar_name = "learning_rate exp";
-  int lr_tb_res =
-      cv::createTrackbar(lr_trackbar_name, window_name, &lr_trackbar_value, 20);
+  cv::createTrackbar(lr_trackbar_name, window_name, &lr_trackbar_value, 20);
 
   int cl_trackbar_value = 0;
   std::string const cl_trackbar_name = "class_id";
-  int cl_tb_res = cv::createTrackbar(
+  cv::createTrackbar(
       cl_trackbar_name, window_name, &cl_trackbar_value, classes - 1);
 
   std::string const bo_trackbar_name = "box-only";
-  int bo_tb_res = cv::createTrackbar(bo_trackbar_name, window_name, boxonly, 1);
+  cv::createTrackbar(bo_trackbar_name, window_name, boxonly, 1);
 
   int i = 0;
 
@@ -1443,7 +1283,6 @@ extern "C" void cv_draw_object(Image sized, float* truth_cpu, int max_boxes,
       break;  // break;  // ESC - save & exit
 
     frame_clone = frame.clone();
-    char buff[100];
     std::string lr_value =
         "learning_rate = " + std::to_string(1.0 / pow(2, lr_trackbar_value));
     cv::putText(frame_clone, lr_value, cv::Point2i(10, 20),

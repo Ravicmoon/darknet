@@ -1429,8 +1429,8 @@ void ParseNetworkCfgCustom(
   int avg_counter = 0;
   float bflops = 0;
   size_t workspace_size = 0;
-  size_t max_inputs = 0;
-  size_t max_outputs = 0;
+  int max_inputs = 0;
+  int max_outputs = 0;
   int receptive_w = 1, receptive_h = 1;
   int receptive_w_scale = 1, receptive_h_scale = 1;
   const int show_receptive_field =

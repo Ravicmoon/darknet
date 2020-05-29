@@ -52,7 +52,7 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
 {
   static time_benchmark_layers* avg_time_per_layer = NULL;
   static time_benchmark_layers* sorted_avg_time_per_layer = NULL;
-  double start_time, end_time;
+  double start_time = 0.0, end_time = 0.0;
   if (net->benchmark_layers)
   {
     if (!avg_time_per_layer)
@@ -73,14 +73,10 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
     state.index = i;
     layer l = net->layers[i];
     if (l.delta_gpu && state.train)
-    {
       fill_ongpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
-    }
 
     if (net->benchmark_layers)
-    {
       start_time = get_time_point();
-    }
 
     l.forward_gpu(l, state);
 
@@ -88,8 +84,8 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
     {
       CHECK_CUDA(cudaDeviceSynchronize());
       end_time = get_time_point();
-      const double took_time = (end_time - start_time) / 1000;
-      const double alpha = 0.9;
+      double const took_time = (end_time - start_time) / 1000;
+      double const alpha = 0.9;
       if (avg_time_per_layer[i].time == 0)
       {
         avg_time_per_layer[i].layer_id = i;

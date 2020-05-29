@@ -47,9 +47,9 @@ Metadata::MetadataImpl::MetadataImpl(char const* filename)
   }
   instream.close();
 
-  if (names_.size() != classes_)
+  if ((int)names_.size() != classes_)
   {
-    printf("Invalid metadata file: %d != %d", names_.size(), classes_);
+    printf("Invalid metadata file: %d != %d", (int)names_.size(), classes_);
     exit(EXIT_FAILURE);
   }
 
