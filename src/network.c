@@ -16,7 +16,6 @@
 #include "detection_layer.h"
 #include "dropout_layer.h"
 #include "gaussian_yolo_layer.h"
-#include "image.h"
 #include "local_layer.h"
 #include "maxpool_layer.h"
 #include "normalization_layer.h"
@@ -31,7 +30,6 @@
 #include "softmax_layer.h"
 #include "upsample_layer.h"
 #include "utils.h"
-#include "yolo_core.h"
 #include "yolo_layer.h"
 
 load_args get_base_args(Network* net)
@@ -57,25 +55,6 @@ int64_t GetCurrentIteration(Network* net) { return *net->cur_iteration; }
 int GetCurrentBatch(Network* net)
 {
   return (*net->seen) / (net->batch * net->subdivisions);
-}
-
-void reset_network_state(Network* net, int b)
-{
-  int i;
-  for (i = 0; i < net->n; ++i)
-  {
-#ifdef GPU
-    layer l = net->layers[i];
-    if (l.state_gpu)
-    {
-      fill_ongpu(l.outputs, 0, l.state_gpu + l.outputs * b, 1);
-    }
-    if (l.h_gpu)
-    {
-      fill_ongpu(l.outputs, 0, l.h_gpu + l.outputs * b, 1);
-    }
-#endif
-  }
 }
 
 float GetCurrentSeqSubdivisions(Network* net)
@@ -169,60 +148,6 @@ float GetCurrentRate(Network* net)
   }
 }
 
-char* get_layer_string(LAYER_TYPE a)
-{
-  switch (a)
-  {
-    case CONVOLUTIONAL:
-      return "convolutional";
-    case ACTIVE:
-      return "activation";
-    case LOCAL:
-      return "local";
-    case DECONVOLUTIONAL:
-      return "deconvolutional";
-    case CONNECTED:
-      return "connected";
-    case MAXPOOL:
-      return "maxpool";
-    case REORG:
-      return "reorg";
-    case AVGPOOL:
-      return "avgpool";
-    case SOFTMAX:
-      return "softmax";
-    case DETECTION:
-      return "detection";
-    case REGION:
-      return "region";
-    case YOLO:
-      return "yolo";
-    case GAUSSIAN_YOLO:
-      return "Gaussian_yolo";
-    case DROPOUT:
-      return "dropout";
-    case CROP:
-      return "crop";
-    case COST:
-      return "cost";
-    case ROUTE:
-      return "route";
-    case SHORTCUT:
-      return "shortcut";
-    case SCALE_CHANNELS:
-      return "scale_channels";
-    case SAM:
-      return "sam";
-    case NORMALIZATION:
-      return "normalization";
-    case BATCHNORM:
-      return "batchnorm";
-    default:
-      break;
-  }
-  return "none";
-}
-
 void AllocateNetwork(Network* net, int n)
 {
   net->n = n;
@@ -312,13 +237,6 @@ float GetNetworkCost(Network* net)
     }
   }
   return sum / count;
-}
-
-int get_predicted_class_network(Network net)
-{
-  float* out = GetNetworkOutput(&net);
-  int k = GetNetworkOutputSize(&net);
-  return max_index(out, k);
 }
 
 void BackwardNetwork(Network* net, NetworkState state)
@@ -453,76 +371,7 @@ float TrainNetworkBatch(Network* net, data d, int n)
   return (float)sum / (n * batch);
 }
 
-int recalculate_workspace_size(Network* net)
-{
-#ifdef GPU
-  cuda_set_device(net->gpu_index);
-  if (gpu_index >= 0)
-    cuda_free(net->workspace);
-#endif
-  int i;
-  size_t workspace_size = 0;
-  for (i = 0; i < net->n; ++i)
-  {
-    layer l = net->layers[i];
-    // printf(" %d: layer = %d,", i, l.type);
-    if (l.type == CONVOLUTIONAL)
-    {
-      l.workspace_size = get_convolutional_workspace_size(l);
-    }
-    else if (l.type == CONNECTED)
-    {
-      l.workspace_size = get_connected_workspace_size(l);
-    }
-    if (l.workspace_size > workspace_size)
-      workspace_size = l.workspace_size;
-    net->layers[i] = l;
-  }
-
-#ifdef GPU
-  if (gpu_index >= 0)
-  {
-    printf("\n try to allocate additional workspace_size = %1.2f MB \n",
-        (float)workspace_size / 1000000);
-    net->workspace = cuda_make_array(0, workspace_size / sizeof(float) + 1);
-    printf(" CUDA allocate done! \n");
-  }
-  else
-  {
-    free(net->workspace);
-    net->workspace = (float*)xcalloc(1, workspace_size);
-  }
-#else
-  free(net->workspace);
-  net->workspace = (float*)xcalloc(1, workspace_size);
-#endif
-  // fprintf(stderr, " Done!\n");
-  return 0;
-}
-
-void set_batch_network(Network* net, int b)
-{
-  net->batch = b;
-  int i;
-  for (i = 0; i < net->n; ++i)
-  {
-    net->layers[i].batch = b;
-
-#ifdef CUDNN
-    if (net->layers[i].type == CONVOLUTIONAL)
-    {
-      cudnn_convolutional_setup(net->layers + i, cudnn_fastest, 0);
-    }
-    else if (net->layers[i].type == MAXPOOL)
-    {
-      cudnn_maxpool_setup(net->layers + i);
-    }
-#endif
-  }
-  recalculate_workspace_size(net);  // recalculate workspace size
-}
-
-int resize_network(Network* net, int w, int h)
+int ResizeNetwork(Network* net, int w, int h)
 {
 #ifdef GPU
   cuda_set_device(net->gpu_index);
@@ -709,70 +558,6 @@ int GetNetworkOutputSize(Network* net)
 
 int GetNetworkInputSize(Network* net) { return net->layers[0].inputs; }
 
-detection_layer get_network_detection_layer(Network net)
-{
-  int i;
-  for (i = 0; i < net.n; ++i)
-  {
-    if (net.layers[i].type == DETECTION)
-    {
-      return net.layers[i];
-    }
-  }
-  fprintf(stderr, "Detection layer not found!!\n");
-  detection_layer l = {(LAYER_TYPE)0};
-  return l;
-}
-
-Image get_network_image_layer(Network net, int i)
-{
-  layer l = net.layers[i];
-  if (l.out_w && l.out_h && l.out_c)
-  {
-    return float_to_image(l.out_w, l.out_h, l.out_c, l.output);
-  }
-  Image def = {0};
-  return def;
-}
-
-layer* get_network_layer(Network* net, int i) { return net->layers + i; }
-
-Image get_network_image(Network net)
-{
-  int i;
-  for (i = net.n - 1; i >= 0; --i)
-  {
-    Image m = get_network_image_layer(net, i);
-    if (m.h != 0)
-      return m;
-  }
-  Image def = {0};
-  return def;
-}
-
-void visualize_network(Network net)
-{
-  Image* prev = 0;
-  int i;
-  char buff[256];
-  for (i = 0; i < net.n; ++i)
-  {
-    sprintf(buff, "Layer %d", i);
-    layer l = net.layers[i];
-    if (l.type == CONVOLUTIONAL)
-    {
-      prev = visualize_convolutional_layer(l, buff, prev);
-    }
-  }
-}
-
-void top_predictions(Network net, int k, int* index)
-{
-  int size = GetNetworkOutputSize(&net);
-  float* out = GetNetworkOutput(&net);
-  top_k(out, size, k, index);
-}
-
 float* NetworkPredict(Network* net, float* input)
 {
 #ifdef GPU
@@ -803,7 +588,7 @@ int NumDetections(Network* net, float thresh)
       s += YoloNumDetections(l, thresh);
 
     if (l.type == GAUSSIAN_YOLO)
-      s += gaussian_yolo_num_detections(l, thresh);
+      s += GaussianYoloNumDetections(l, thresh);
 
     if (l.type == DETECTION || l.type == REGION)
       s += l.w * l.h * l.n;
@@ -976,10 +761,6 @@ char* Detection2Json(Detection* dets, int nboxes, int classes, char** names,
         char* buf = (char*)calloc(2048, sizeof(char));
         if (!buf)
           return 0;
-        // sprintf(buf, "{\"image_id\":%d, \"category_id\":%d, \"bbox\":[%f, %f,
-        // %f, %f], \"score\":%f}",
-        //    image_id, j, dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w,
-        //    dets[i].bbox.h, dets[i].prob[j]);
 
         sprintf(buf,
             "  {\"class_id\":%d, \"name\":\"%s\", "
@@ -1005,190 +786,6 @@ char* Detection2Json(Detection* dets, int nboxes, int classes, char** names,
   }
   strcat(send_buf, "\n ] \n}");
   return send_buf;
-}
-
-float* network_predict_image(Network* net, Image im)
-{
-  // image imr = letterbox_image(im, net->w, net->h);
-  float* p;
-  if (net->batch != 1)
-    set_batch_network(net, 1);
-  if (im.w == net->w && im.h == net->h)
-  {
-    // Input image is the same size as our net, predict on that image
-    p = NetworkPredict(net, im.data);
-  }
-  else
-  {
-    // Need to resize image to the desired size for the net
-    Image imr = resize_image(im, net->w, net->h);
-    p = NetworkPredict(net, imr.data);
-    free_image(imr);
-  }
-  return p;
-}
-
-float* network_predict_image_letterbox(Network* net, Image im)
-{
-  // image imr = letterbox_image(im, net->w, net->h);
-  float* p;
-  if (net->batch != 1)
-    set_batch_network(net, 1);
-  if (im.w == net->w && im.h == net->h)
-  {
-    // Input image is the same size as our net, predict on that image
-    p = NetworkPredict(net, im.data);
-  }
-  else
-  {
-    // Need to resize image to the desired size for the net
-    Image imr = letterbox_image(im, net->w, net->h);
-    p = NetworkPredict(net, imr.data);
-    free_image(imr);
-  }
-  return p;
-}
-
-matrix network_predict_data_multi(Network net, data test, int n)
-{
-  int i, j, b, m;
-  int k = GetNetworkOutputSize(&net);
-  matrix pred = make_matrix(test.X.rows, k);
-  float* X = (float*)xcalloc(net.batch * test.X.rows, sizeof(float));
-  for (i = 0; i < test.X.rows; i += net.batch)
-  {
-    for (b = 0; b < net.batch; ++b)
-    {
-      if (i + b == test.X.rows)
-        break;
-      memcpy(
-          X + b * test.X.cols, test.X.vals[i + b], test.X.cols * sizeof(float));
-    }
-    for (m = 0; m < n; ++m)
-    {
-      float* out = NetworkPredict(&net, X);
-      for (b = 0; b < net.batch; ++b)
-      {
-        if (i + b == test.X.rows)
-          break;
-        for (j = 0; j < k; ++j)
-        {
-          pred.vals[i + b][j] += out[j + b * k] / n;
-        }
-      }
-    }
-  }
-  free(X);
-  return pred;
-}
-
-matrix network_predict_data(Network net, data test)
-{
-  int i, j, b;
-  int k = GetNetworkOutputSize(&net);
-  matrix pred = make_matrix(test.X.rows, k);
-  float* X = (float*)xcalloc(net.batch * test.X.cols, sizeof(float));
-  for (i = 0; i < test.X.rows; i += net.batch)
-  {
-    for (b = 0; b < net.batch; ++b)
-    {
-      if (i + b == test.X.rows)
-        break;
-      memcpy(
-          X + b * test.X.cols, test.X.vals[i + b], test.X.cols * sizeof(float));
-    }
-    float* out = NetworkPredict(&net, X);
-    for (b = 0; b < net.batch; ++b)
-    {
-      if (i + b == test.X.rows)
-        break;
-      for (j = 0; j < k; ++j)
-      {
-        pred.vals[i + b][j] = out[j + b * k];
-      }
-    }
-  }
-  free(X);
-  return pred;
-}
-
-void print_network(Network net)
-{
-  int i, j;
-  for (i = 0; i < net.n; ++i)
-  {
-    layer l = net.layers[i];
-    float* output = l.output;
-    int n = l.outputs;
-    float mean = mean_array(output, n);
-    float vari = variance_array(output, n);
-    fprintf(stderr, "Layer %d - Mean: %f, Variance: %f\n", i, mean, vari);
-    if (n > 100)
-      n = 100;
-    for (j = 0; j < n; ++j) fprintf(stderr, "%f, ", output[j]);
-    if (n == 100)
-      fprintf(stderr, ".....\n");
-    fprintf(stderr, "\n");
-  }
-}
-
-void compare_networks(Network n1, Network n2, data test)
-{
-  matrix g1 = network_predict_data(n1, test);
-  matrix g2 = network_predict_data(n2, test);
-  int i;
-  int a, b, c, d;
-  a = b = c = d = 0;
-  for (i = 0; i < g1.rows; ++i)
-  {
-    int truth = max_index(test.y.vals[i], test.y.cols);
-    int p1 = max_index(g1.vals[i], g1.cols);
-    int p2 = max_index(g2.vals[i], g2.cols);
-    if (p1 == truth)
-    {
-      if (p2 == truth)
-        ++d;
-      else
-        ++c;
-    }
-    else
-    {
-      if (p2 == truth)
-        ++b;
-      else
-        ++a;
-    }
-  }
-  printf("%5d %5d\n%5d %5d\n", a, b, c, d);
-  float num = pow((abs(b - c) - 1.), 2.);
-  float den = b + c;
-  printf("%f\n", num / den);
-}
-
-float network_accuracy(Network net, data d)
-{
-  matrix guess = network_predict_data(net, d);
-  float acc = matrix_topk_accuracy(d.y, guess, 1);
-  free_matrix(guess);
-  return acc;
-}
-
-float* network_accuracies(Network net, data d, int n)
-{
-  static float acc[2];
-  matrix guess = network_predict_data(net, d);
-  acc[0] = matrix_topk_accuracy(d.y, guess, 1);
-  acc[1] = matrix_topk_accuracy(d.y, guess, n);
-  free_matrix(guess);
-  return acc;
-}
-
-float network_accuracy_multi(Network net, data d, int n)
-{
-  matrix guess = network_predict_data_multi(net, d, n);
-  float acc = matrix_topk_accuracy(d.y, guess, 1);
-  free_matrix(guess);
-  return acc;
 }
 
 void FreeNetwork(Network* net)

@@ -930,7 +930,7 @@ void correct_gaussian_yolo_boxes(Detection* dets, int n, int w, int h, int netw,
   }
 }
 
-int gaussian_yolo_num_detections(layer l, float thresh)
+int GaussianYoloNumDetections(layer l, float thresh)
 {
   int i, n;
   int count = 0;

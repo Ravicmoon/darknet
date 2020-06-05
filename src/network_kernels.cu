@@ -27,7 +27,6 @@
 #include "softmax_layer.h"
 #include "utils.h"
 
-float* get_network_delta_gpu_layer(Network net, int i);
 float* GetNetworkOutputGpu(Network* net);
 
 typedef struct time_benchmark_layers
@@ -597,7 +596,7 @@ pthread_t sync_layer_in_thread(Network* nets, int n, int j)
   return thread;
 }
 
-void sync_nets(Network* nets, int n, int interval)
+void SyncNetworks(Network* nets, int n, int interval)
 {
   int j;
   int layers = nets[0].n;
@@ -652,7 +651,7 @@ float TrainNetworks(Network* nets, int n, data d, int interval)
   {
     printf("Syncing... ");
     fflush(stdout);
-    sync_nets(nets, n, interval);
+    SyncNetworks(nets, n, interval);
     printf("Done!\n");
   }
   // cudaDeviceSynchronize();

@@ -50,8 +50,6 @@ void forward_convolutional_layer(
     const convolutional_layer layer, NetworkState state);
 void update_convolutional_layer(convolutional_layer layer, int batch,
     float learning_rate, float momentum, float decay);
-Image* visualize_convolutional_layer(
-    convolutional_layer layer, char* window, Image* prev_weights);
 void binarize_weights(float* weights, int n, int size, float* binary);
 void swap_binary(convolutional_layer* l);
 void binarize_weights2(

@@ -273,7 +273,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 
       for (int k = 0; k < ngpus; ++k)
       {
-        resize_network(nets + k, dim_w, dim_h);
+        ResizeNetwork(nets + k, dim_w, dim_h);
       }
       net = nets[0];
     }
@@ -379,7 +379,7 @@ void TrainDetector(char const* data_file, char const* model_file,
         load_thread = load_data(args);
         for (k = 0; k < ngpus; ++k)
         {
-          resize_network(nets + k, init_w, init_h);
+          ResizeNetwork(nets + k, init_w, init_h);
         }
         net = nets[0];
       }
@@ -423,7 +423,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       iter_save = iteration;
 #ifdef GPU
       if (ngpus != 1)
-        sync_nets(nets, ngpus, 0);
+        SyncNetworks(nets, ngpus, 0);
 #endif
       char buff[256];
       sprintf(buff, "%s/%s_%d.weights", backup_directory, base, iteration);
@@ -436,7 +436,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       iter_save_last = iteration;
 #ifdef GPU
       if (ngpus != 1)
-        sync_nets(nets, ngpus, 0);
+        SyncNetworks(nets, ngpus, 0);
 #endif
       char buff[256];
       sprintf(buff, "%s/%s_last.weights", backup_directory, base);
@@ -446,7 +446,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   }
 #ifdef GPU
   if (ngpus != 1)
-    sync_nets(nets, ngpus, 0);
+    SyncNetworks(nets, ngpus, 0);
 #endif
   char buff[256];
   sprintf(buff, "%s/%s_final.weights", backup_directory, base);
@@ -538,7 +538,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
     {
       LoadWeights(&net, weights_file);
     }
-    // set_batch_network(&net, 1);
+
     FuseConvBatchNorm(&net);
     calculate_binary_weights(net);
   }

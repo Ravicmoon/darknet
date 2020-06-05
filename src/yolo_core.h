@@ -924,8 +924,6 @@ LIB_API char* Detection2Json(Detection* dets, int nboxes, int classes,
 
 LIB_API layer* get_network_layer(Network* net, int i);
 LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
-LIB_API float* network_predict_image(Network* net, Image im);
-LIB_API float* network_predict_image_letterbox(Network* net, Image im);
 
 LIB_API void TrainDetector(char const* data_file, char const* model_file,
     char const* weights_file, char const* chart_path, int* gpus, int ngpus,

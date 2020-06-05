@@ -1381,26 +1381,8 @@ void push_convolutional_layer(convolutional_layer l)
 void update_convolutional_layer_gpu(layer l, int batch,
     float learning_rate_init, float momentum, float decay, float loss_scale)
 {
-  /*
-  for (int angle = 0; angle < 360; angle++) {
-      printf(" angle = %d \n", angle);
-      smooth_rotate_weights_kernel(l.weights_gpu, l.weight_deform_gpu,
-  l.nweights, l.n, l.size, angle, 0);
-
-      cuda_pull_array(l.weight_deform_gpu, l.weights, l.nweights);
-      visualize_convolutional_layer(l, "weights", NULL);
-      wait_key_cv(10);
-  }
-  */
-
   if (l.deform)
   {
-    // for (l.angle = 0; l.angle < 360; l.angle += 1)
-    //{
-    // stretch_weights_gpu(l.weight_updates_gpu, l.weight_deform_gpu,
-    // l.nweights, l.n, l.size, l.angle/180, 1); else
-    // simple_copy_ongpu(l.nweights, l.weight_updates_gpu, l.weight_deform_gpu);
-
     if (l.rotate)
       rotate_weights_gpu(l.weight_updates_gpu, l.weight_deform_gpu, l.nweights,
           l.n, l.size, 1);
@@ -1414,22 +1396,11 @@ void update_convolutional_layer_gpu(layer l, int batch,
       stretch_sway_flip_weights_gpu(l.weight_updates_gpu, l.weight_deform_gpu,
           l.nweights, l.n, l.size, l.angle, 1);
 
-    // simple_copy_ongpu(l.nweights, l.weight_updates_gpu, l.weight_deform_gpu);
-
     reduce_and_expand_array_gpu(
         l.weight_deform_gpu, l.weight_updates_gpu, l.nweights, 4);
-
-    // printf(" angle = %f \n", l.angle);
-    // cuda_pull_array(l.weight_deform_gpu, l.weights, l.nweights);
-    // visualize_convolutional_layer(l, "weights", NULL);
-    // wait_key_cv(10);
-    //}
   }
 
   float learning_rate = learning_rate_init * l.learning_rate_scale;
-  // float momentum = a.momentum;
-  // float decay = a.decay;
-  // int batch = a.batch;
 
   // Loss scale for Mixed-Precision on Tensor-Cores
   if (loss_scale != 1.0)
@@ -1487,11 +1458,7 @@ void update_convolutional_layer_gpu(layer l, int batch,
 
   if (l.deform)
   {
-    // for (l.angle = 0; l.angle < 360; l.angle += 4)
-    //{
     expand_array_gpu(l.weights_gpu, l.weight_deform_gpu, l.nweights, 4);
-
-    // simple_copy_ongpu(l.nweights, l.weight_deform_gpu, l.weights_gpu);
 
     if (l.rotate)
       rotate_weights_gpu(
@@ -1505,12 +1472,6 @@ void update_convolutional_layer_gpu(layer l, int batch,
     else if (l.stretch_sway)
       stretch_sway_flip_weights_gpu(l.weight_deform_gpu, l.weights_gpu,
           l.nweights, l.n, l.size, l.angle, 0);
-
-    // printf(" angle = %f, reverse = %d \n", l.angle, 0);
-    // cuda_pull_array(l.weights_gpu, l.weights, l.nweights);
-    // visualize_convolutional_layer(l, "weights", NULL);
-    // wait_key_cv(10);
-    //}
   }
 
   if (l.clip)
@@ -1518,76 +1479,3 @@ void update_convolutional_layer_gpu(layer l, int batch,
     constrain_ongpu(l.nweights, l.clip, l.weights_gpu, 1);
   }
 }
-
-/*
-void update_convolutional_layer_gpu(convolutional_layer layer, int batch, float
-learning_rate, float momentum, float decay)
-{
-    int size = layer.size*layer.size*layer.c*layer.n;
-    axpy_ongpu(layer.n, learning_rate/batch, layer.bias_updates_gpu, 1,
-layer.biases_gpu, 1); scal_ongpu(layer.n, momentum, layer.bias_updates_gpu, 1);
-
-    if(layer.scales_gpu){
-        axpy_ongpu(layer.n, learning_rate/batch, layer.scale_updates_gpu, 1,
-layer.scales_gpu, 1); scal_ongpu(layer.n, momentum, layer.scale_updates_gpu, 1);
-    }
-
-    if(layer.adam){
-        scal_ongpu(size, layer.B1, layer.m_gpu, 1);
-        scal_ongpu(size, layer.B2, layer.v_gpu, 1);
-
-        axpy_ongpu(size, -decay*batch, layer.weights_gpu, 1,
-layer.weight_updates_gpu, 1);
-
-        axpy_ongpu(size, -(1-layer.B1), layer.weight_updates_gpu, 1,
-layer.m_gpu, 1); mul_ongpu(size, layer.weight_updates_gpu, 1,
-layer.weight_updates_gpu, 1); axpy_ongpu(size, (1-layer.B2),
-layer.weight_updates_gpu, 1, layer.v_gpu, 1);
-
-        adam_gpu(size, layer.weights_gpu, layer.m_gpu, layer.v_gpu, layer.B1,
-layer.B2, learning_rate/batch, layer.eps, layer.t+1); fill_ongpu(size, 0,
-layer.weight_updates_gpu, 1); }else{ axpy_ongpu(size, -decay*batch,
-layer.weights_gpu, 1, layer.weight_updates_gpu, 1);  // wu = wu - w*decay*batch
-        axpy_ongpu(size, learning_rate/batch, layer.weight_updates_gpu, 1,
-layer.weights_gpu, 1); // w = w + wu*lr/batch scal_ongpu(size, momentum,
-layer.weight_updates_gpu, 1);    // wu = wu*momentum // wu = (wu -
-w*decay*batch)*momentum
-        // w = w + (wu - w*decay*batch)*lr/batch = w + wu*lr/batch - w*decay*lr
-= w*(1-decay*lr) + wu*lr/batch
-        //wu_prev = (wu_old - w_old*decay*batch)*momentum
-
-
-        //weights_update = weights_update_new + (weights_update_old -
-weights_old*decay*batch)*momentum - weights_new*decay*batch =
-        // = weights_update_new + weights_update_old*momentum -
-weights_old*decay*batch*momentum - weights_new*decay*batch
-        // = weights_update_new + weights_update_old*momentum -
-(weights_old*momentum + weights_new)*decay*batch
-
-        //------------- RESULT --------------
-        // weights_update = weights_update_new + weights_update_old*momentum -
-(weights_old*momentum + weights_new)*decay*batch
-        //-----------------------------------
-
-        // weights_newest = weights_new + (weights_update_new +
-weights_update_old*momentum - (weights_old*momentum +
-weights_new)*decay*batch)*lr/batch
-        // = weights_new + weights_update_new*lr/batch +
-weights_update_old*momentum*lr/batch - weights_old*momentum*decay*batch*lr/batch
-- weights_new*decay*batch*lr/batch
-        // = weights_new + weights_update_new*lr/batch +
-weights_update_old*momentum*lr/batch - weights_old*momentum*decay*lr -
-weights_new*decay*lr
-        // = weights_new*(1 - decay*lr) - weights_old*momentum*decay*lr +
-(weights_update_new + weights_update_old*momentum)*lr/batch
-
-        //------------- RESULT --------------
-        // weights_newest = weights_new*(1 - decay*lr) -
-weights_old*momentum*(decay*lr) + (weights_update_new +
-weights_update_old*momentum)*lr/batch =
-        // = weights_new - (weights_new + weights_old*momentum)*decay*lr +
-(weights_update_new + weights_update_old*momentum)*lr / batch
-        //-----------------------------------
-    }
-}
-*/
