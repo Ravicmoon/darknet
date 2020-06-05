@@ -1,6 +1,5 @@
 #ifndef ROUTE_LAYER_H
 #define ROUTE_LAYER_H
-#include "layer.h"
 #include "network.h"
 
 typedef layer route_layer;

@@ -4,13 +4,6 @@
 #include "libapi.h"
 #include "list.h"
 
-typedef struct
-{
-  char* key;
-  char* val;
-  int used;
-} kvp;
-
 class LIB_API Metadata
 {
  public:

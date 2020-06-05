@@ -2,7 +2,6 @@
 #define NORMALIZATION_LAYER_H
 
 #include "image.h"
-#include "layer.h"
 #include "network.h"
 
 #ifdef __cplusplus

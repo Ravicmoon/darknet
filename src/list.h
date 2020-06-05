@@ -1,5 +1,11 @@
-#ifndef LIST_H
-#define LIST_H
+#pragma once
+
+typedef struct
+{
+  char* key;
+  char* val;
+  int used;
+} kvp;
 
 typedef struct node
 {
@@ -15,22 +21,9 @@ typedef struct list
   node* back;
 } list;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 list* MakeList();
-int list_find(list* l, void* val);
-
 void InsertList(list*, void*);
-
-void** list_to_array(list* l);
-
-void free_list_val(list* l);
-void free_list(list* l);
-void free_list_contents(list* l);
-void free_list_contents_kvp(list* l);
-
-#ifdef __cplusplus
-}
-#endif
-#endif
+void FreeList(list* l);
+void FreeListContents(list* l);
+void FreeListContentsKvp(list* l);
+void** ListToArray(list* l);

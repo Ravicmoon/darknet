@@ -1,7 +1,6 @@
 #ifndef DETECTION_LAYER_H
 #define DETECTION_LAYER_H
 
-#include "layer.h"
 #include "network.h"
 
 typedef layer detection_layer;

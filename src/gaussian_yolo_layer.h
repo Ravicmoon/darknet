@@ -2,7 +2,6 @@
 #ifndef GAUSSIAN_YOLO_LAYER_H
 #define GAUSSIAN_YOLO_LAYER_H
 
-#include "layer.h"
 #include "network.h"
 #include "yolo_core.h"
 

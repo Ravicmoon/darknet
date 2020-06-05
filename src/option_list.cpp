@@ -53,7 +53,7 @@ Metadata::MetadataImpl::MetadataImpl(char const* filename)
     exit(EXIT_FAILURE);
   }
 
-  free_list(options);
+  FreeList(options);
 }
 
 Metadata::Metadata(char const* filename) : impl_(new MetadataImpl(filename)) {}

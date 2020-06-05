@@ -1744,7 +1744,7 @@ void ParseNetworkCfgCustom(
       avg_counter++;
     }
   }
-  free_list(sections);
+  FreeList(sections);
 
 #ifdef GPU
   if (net->optimized_memory && params.train)

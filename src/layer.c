@@ -1,5 +1,3 @@
-#include "layer.h"
-
 #include <stdlib.h>
 
 #include "dark_cuda.h"

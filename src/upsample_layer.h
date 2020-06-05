@@ -1,7 +1,6 @@
 #ifndef UPSAMPLE_LAYER_H
 #define UPSAMPLE_LAYER_H
 #include "dark_cuda.h"
-#include "layer.h"
 #include "network.h"
 
 #ifdef __cplusplus

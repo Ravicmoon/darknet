@@ -110,8 +110,6 @@ typedef enum
 } ACTIVATION;
 
 // parser.h
-
-// parser.h
 typedef enum
 {
   YOLO_CENTER = 1 << 0,
@@ -200,20 +198,6 @@ typedef enum
   SMOOTH,
   WGAN
 } COST_TYPE;
-
-// layer.h
-typedef struct update_args
-{
-  int batch;
-  float learning_rate;
-  float momentum;
-  float decay;
-  int adam;
-  float B1;
-  float B2;
-  float eps;
-  int t;
-} update_args;
 
 // layer.h
 struct layer
@@ -908,9 +892,6 @@ LIB_API Network* LoadNetwork(
 LIB_API Network* LoadNetworkCustom(
     char const* model_file, char const* weights_file, int clear, int batch);
 LIB_API void FreeNetwork(Network* net);
-
-// network.c
-LIB_API load_args get_base_args(Network* net);
 
 // network.h
 LIB_API float* NetworkPredict(Network* net, float* input);

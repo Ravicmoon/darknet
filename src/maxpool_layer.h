@@ -3,7 +3,6 @@
 
 #include "dark_cuda.h"
 #include "image.h"
-#include "layer.h"
 #include "network.h"
 
 typedef layer maxpool_layer;

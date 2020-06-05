@@ -127,7 +127,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   list* plist = get_paths(train_images);
   int train_images_num = plist->size;
-  char** paths = (char**)list_to_array(plist);
+  char** paths = (char**)ListToArray(plist);
 
   int const init_w = net.w;
   int const init_h = net.h;
@@ -465,11 +465,11 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   free(base);
   free(paths);
-  free_list_contents(plist);
-  free_list(plist);
+  FreeListContents(plist);
+  FreeList(plist);
 
-  free_list_contents_kvp(options);
-  free_list(options);
+  FreeListContentsKvp(options);
+  FreeList(options);
 
   for (int k = 0; k < ngpus; ++k)
   {
@@ -554,13 +554,13 @@ float ValidateDetector(char const* data_file, char const* model_file,
   printf("\n calculation mAP (mean average precision)...\n");
 
   list* plist = get_paths(valid_images);
-  char** paths = (char**)list_to_array(plist);
+  char** paths = (char**)ListToArray(plist);
 
   char** paths_dif = NULL;
   if (difficult_valid_images)
   {
     list* plist_dif = get_paths(difficult_valid_images);
-    paths_dif = (char**)list_to_array(plist_dif);
+    paths_dif = (char**)ListToArray(plist_dif);
   }
 
   layer l = net.layers[net.n - 1];
@@ -1021,8 +1021,8 @@ float ValidateDetector(char const* data_file, char const* model_file,
 
   // free memory
   free_ptrs((void**)names, net.layers[net.n - 1].classes);
-  free_list_contents_kvp(options);
-  free_list(options);
+  FreeListContentsKvp(options);
+  FreeList(options);
 
   if (!existing_net)
     FreeNetwork(&net);

@@ -720,8 +720,8 @@ char** GetLabelsCustom(char* filename, int* size)
   list* plist = get_paths(filename);
   if (size)
     *size = plist->size;
-  char** labels = (char**)list_to_array(plist);
-  free_list(plist);
+  char** labels = (char**)ListToArray(plist);
+  FreeList(plist);
   return labels;
 }
 

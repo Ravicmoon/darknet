@@ -2,7 +2,6 @@
 #include <stdint.h>
 
 #include "data.h"
-#include "layer.h"
 #include "yolo_core.h"
 
 #ifdef __cplusplus

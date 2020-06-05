@@ -1,7 +1,6 @@
 #ifndef SAM_CHANNELS_LAYER_H
 #define SAM_CHANNELS_LAYER_H
 
-#include "layer.h"
 #include "network.h"
 
 #ifdef __cplusplus

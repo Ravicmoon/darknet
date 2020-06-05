@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "activations.h"
 #include "blas.h"
 #include "dark_cuda.h"
 #include "utils.h"

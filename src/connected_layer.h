@@ -2,7 +2,6 @@
 #define CONNECTED_LAYER_H
 
 #include "activations.h"
-#include "layer.h"
 #include "network.h"
 
 typedef layer connected_layer;

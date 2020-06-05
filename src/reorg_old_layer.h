@@ -3,7 +3,6 @@
 
 #include "dark_cuda.h"
 #include "image.h"
-#include "layer.h"
 #include "network.h"
 
 #ifdef __cplusplus

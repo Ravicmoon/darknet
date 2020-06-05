@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "option_list.h"
 #include "utils.h"
 
 list* MakeList()
@@ -13,35 +12,6 @@ list* MakeList()
   l->front = 0;
   l->back = 0;
   return l;
-}
-
-/*
-void transfer_node(list *s, list *d, node *n)
-{
-    node *prev, *next;
-    prev = n->prev;
-    next = n->next;
-    if(prev) prev->next = next;
-    if(next) next->prev = prev;
-    --s->size;
-    if(s->front == n) s->front = next;
-    if(s->back == n) s->back = prev;
-}
-*/
-
-void* list_pop(list* l)
-{
-  if (!l->back)
-    return 0;
-  node* b = l->back;
-  void* val = b->val;
-  l->back = b->prev;
-  if (l->back)
-    l->back->next = 0;
-  free(b);
-  --l->size;
-
-  return val;
 }
 
 void InsertList(list* l, void* val)
@@ -64,7 +34,7 @@ void InsertList(list* l, void* val)
   ++l->size;
 }
 
-void free_node(node* n)
+void FreeNode(node* n)
 {
   node* next;
   while (n)
@@ -75,25 +45,13 @@ void free_node(node* n)
   }
 }
 
-void free_list_val(list* l)
+void FreeList(list* l)
 {
-  node* n = l->front;
-  node* next;
-  while (n)
-  {
-    next = n->next;
-    free(n->val);
-    n = next;
-  }
-}
-
-void free_list(list* l)
-{
-  free_node(l->front);
+  FreeNode(l->front);
   free(l);
 }
 
-void free_list_contents(list* l)
+void FreeListContents(list* l)
 {
   node* n = l->front;
   while (n)
@@ -103,7 +61,7 @@ void free_list_contents(list* l)
   }
 }
 
-void free_list_contents_kvp(list* l)
+void FreeListContentsKvp(list* l)
 {
   node* n = l->front;
   while (n)
@@ -115,7 +73,7 @@ void free_list_contents_kvp(list* l)
   }
 }
 
-void** list_to_array(list* l)
+void** ListToArray(list* l)
 {
   void** a = (void**)xcalloc(l->size, sizeof(void*));
   int count = 0;

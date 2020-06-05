@@ -32,24 +32,6 @@
 #include "utils.h"
 #include "yolo_layer.h"
 
-load_args get_base_args(Network* net)
-{
-  load_args args = {0};
-  args.w = net->w;
-  args.h = net->h;
-  args.size = net->w;
-
-  args.min = net->min_crop;
-  args.max = net->max_crop;
-  args.angle = net->angle;
-  args.aspect = net->aspect;
-  args.exposure = net->exposure;
-  args.center = net->center;
-  args.saturation = net->saturation;
-  args.hue = net->hue;
-  return args;
-}
-
 int64_t GetCurrentIteration(Network* net) { return *net->cur_iteration; }
 
 int GetCurrentBatch(Network* net)

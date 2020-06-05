@@ -2,7 +2,6 @@
 #define CROP_LAYER_H
 
 #include "image.h"
-#include "layer.h"
 #include "network.h"
 
 typedef layer crop_layer;
