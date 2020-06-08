@@ -360,109 +360,105 @@ int ResizeNetwork(Network* net, int w, int h)
     }
   }
 #endif
-  int i;
-  // if(w == net->w && h == net->h) return 0;
+
   net->w = w;
   net->h = h;
   int inputs = 0;
   size_t workspace_size = 0;
   // fprintf(stderr, "Resizing to %d x %d...\n", w, h);
   // fflush(stderr);
-  for (i = 0; i < net->n; ++i)
+  for (int i = 0; i < net->n; ++i)
   {
-    layer l = net->layers[i];
-    // printf(" (resize %d: layer = %d) , ", i, l.type);
-    if (l.type == CONVOLUTIONAL)
+    layer* l = &net->layers[i];
+    // printf(" (resize %d: layer = %d) , ", i, l->type);
+    if (l->type == CONVOLUTIONAL)
     {
-      resize_convolutional_layer(&l, w, h);
+      resize_convolutional_layer(l, w, h);
     }
-    else if (l.type == CROP)
+    else if (l->type == CROP)
     {
-      ResizeCropLayer(&l, w, h);
+      ResizeCropLayer(l, w, h);
     }
-    else if (l.type == MAXPOOL)
+    else if (l->type == MAXPOOL)
     {
-      ResizeMaxpoolLayer(&l, w, h);
+      ResizeMaxpoolLayer(l, w, h);
     }
-    else if (l.type == LOCAL_AVGPOOL)
+    else if (l->type == LOCAL_AVGPOOL)
     {
-      ResizeMaxpoolLayer(&l, w, h);
+      ResizeMaxpoolLayer(l, w, h);
     }
-    else if (l.type == BATCHNORM)
+    else if (l->type == BATCHNORM)
     {
-      ResizeBatchnormLayer(&l, w, h);
+      ResizeBatchnormLayer(l, w, h);
     }
-    else if (l.type == REGION)
+    else if (l->type == REGION)
     {
-      ResizeRegionLayer(&l, w, h);
+      ResizeRegionLayer(l, w, h);
     }
-    else if (l.type == YOLO)
+    else if (l->type == YOLO)
     {
-      ResizeYoloLayer(&l, w, h);
+      ResizeYoloLayer(l, w, h);
     }
-    else if (l.type == GAUSSIAN_YOLO)
+    else if (l->type == GAUSSIAN_YOLO)
     {
-      ResizeGaussianYoloLayer(&l, w, h);
+      ResizeGaussianYoloLayer(l, w, h);
     }
-    else if (l.type == ROUTE)
+    else if (l->type == ROUTE)
     {
-      ResizeRouteLayer(&l, net);
+      ResizeRouteLayer(l, net);
     }
-    else if (l.type == SHORTCUT)
+    else if (l->type == SHORTCUT)
     {
-      ResizeShortcutLayer(&l, w, h, net);
+      ResizeShortcutLayer(l, w, h, net);
     }
-    else if (l.type == SCALE_CHANNELS)
+    else if (l->type == SCALE_CHANNELS)
     {
-      ResizeScaleChannelsLayer(&l, net);
+      ResizeScaleChannelsLayer(l, net);
     }
-    else if (l.type == DROPOUT)
+    else if (l->type == DROPOUT)
     {
-      ResizeDropoutLayer(&l, inputs);
-      l.out_w = l.w = w;
-      l.out_h = l.h = h;
-      l.output = net->layers[i - 1].output;
-      l.delta = net->layers[i - 1].delta;
+      ResizeDropoutLayer(l, inputs);
+      l->out_w = l->w = w;
+      l->out_h = l->h = h;
+      l->output = net->layers[i - 1].output;
+      l->delta = net->layers[i - 1].delta;
 #ifdef GPU
-      l.output_gpu = net->layers[i - 1].output_gpu;
-      l.delta_gpu = net->layers[i - 1].delta_gpu;
+      l->output_gpu = net->layers[i - 1].output_gpu;
+      l->delta_gpu = net->layers[i - 1].delta_gpu;
 #endif
     }
-    else if (l.type == UPSAMPLE)
+    else if (l->type == UPSAMPLE)
     {
-      ResizeUpsampleLayer(&l, w, h);
+      ResizeUpsampleLayer(l, w, h);
     }
-    else if (l.type == REORG)
+    else if (l->type == REORG)
     {
-      resize_reorg_layer(&l, w, h);
+      resize_reorg_layer(l, w, h);
     }
-    else if (l.type == REORG_OLD)
+    else if (l->type == REORG_OLD)
     {
-      ResizeReorgOldLayer(&l, w, h);
+      ResizeReorgOldLayer(l, w, h);
     }
-    else if (l.type == AVGPOOL)
+    else if (l->type == AVGPOOL)
     {
-      ResizeAvgpoolLayer(&l, w, h);
+      ResizeAvgpoolLayer(l, w, h);
     }
-    else if (l.type == COST)
+    else if (l->type == COST)
     {
-      ResizeCostLayer(&l, inputs);
+      ResizeCostLayer(l, inputs);
     }
     else
     {
-      fprintf(stderr, "Resizing type %d \n", (int)l.type);
+      fprintf(stderr, "Resizing type %d \n", (int)l->type);
       error("Cannot resize this type of layer");
     }
-    if (l.workspace_size > workspace_size)
-      workspace_size = l.workspace_size;
-    inputs = l.outputs;
-    net->layers[i] = l;
-    // if(l.type != DROPOUT)
-    {
-      w = l.out_w;
-      h = l.out_h;
-    }
-    // if(l.type == AVGPOOL) break;
+
+    if (l->workspace_size > workspace_size)
+      workspace_size = l->workspace_size;
+
+    inputs = l->outputs;
+    w = l->out_w;
+    h = l->out_h;
   }
 #ifdef GPU
   const int size = GetNetworkInputSize(net) * net->batch;
