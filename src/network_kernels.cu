@@ -302,10 +302,9 @@ void ForwardBackwardNetworkGpu(Network* net, float* x, float* y)
   state.truth = *net->truth_gpu;
   state.train = 1;
 #if defined(CUDNN_HALF) && defined(CUDNN)
-  int i;
-  for (i = 0; i < net->n; ++i)
+  for (int i = 0; i < net->n; ++i)
   {
-    layer l = net->layers[i];
+    layer* l = &net->layers[i];
     if (net->cudnn_half)
     {
       if (l->type == CONVOLUTIONAL && l->weights_gpu && l->weights_gpu16)
