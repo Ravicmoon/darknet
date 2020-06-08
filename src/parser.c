@@ -27,7 +27,6 @@
 #include "reorg_layer.h"
 #include "reorg_old_layer.h"
 #include "route_layer.h"
-#include "sam_layer.h"
 #include "scale_channels_layer.h"
 #include "shortcut_layer.h"
 #include "softmax_layer.h"
@@ -50,8 +49,6 @@ LAYER_TYPE string_to_layer_type(char* type)
     return SHORTCUT;
   if (strcmp(type, "[scale_channels]") == 0)
     return SCALE_CHANNELS;
-  if (strcmp(type, "[sam]") == 0)
-    return SAM;
   if (strcmp(type, "[crop]") == 0)
     return CROP;
   if (strcmp(type, "[cost]") == 0)
@@ -1024,29 +1021,6 @@ layer ParseScaleChannels(list* options, size_params params, Network* net)
   return s;
 }
 
-layer ParseSam(list* options, size_params params, Network* net)
-{
-  char* l = FindOption(options, "from");
-  int index = atoi(l);
-  if (index < 0)
-    index = params.index + index;
-
-  int batch = params.batch;
-  layer from = net->layers[index];
-
-  layer s = make_sam_layer(batch, index, params.w, params.h, params.c,
-      from.out_w, from.out_h, from.out_c);
-
-  char* activation_s = FindOptionStrQuiet(options, "activation", "linear");
-  ACTIVATION activation = get_activation(activation_s);
-  s.activation = activation;
-  if (activation == SWISH || activation == MISH)
-  {
-    printf(" [sam] layer doesn't support SWISH or MISH activations \n");
-  }
-  return s;
-}
-
 layer parse_activation(list* options, size_params params)
 {
   char* activation_s = FindOptionStr(options, "activation", "linear");
@@ -1538,13 +1512,6 @@ void ParseNetworkCfgCustom(
     else if (lt == SCALE_CHANNELS)
     {
       l = ParseScaleChannels(options, params, net);
-      net->layers[count - 1].use_bin_output = 0;
-      net->layers[l.index].use_bin_output = 0;
-      net->layers[l.index].keep_delta_gpu = 1;
-    }
-    else if (lt == SAM)
-    {
-      l = ParseSam(options, params, net);
       net->layers[count - 1].use_bin_output = 0;
       net->layers[l.index].use_bin_output = 0;
       net->layers[l.index].keep_delta_gpu = 1;

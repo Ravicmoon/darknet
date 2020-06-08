@@ -170,7 +170,6 @@ typedef enum
   LOCAL,
   SHORTCUT,
   SCALE_CHANNELS,
-  SAM,
   ACTIVE,
   BATCHNORM,
   NETWORK,

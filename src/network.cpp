@@ -22,7 +22,6 @@
 #include "reorg_layer.h"
 #include "reorg_old_layer.h"
 #include "route_layer.h"
-#include "sam_layer.h"
 #include "scale_channels_layer.h"
 #include "shortcut_layer.h"
 #include "softmax_layer.h"
@@ -417,10 +416,6 @@ int ResizeNetwork(Network* net, int w, int h)
     else if (l.type == SCALE_CHANNELS)
     {
       ResizeScaleChannelsLayer(&l, net);
-    }
-    else if (l.type == SAM)
-    {
-      ResizeSamLayer(&l, w, h);
     }
     else if (l.type == DROPOUT)
     {
