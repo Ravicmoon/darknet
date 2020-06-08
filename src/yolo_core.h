@@ -155,7 +155,6 @@ typedef enum
 typedef enum
 {
   CONVOLUTIONAL,
-  DECONVOLUTIONAL,
   CONNECTED,
   MAXPOOL,
   LOCAL_AVGPOOL,
@@ -177,12 +176,9 @@ typedef enum
   REGION,
   YOLO,
   GAUSSIAN_YOLO,
-  ISEG,
   REORG,
   REORG_OLD,
   UPSAMPLE,
-  LOGXENT,
-  L2NORM,
   EMPTY,
   BLANK
 } LAYER_TYPE;
