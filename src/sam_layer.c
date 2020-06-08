@@ -32,11 +32,11 @@ layer make_sam_layer(
   l.delta = (float*)xcalloc(l.outputs * batch, sizeof(float));
   l.output = (float*)xcalloc(l.outputs * batch, sizeof(float));
 
-  l.forward = forward_sam_layer;
-  l.backward = backward_sam_layer;
+  l.forward = ForwardSamLayer;
+  l.backward = BackwardSamLayer;
 #ifdef GPU
-  l.forward_gpu = forward_sam_layer_gpu;
-  l.backward_gpu = backward_sam_layer_gpu;
+  l.forward_gpu = ForwardSamLayerGpu;
+  l.backward_gpu = BackwardSamLayerGpu;
 
   l.delta_gpu = cuda_make_array(l.delta, l.outputs * batch);
   l.output_gpu = cuda_make_array(l.output, l.outputs * batch);
@@ -44,7 +44,7 @@ layer make_sam_layer(
   return l;
 }
 
-void resize_sam_layer(layer* l, int w, int h)
+void ResizeSamLayer(layer* l, int w, int h)
 {
   l->out_w = w;
   l->out_h = h;
@@ -62,69 +62,60 @@ void resize_sam_layer(layer* l, int w, int h)
 #endif
 }
 
-void forward_sam_layer(const layer l, NetworkState state)
+void ForwardSamLayer(layer* l, NetworkState state)
 {
-  int size = l.batch * l.out_c * l.out_w * l.out_h;
-  // int channel_size = 1;
-  float* from_output = state.net->layers[l.index].output;
+  int size = l->batch * l->out_c * l->out_w * l->out_h;
+  float* from_output = state.net->layers[l->index].output;
 
-  int i;
 #pragma omp parallel for
-  for (i = 0; i < size; ++i)
+  for (int i = 0; i < size; ++i)
   {
-    l.output[i] = state.input[i] * from_output[i];
+    l->output[i] = state.input[i] * from_output[i];
   }
 
-  activate_array(l.output, l.outputs * l.batch, l.activation);
+  activate_array(l->output, l->outputs * l->batch, l->activation);
 }
 
-void backward_sam_layer(const layer l, NetworkState state)
+void BackwardSamLayer(layer* l, NetworkState state)
 {
-  gradient_array(l.output, l.outputs * l.batch, l.activation, l.delta);
-  // axpy_cpu(l.outputs*l.batch, 1, l.delta, 1, state.delta, 1);
-  // scale_cpu(l.batch, l.out_w, l.out_h, l.out_c, l.delta, l.w, l.h, l.c,
-  // state.net.layers[l.index].delta);
+  gradient_array(l->output, l->outputs * l->batch, l->activation, l->delta);
 
-  int size = l.batch * l.out_c * l.out_w * l.out_h;
-  // int channel_size = 1;
-  float* from_output = state.net->layers[l.index].output;
-  float* from_delta = state.net->layers[l.index].delta;
+  int size = l->batch * l->out_c * l->out_w * l->out_h;
+  float* from_output = state.net->layers[l->index].output;
+  float* from_delta = state.net->layers[l->index].delta;
 
-  int i;
 #pragma omp parallel for
-  for (i = 0; i < size; ++i)
+  for (int i = 0; i < size; ++i)
   {
-    state.delta[i] +=
-        l.delta[i] *
-        from_output[i];  // l.delta * from  (should be divided by channel_size?)
+    state.delta[i] += l->delta[i] * from_output[i];
 
-    from_delta[i] = state.input[i] * l.delta[i];  // input * l.delta
+    from_delta[i] = state.input[i] * l->delta[i];
   }
 }
 
 #ifdef GPU
-void forward_sam_layer_gpu(const layer l, NetworkState state)
+void ForwardSamLayerGpu(layer* l, NetworkState state)
 {
-  int size = l.batch * l.out_c * l.out_w * l.out_h;
+  int size = l->batch * l->out_c * l->out_w * l->out_h;
   int channel_size = 1;
 
-  sam_gpu(state.net->layers[l.index].output_gpu, size, channel_size,
-      state.input, l.output_gpu);
+  sam_gpu(state.net->layers[l->index].output_gpu, size, channel_size,
+      state.input, l->output_gpu);
 
-  activate_array_ongpu(l.output_gpu, l.outputs * l.batch, l.activation);
+  activate_array_ongpu(l->output_gpu, l->outputs * l->batch, l->activation);
 }
 
-void backward_sam_layer_gpu(const layer l, NetworkState state)
+void BackwardSamLayerGpu(layer* l, NetworkState state)
 {
   gradient_array_ongpu(
-      l.output_gpu, l.outputs * l.batch, l.activation, l.delta_gpu);
+      l->output_gpu, l->outputs * l->batch, l->activation, l->delta_gpu);
 
-  int size = l.batch * l.out_c * l.out_w * l.out_h;
+  int size = l->batch * l->out_c * l->out_w * l->out_h;
   int channel_size = 1;
-  float* from_output = state.net->layers[l.index].output_gpu;
-  float* from_delta = state.net->layers[l.index].delta_gpu;
+  float* from_output = state.net->layers[l->index].output_gpu;
+  float* from_delta = state.net->layers[l->index].delta_gpu;
 
-  backward_sam_gpu(l.delta_gpu, size, channel_size, state.input, from_delta,
+  backward_sam_gpu(l->delta_gpu, size, channel_size, state.input, from_delta,
       from_output, state.delta);
 }
 #endif

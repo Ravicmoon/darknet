@@ -34,11 +34,11 @@ DEFINE_double(iou_thresh, 0.5, "");
 DEFINE_double(hier_thresh, 0.5, "");
 
 DEFINE_string(mode, "video", "");
-DEFINE_string(data_file, "", "");
-DEFINE_string(model_file, "", "");
-DEFINE_string(weights_file, "", "");
+DEFINE_string(data_file, "yolo.data", "");
+DEFINE_string(model_file, "yolo.cfg", "");
+DEFINE_string(weights_file, "yolo.weights", "");
 DEFINE_string(chart_path, "", "");
-DEFINE_string(input_file, "", "");
+DEFINE_string(input_file, "test.avi", "");
 DEFINE_string(gpu_list, "", "");
 
 #ifdef GPU

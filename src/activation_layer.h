@@ -1,24 +1,14 @@
-#ifndef ACTIVATION_LAYER_H
-#define ACTIVATION_LAYER_H
+#pragma once
 
 #include "activations.h"
 #include "network.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 layer make_activation_layer(int batch, int inputs, ACTIVATION activation);
 
-void forward_activation_layer(layer l, NetworkState state);
-void backward_activation_layer(layer l, NetworkState state);
+void ForwardActivationLayer(layer* l, NetworkState state);
+void BackwardActivationLayer(layer* l, NetworkState state);
 
 #ifdef GPU
-void forward_activation_layer_gpu(layer l, NetworkState state);
-void backward_activation_layer_gpu(layer l, NetworkState state);
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
+void ForwardActivationLayerGpu(layer* l, NetworkState state);
+void BackwardActivationLayerGpu(layer* l, NetworkState state);
 #endif

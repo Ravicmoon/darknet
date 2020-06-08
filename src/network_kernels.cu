@@ -77,7 +77,7 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
     if (net->benchmark_layers)
       start_time = get_time_point();
 
-    l.forward_gpu(l, state);
+    l.forward_gpu(&l, state);
 
     if (net->benchmark_layers)
     {
@@ -172,7 +172,7 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
       start_time = get_time_point();
     }
 
-    l.backward_gpu(l, state);
+    l.backward_gpu(&l, state);
 
     if (net->benchmark_layers)
     {
@@ -273,7 +273,7 @@ void UpdateNetworkGpu(Network* net)
     if (l.update_gpu && l.dont_update < iteration_num)
     {
       l.update_gpu(
-          l, update_batch, rate, net->momentum, net->decay, net->loss_scale);
+          &l, update_batch, rate, net->momentum, net->decay, net->loss_scale);
     }
   }
 }

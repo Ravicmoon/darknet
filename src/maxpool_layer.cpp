@@ -7,22 +7,6 @@
 #include "gemm.h"
 #include "utils.h"
 
-Image get_maxpool_image(maxpool_layer l)
-{
-  int h = l.out_h;
-  int w = l.out_w;
-  int c = l.c;
-  return float_to_image(w, h, c, l.output);
-}
-
-Image get_maxpool_delta(maxpool_layer l)
-{
-  int h = l.out_h;
-  int w = l.out_w;
-  int c = l.c;
-  return float_to_image(w, h, c, l.delta);
-}
-
 void create_maxpool_cudnn_tensors(layer* l)
 {
 #ifdef CUDNN
@@ -32,14 +16,11 @@ void create_maxpool_cudnn_tensors(layer* l)
 #endif  // CUDNN
 }
 
-void cudnn_maxpool_setup(layer* l)
+void CudnnMaxpoolSetup(layer* l)
 {
 #ifdef CUDNN
   CHECK_CUDNN(cudnnSetPooling2dDescriptor(l->poolingDesc, CUDNN_POOLING_MAX,
-      CUDNN_NOT_PROPAGATE_NAN,  // CUDNN_PROPAGATE_NAN, CUDNN_NOT_PROPAGATE_NAN
-      l->size, l->size,
-      l->pad / 2,  // 0, //l.pad,
-      l->pad / 2,  // 0, //l.pad,
+      CUDNN_NOT_PROPAGATE_NAN, l->size, l->size, l->pad / 2, l->pad / 2,
       l->stride_x, l->stride_y));
 
   CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->srcTensorDesc, CUDNN_TENSOR_NCHW,
@@ -67,11 +48,11 @@ void cudnn_local_avgpool_setup(layer* l)
 #endif  // CUDNN
 }
 
-maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size,
-    int stride_x, int stride_y, int padding, int maxpool_depth,
-    int out_channels, int antialiasing, int avgpool, int train)
+layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x,
+    int stride_y, int padding, int maxpool_depth, int out_channels,
+    int antialiasing, int avgpool, int train)
 {
-  maxpool_layer l = {(LAYER_TYPE)0};
+  layer l = {(LAYER_TYPE)0};
   l.avgpool = avgpool;
   if (avgpool)
     l.type = LOCAL_AVGPOOL;
@@ -124,24 +105,24 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size,
   l.output = (float*)xcalloc(output_size, sizeof(float));
   if (avgpool)
   {
-    l.forward = forward_local_avgpool_layer;
-    l.backward = backward_local_avgpool_layer;
+    l.forward = ForwardLocalAvgpoolLayer;
+    l.backward = BackwardLocalAvgpoolLayer;
   }
   else
   {
-    l.forward = forward_maxpool_layer;
-    l.backward = backward_maxpool_layer;
+    l.forward = ForwardMaxpoolLayer;
+    l.backward = BackwardMaxpoolLayer;
   }
 #ifdef GPU
   if (avgpool)
   {
-    l.forward_gpu = forward_local_avgpool_layer_gpu;
-    l.backward_gpu = backward_local_avgpool_layer_gpu;
+    l.forward_gpu = ForwardLocalAvgpoolLayerGpu;
+    l.backward_gpu = BackwardLocalAvgpoolLayerGpu;
   }
   else
   {
-    l.forward_gpu = forward_maxpool_layer_gpu;
-    l.backward_gpu = backward_maxpool_layer_gpu;
+    l.forward_gpu = ForwardMaxpoolLayerGpu;
+    l.backward_gpu = BackwardMaxpoolLayerGpu;
   }
 
   if (train)
@@ -155,7 +136,7 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size,
   if (avgpool)
     cudnn_local_avgpool_setup(&l);
   else
-    cudnn_maxpool_setup(&l);
+    CudnnMaxpoolSetup(&l);
 
 #endif  // GPU
   l.bflops = (l.size * l.size * l.c * l.out_h * l.out_w) / 1000000000.;
@@ -244,7 +225,7 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size,
     {
       if (l.antialiasing)
         l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch * l.outputs);
-      push_convolutional_layer(*(l.input_layer));
+      PushConvolutionalLayer(l.input_layer);
     }
 #endif  // GPU
   }
@@ -252,7 +233,7 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size,
   return l;
 }
 
-void resize_maxpool_layer(maxpool_layer* l, int w, int h)
+void ResizeMaxpoolLayer(layer* l, int w, int h)
 {
   l->h = h;
   l->w = w;
@@ -289,39 +270,39 @@ void resize_maxpool_layer(maxpool_layer* l, int w, int h)
   if (l->avgpool)
     cudnn_local_avgpool_setup(l);
   else
-    cudnn_maxpool_setup(l);
+    CudnnMaxpoolSetup(l);
 #endif
 }
 
-void forward_maxpool_layer(const maxpool_layer l, NetworkState state)
+void ForwardMaxpoolLayer(layer* l, NetworkState state)
 {
-  if (l.maxpool_depth)
+  if (l->maxpool_depth)
   {
     int b, i, j, k, g;
-    for (b = 0; b < l.batch; ++b)
+    for (b = 0; b < l->batch; ++b)
     {
 #pragma omp parallel for
-      for (i = 0; i < l.h; ++i)
+      for (i = 0; i < l->h; ++i)
       {
-        for (j = 0; j < l.w; ++j)
+        for (j = 0; j < l->w; ++j)
         {
-          for (g = 0; g < l.out_c; ++g)
+          for (g = 0; g < l->out_c; ++g)
           {
-            int out_index = j + l.w * (i + l.h * (g + l.out_c * b));
+            int out_index = j + l->w * (i + l->h * (g + l->out_c * b));
             float max = -FLT_MAX;
             int max_i = -1;
 
-            for (k = g; k < l.c; k += l.out_c)
+            for (k = g; k < l->c; k += l->out_c)
             {
-              int in_index = j + l.w * (i + l.h * (k + l.c * b));
+              int in_index = j + l->w * (i + l->h * (k + l->c * b));
               float val = state.input[in_index];
 
               max_i = (val > max) ? in_index : max_i;
               max = (val > max) ? val : max;
             }
-            l.output[out_index] = max;
-            if (l.indexes)
-              l.indexes[out_index] = max_i;
+            l->output[out_index] = max;
+            if (l->indexes)
+              l->indexes[out_index] = max_i;
           }
         }
       }
@@ -329,22 +310,22 @@ void forward_maxpool_layer(const maxpool_layer l, NetworkState state)
     return;
   }
 
-  if (!state.train && l.stride_x == l.stride_y)
+  if (!state.train && l->stride_x == l->stride_y)
   {
-    forward_maxpool_layer_avx(state.input, l.output, l.indexes, l.size, l.w,
-        l.h, l.out_w, l.out_h, l.c, l.pad, l.stride, l.batch);
+    forward_maxpool_layer_avx(state.input, l->output, l->indexes, l->size, l->w,
+        l->h, l->out_w, l->out_h, l->c, l->pad, l->stride, l->batch);
   }
   else
   {
     int b, i, j, k, m, n;
-    int w_offset = -l.pad / 2;
-    int h_offset = -l.pad / 2;
+    int w_offset = -l->pad / 2;
+    int h_offset = -l->pad / 2;
 
-    int h = l.out_h;
-    int w = l.out_w;
-    int c = l.c;
+    int h = l->out_h;
+    int w = l->out_w;
+    int c = l->c;
 
-    for (b = 0; b < l.batch; ++b)
+    for (b = 0; b < l->batch; ++b)
     {
       for (k = 0; k < c; ++k)
       {
@@ -355,68 +336,67 @@ void forward_maxpool_layer(const maxpool_layer l, NetworkState state)
             int out_index = j + w * (i + h * (k + c * b));
             float max = -FLT_MAX;
             int max_i = -1;
-            for (n = 0; n < l.size; ++n)
+            for (n = 0; n < l->size; ++n)
             {
-              for (m = 0; m < l.size; ++m)
+              for (m = 0; m < l->size; ++m)
               {
-                int cur_h = h_offset + i * l.stride_y + n;
-                int cur_w = w_offset + j * l.stride_x + m;
-                int index = cur_w + l.w * (cur_h + l.h * (k + b * l.c));
+                int cur_h = h_offset + i * l->stride_y + n;
+                int cur_w = w_offset + j * l->stride_x + m;
+                int index = cur_w + l->w * (cur_h + l->h * (k + b * l->c));
                 int valid =
-                    (cur_h >= 0 && cur_h < l.h && cur_w >= 0 && cur_w < l.w);
+                    (cur_h >= 0 && cur_h < l->h && cur_w >= 0 && cur_w < l->w);
                 float val = (valid != 0) ? state.input[index] : -FLT_MAX;
                 max_i = (val > max) ? index : max_i;
                 max = (val > max) ? val : max;
               }
             }
-            l.output[out_index] = max;
-            if (l.indexes)
-              l.indexes[out_index] = max_i;
+            l->output[out_index] = max;
+            if (l->indexes)
+              l->indexes[out_index] = max_i;
           }
         }
       }
     }
   }
 
-  if (l.antialiasing)
+  if (l->antialiasing)
   {
     NetworkState s = {0};
     s.train = state.train;
     s.workspace = state.workspace;
     s.net = state.net;
-    s.input = l.output;
-    forward_convolutional_layer(*(l.input_layer), s);
-    // simple_copy_ongpu(l.outputs*l.batch, l.output, l.input_antialiasing);
-    memcpy(l.output, l.input_layer->output,
-        l.input_layer->outputs * l.input_layer->batch * sizeof(float));
+    s.input = l->output;
+    ForwardConvolutionalLayer(l->input_layer, s);
+    memcpy(l->output, l->input_layer->output,
+        l->input_layer->outputs * l->input_layer->batch * sizeof(float));
   }
 }
 
-void backward_maxpool_layer(const maxpool_layer l, NetworkState state)
+void BackwardMaxpoolLayer(layer* l, NetworkState state)
 {
   int i;
-  int h = l.out_h;
-  int w = l.out_w;
-  int c = l.out_c;
+  int h = l->out_h;
+  int w = l->out_w;
+  int c = l->out_c;
 #pragma omp parallel for
-  for (i = 0; i < h * w * c * l.batch; ++i)
+  for (i = 0; i < h * w * c * l->batch; ++i)
   {
-    int index = l.indexes[i];
-    state.delta[index] += l.delta[i];
+    int index = l->indexes[i];
+    state.delta[index] += l->delta[i];
   }
 }
 
-void forward_local_avgpool_layer(const maxpool_layer l, NetworkState state)
+void ForwardLocalAvgpoolLayer(layer* l, NetworkState state)
 {
   int b, i, j, k, m, n;
-  int w_offset = -l.pad / 2;
-  int h_offset = -l.pad / 2;
+  int w_offset = -l->pad / 2;
+  int h_offset = -l->pad / 2;
 
-  int h = l.out_h;
-  int w = l.out_w;
-  int c = l.c;
+  int h = l->out_h;
+  int w = l->out_w;
+  int c = l->c;
 
-  for (b = 0; b < l.batch; ++b)
+  for (b = 0; b < l->batch; ++b)
   {
     for (k = 0; k < c; ++k)
     {
@@ -427,15 +407,15 @@ void forward_local_avgpool_layer(const maxpool_layer l, NetworkState state)
           int out_index = j + w * (i + h * (k + c * b));
           float avg = 0;
           int counter = 0;
-          for (n = 0; n < l.size; ++n)
+          for (n = 0; n < l->size; ++n)
           {
-            for (m = 0; m < l.size; ++m)
+            for (m = 0; m < l->size; ++m)
             {
-              int cur_h = h_offset + i * l.stride_y + n;
-              int cur_w = w_offset + j * l.stride_x + m;
-              int index = cur_w + l.w * (cur_h + l.h * (k + b * l.c));
+              int cur_h = h_offset + i * l->stride_y + n;
+              int cur_w = w_offset + j * l->stride_x + m;
+              int index = cur_w + l->w * (cur_h + l->h * (k + b * l->c));
               int valid =
-                  (cur_h >= 0 && cur_h < l.h && cur_w >= 0 && cur_w < l.w);
+                  (cur_h >= 0 && cur_h < l->h && cur_w >= 0 && cur_w < l->w);
               if (valid)
               {
                 counter++;
@@ -443,24 +423,24 @@ void forward_local_avgpool_layer(const maxpool_layer l, NetworkState state)
               }
             }
           }
-          l.output[out_index] = avg / counter;
+          l->output[out_index] = avg / counter;
         }
       }
     }
   }
 }
 
-void backward_local_avgpool_layer(const maxpool_layer l, NetworkState state)
+void BackwardLocalAvgpoolLayer(layer* l, NetworkState state)
 {
   int b, i, j, k, m, n;
-  int w_offset = -l.pad / 2;
-  int h_offset = -l.pad / 2;
+  int w_offset = -l->pad / 2;
+  int h_offset = -l->pad / 2;
 
-  int h = l.out_h;
-  int w = l.out_w;
-  int c = l.c;
+  int h = l->out_h;
+  int w = l->out_w;
+  int c = l->c;
 
-  for (b = 0; b < l.batch; ++b)
+  for (b = 0; b < l->batch; ++b)
   {
     for (k = 0; k < c; ++k)
     {
@@ -469,18 +449,18 @@ void backward_local_avgpool_layer(const maxpool_layer l, NetworkState state)
         for (j = 0; j < w; ++j)
         {
           int out_index = j + w * (i + h * (k + c * b));
-          for (n = 0; n < l.size; ++n)
+          for (n = 0; n < l->size; ++n)
           {
-            for (m = 0; m < l.size; ++m)
+            for (m = 0; m < l->size; ++m)
             {
-              int cur_h = h_offset + i * l.stride_y + n;
-              int cur_w = w_offset + j * l.stride_x + m;
-              int index = cur_w + l.w * (cur_h + l.h * (k + b * l.c));
+              int cur_h = h_offset + i * l->stride_y + n;
+              int cur_w = w_offset + j * l->stride_x + m;
+              int index = cur_w + l->w * (cur_h + l->h * (k + b * l->c));
               int valid =
-                  (cur_h >= 0 && cur_h < l.h && cur_w >= 0 && cur_w < l.w);
+                  (cur_h >= 0 && cur_h < l->h && cur_w >= 0 && cur_w < l->w);
 
               if (valid)
-                state.delta[index] += l.delta[out_index] / (l.size * l.size);
+                state.delta[index] += l->delta[out_index] / (l->size * l->size);
             }
           }
         }

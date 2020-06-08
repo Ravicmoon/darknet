@@ -38,11 +38,11 @@ layer make_reorg_old_layer(
   l.output = (float*)xcalloc(output_size, sizeof(float));
   l.delta = (float*)xcalloc(output_size, sizeof(float));
 
-  l.forward = forward_reorg_old_layer;
-  l.backward = backward_reorg_old_layer;
+  l.forward = ForwardReorgOldLayer;
+  l.backward = BackwardReorgOldLayer;
 #ifdef GPU
-  l.forward_gpu = forward_reorg_old_layer_gpu;
-  l.backward_gpu = backward_reorg_old_layer_gpu;
+  l.forward_gpu = ForwardReorgOldLayerGpu;
+  l.backward_gpu = BackwardReorgOldLayerGpu;
 
   l.output_gpu = cuda_make_array(l.output, output_size);
   l.delta_gpu = cuda_make_array(l.delta, output_size);
@@ -50,7 +50,7 @@ layer make_reorg_old_layer(
   return l;
 }
 
-void resize_reorg_old_layer(layer* l, int w, int h)
+void ResizeReorgOldLayer(layer* l, int w, int h)
 {
   int stride = l->stride;
   int c = l->c;
@@ -86,52 +86,40 @@ void resize_reorg_old_layer(layer* l, int w, int h)
 #endif
 }
 
-void forward_reorg_old_layer(const layer l, NetworkState state)
+void ForwardReorgOldLayer(layer* l, NetworkState state)
 {
-  if (l.reverse)
-  {
-    reorg_cpu(state.input, l.w, l.h, l.c, l.batch, l.stride, 1, l.output);
-  }
+  if (l->reverse)
+    reorg_cpu(state.input, l->w, l->h, l->c, l->batch, l->stride, 1, l->output);
   else
-  {
-    reorg_cpu(state.input, l.w, l.h, l.c, l.batch, l.stride, 0, l.output);
-  }
+    reorg_cpu(state.input, l->w, l->h, l->c, l->batch, l->stride, 0, l->output);
 }
 
-void backward_reorg_old_layer(const layer l, NetworkState state)
+void BackwardReorgOldLayer(layer* l, NetworkState state)
 {
-  if (l.reverse)
-  {
-    reorg_cpu(l.delta, l.w, l.h, l.c, l.batch, l.stride, 0, state.delta);
-  }
+  if (l->reverse)
+    reorg_cpu(l->delta, l->w, l->h, l->c, l->batch, l->stride, 0, state.delta);
   else
-  {
-    reorg_cpu(l.delta, l.w, l.h, l.c, l.batch, l.stride, 1, state.delta);
-  }
+    reorg_cpu(l->delta, l->w, l->h, l->c, l->batch, l->stride, 1, state.delta);
 }
 
 #ifdef GPU
-void forward_reorg_old_layer_gpu(layer l, NetworkState state)
+void ForwardReorgOldLayerGpu(layer* l, NetworkState state)
 {
-  if (l.reverse)
-  {
-    reorg_ongpu(state.input, l.w, l.h, l.c, l.batch, l.stride, 1, l.output_gpu);
-  }
+  if (l->reverse)
+    reorg_ongpu(
+        state.input, l->w, l->h, l->c, l->batch, l->stride, 1, l->output_gpu);
   else
-  {
-    reorg_ongpu(state.input, l.w, l.h, l.c, l.batch, l.stride, 0, l.output_gpu);
-  }
+    reorg_ongpu(
+        state.input, l->w, l->h, l->c, l->batch, l->stride, 0, l->output_gpu);
 }
 
-void backward_reorg_old_layer_gpu(layer l, NetworkState state)
+void BackwardReorgOldLayerGpu(layer* l, NetworkState state)
 {
-  if (l.reverse)
-  {
-    reorg_ongpu(l.delta_gpu, l.w, l.h, l.c, l.batch, l.stride, 0, state.delta);
-  }
+  if (l->reverse)
+    reorg_ongpu(
+        l->delta_gpu, l->w, l->h, l->c, l->batch, l->stride, 0, state.delta);
   else
-  {
-    reorg_ongpu(l.delta_gpu, l.w, l.h, l.c, l.batch, l.stride, 1, state.delta);
-  }
+    reorg_ongpu(
+        l->delta_gpu, l->w, l->h, l->c, l->batch, l->stride, 1, state.delta);
 }
 #endif

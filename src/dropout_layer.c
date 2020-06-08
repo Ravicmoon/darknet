@@ -6,11 +6,11 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-dropout_layer make_dropout_layer(int batch, int inputs, float probability,
+layer make_dropout_layer(int batch, int inputs, float probability,
     int dropblock, float dropblock_size_rel, int dropblock_size_abs, int w,
     int h, int c)
 {
-  dropout_layer l = {(LAYER_TYPE)0};
+  layer l = {(LAYER_TYPE)0};
   l.type = DROPOUT;
   l.probability = probability;
   l.dropblock = dropblock;
@@ -36,11 +36,11 @@ dropout_layer make_dropout_layer(int batch, int inputs, float probability,
   l.batch = batch;
   l.rand = (float*)xcalloc(inputs * batch, sizeof(float));
   l.scale = 1. / (1.0 - probability);
-  l.forward = forward_dropout_layer;
-  l.backward = backward_dropout_layer;
+  l.forward = ForwardDropoutLayer;
+  l.backward = BackwardDropoutLayer;
 #ifdef GPU
-  l.forward_gpu = forward_dropout_layer_gpu;
-  l.backward_gpu = backward_dropout_layer_gpu;
+  l.forward_gpu = ForwardDropoutLayerGpu;
+  l.backward_gpu = BackwardDropoutLayerGpu;
   l.rand_gpu = cuda_make_array(l.rand, inputs * batch);
   if (l.dropblock)
   {
@@ -67,7 +67,7 @@ dropout_layer make_dropout_layer(int batch, int inputs, float probability,
   return l;
 }
 
-void resize_dropout_layer(dropout_layer* l, int inputs)
+void ResizeDropoutLayer(layer* l, int inputs)
 {
   l->inputs = l->outputs = inputs;
   l->rand = (float*)xrealloc(l->rand, l->inputs * l->batch * sizeof(float));
@@ -86,33 +86,33 @@ void resize_dropout_layer(dropout_layer* l, int inputs)
 #endif
 }
 
-void forward_dropout_layer(dropout_layer l, NetworkState state)
+void ForwardDropoutLayer(layer* l, NetworkState state)
 {
-  int i;
   if (!state.train)
     return;
-  for (i = 0; i < l.batch * l.inputs; ++i)
+
+  for (int i = 0; i < l->batch * l->inputs; ++i)
   {
     float r = rand_uniform(0, 1);
-    l.rand[i] = r;
-    if (r < l.probability)
+    l->rand[i] = r;
+    if (r < l->probability)
       state.input[i] = 0;
     else
-      state.input[i] *= l.scale;
+      state.input[i] *= l->scale;
   }
 }
 
-void backward_dropout_layer(dropout_layer l, NetworkState state)
+void BackwardDropoutLayer(layer* l, NetworkState state)
 {
-  int i;
   if (!state.delta)
     return;
-  for (i = 0; i < l.batch * l.inputs; ++i)
+
+  for (int i = 0; i < l->batch * l->inputs; ++i)
   {
-    float r = l.rand[i];
-    if (r < l.probability)
+    float r = l->rand[i];
+    if (r < l->probability)
       state.delta[i] = 0;
     else
-      state.delta[i] *= l.scale;
+      state.delta[i] *= l->scale;
   }
 }

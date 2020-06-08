@@ -9,31 +9,31 @@
 #include "im2col.h"
 #include "utils.h"
 
-int local_out_height(local_layer l)
+int LocalOutHeight(layer* l)
 {
-  int h = l.h;
-  if (!l.pad)
-    h -= l.size;
+  int h = l->h;
+  if (!l->pad)
+    h -= l->size;
   else
     h -= 1;
-  return h / l.stride + 1;
+  return h / l->stride + 1;
 }
 
-int local_out_width(local_layer l)
+int LocalOutWidth(layer* l)
 {
-  int w = l.w;
-  if (!l.pad)
-    w -= l.size;
+  int w = l->w;
+  if (!l->pad)
+    w -= l->size;
   else
     w -= 1;
-  return w / l.stride + 1;
+  return w / l->stride + 1;
 }
 
-local_layer make_local_layer(int batch, int h, int w, int c, int n, int size,
+layer make_local_layer(int batch, int h, int w, int c, int n, int size,
     int stride, int pad, ACTIVATION activation)
 {
   int i;
-  local_layer l = {(LAYER_TYPE)0};
+  layer l = {(LAYER_TYPE)0};
   l.type = LOCAL;
 
   l.h = h;
@@ -45,8 +45,8 @@ local_layer make_local_layer(int batch, int h, int w, int c, int n, int size,
   l.size = size;
   l.pad = pad;
 
-  int out_h = local_out_height(l);
-  int out_w = local_out_width(l);
+  int out_h = LocalOutHeight(&l);
+  int out_w = LocalOutWidth(&l);
   int locations = out_h * out_w;
   l.out_h = out_h;
   l.out_w = out_w;
@@ -70,14 +70,14 @@ local_layer make_local_layer(int batch, int h, int w, int c, int n, int size,
   l.output = (float*)xcalloc(l.batch * out_h * out_w * n, sizeof(float));
   l.delta = (float*)xcalloc(l.batch * out_h * out_w * n, sizeof(float));
 
-  l.forward = forward_local_layer;
-  l.backward = backward_local_layer;
-  l.update = update_local_layer;
+  l.forward = ForwardLocalLayer;
+  l.backward = BackwardLocalLayer;
+  l.update = UpdateLocalLayer;
 
 #ifdef GPU
-  l.forward_gpu = forward_local_layer_gpu;
-  l.backward_gpu = backward_local_layer_gpu;
-  l.update_gpu = update_local_layer_gpu;
+  l.forward_gpu = ForwardLocalLayerGpu;
+  l.backward_gpu = BackwardLocalLayerGpu;
+  l.update_gpu = UpdateLocalLayerGpu;
 
   l.weights_gpu = cuda_make_array(l.weights, c * n * size * size * locations);
   l.weight_updates_gpu =
@@ -101,63 +101,65 @@ local_layer make_local_layer(int batch, int h, int w, int c, int n, int size,
   return l;
 }
 
-void forward_local_layer(const local_layer l, NetworkState state)
+void ForwardLocalLayer(layer* l, NetworkState state)
 {
-  int out_h = local_out_height(l);
-  int out_w = local_out_width(l);
+  int out_h = LocalOutHeight(l);
+  int out_w = LocalOutWidth(l);
   int i, j;
   int locations = out_h * out_w;
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    copy_cpu(l.outputs, l.biases, 1, l.output + i * l.outputs, 1);
+    copy_cpu(l->outputs, l->biases, 1, l->output + i * l->outputs, 1);
   }
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    float* input = state.input + i * l.w * l.h * l.c;
-    im2col_cpu(input, l.c, l.h, l.w, l.size, l.stride, l.pad, l.col_image);
-    float* output = l.output + i * l.outputs;
+    float* input = state.input + i * l->w * l->h * l->c;
+    im2col_cpu(
+        input, l->c, l->h, l->w, l->size, l->stride, l->pad, l->col_image);
+    float* output = l->output + i * l->outputs;
     for (j = 0; j < locations; ++j)
     {
-      float* a = l.weights + j * l.size * l.size * l.c * l.n;
-      float* b = l.col_image + j;
+      float* a = l->weights + j * l->size * l->size * l->c * l->n;
+      float* b = l->col_image + j;
       float* c = output + j;
 
-      int m = l.n;
+      int m = l->n;
       int n = 1;
-      int k = l.size * l.size * l.c;
+      int k = l->size * l->size * l->c;
 
       gemm(0, 0, m, n, k, 1, a, k, b, locations, 1, c, locations);
     }
   }
-  activate_array(l.output, l.outputs * l.batch, l.activation);
+  activate_array(l->output, l->outputs * l->batch, l->activation);
 }
 
-void backward_local_layer(local_layer l, NetworkState state)
+void BackwardLocalLayer(layer* l, NetworkState state)
 {
   int i, j;
-  int locations = l.out_w * l.out_h;
+  int locations = l->out_w * l->out_h;
 
-  gradient_array(l.output, l.outputs * l.batch, l.activation, l.delta);
+  gradient_array(l->output, l->outputs * l->batch, l->activation, l->delta);
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    axpy_cpu(l.outputs, 1, l.delta + i * l.outputs, 1, l.bias_updates, 1);
+    axpy_cpu(l->outputs, 1, l->delta + i * l->outputs, 1, l->bias_updates, 1);
   }
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    float* input = state.input + i * l.w * l.h * l.c;
-    im2col_cpu(input, l.c, l.h, l.w, l.size, l.stride, l.pad, l.col_image);
+    float* input = state.input + i * l->w * l->h * l->c;
+    im2col_cpu(
+        input, l->c, l->h, l->w, l->size, l->stride, l->pad, l->col_image);
 
     for (j = 0; j < locations; ++j)
     {
-      float* a = l.delta + i * l.outputs + j;
-      float* b = l.col_image + j;
-      float* c = l.weight_updates + j * l.size * l.size * l.c * l.n;
-      int m = l.n;
-      int n = l.size * l.size * l.c;
+      float* a = l->delta + i * l->outputs + j;
+      float* b = l->col_image + j;
+      float* c = l->weight_updates + j * l->size * l->size * l->c * l->n;
+      int m = l->n;
+      int n = l->size * l->size * l->c;
       int k = 1;
 
       gemm(0, 1, m, n, k, 1, a, locations, b, locations, 1, c, n);
@@ -167,98 +169,98 @@ void backward_local_layer(local_layer l, NetworkState state)
     {
       for (j = 0; j < locations; ++j)
       {
-        float* a = l.weights + j * l.size * l.size * l.c * l.n;
-        float* b = l.delta + i * l.outputs + j;
-        float* c = l.col_image + j;
+        float* a = l->weights + j * l->size * l->size * l->c * l->n;
+        float* b = l->delta + i * l->outputs + j;
+        float* c = l->col_image + j;
 
-        int m = l.size * l.size * l.c;
+        int m = l->size * l->size * l->c;
         int n = 1;
-        int k = l.n;
+        int k = l->n;
 
         gemm(1, 0, m, n, k, 1, a, m, b, locations, 0, c, locations);
       }
 
-      col2im_cpu(l.col_image, l.c, l.h, l.w, l.size, l.stride, l.pad,
-          state.delta + i * l.c * l.h * l.w);
+      col2im_cpu(l->col_image, l->c, l->h, l->w, l->size, l->stride, l->pad,
+          state.delta + i * l->c * l->h * l->w);
     }
   }
 }
 
-void update_local_layer(
-    local_layer l, int batch, float learning_rate, float momentum, float decay)
+void UpdateLocalLayer(
+    layer* l, int batch, float learning_rate, float momentum, float decay)
 {
-  int locations = l.out_w * l.out_h;
-  int size = l.size * l.size * l.c * l.n * locations;
-  axpy_cpu(l.outputs, learning_rate / batch, l.bias_updates, 1, l.biases, 1);
-  scal_cpu(l.outputs, momentum, l.bias_updates, 1);
+  int locations = l->out_w * l->out_h;
+  int size = l->size * l->size * l->c * l->n * locations;
+  axpy_cpu(l->outputs, learning_rate / batch, l->bias_updates, 1, l->biases, 1);
+  scal_cpu(l->outputs, momentum, l->bias_updates, 1);
 
-  axpy_cpu(size, -decay * batch, l.weights, 1, l.weight_updates, 1);
-  axpy_cpu(size, learning_rate / batch, l.weight_updates, 1, l.weights, 1);
-  scal_cpu(size, momentum, l.weight_updates, 1);
+  axpy_cpu(size, -decay * batch, l->weights, 1, l->weight_updates, 1);
+  axpy_cpu(size, learning_rate / batch, l->weight_updates, 1, l->weights, 1);
+  scal_cpu(size, momentum, l->weight_updates, 1);
 }
 
 #ifdef GPU
 
-void forward_local_layer_gpu(const local_layer l, NetworkState state)
+void ForwardLocalLayerGpu(layer* l, NetworkState state)
 {
-  int out_h = local_out_height(l);
-  int out_w = local_out_width(l);
+  int out_h = LocalOutHeight(l);
+  int out_w = LocalOutWidth(l);
   int i, j;
   int locations = out_h * out_w;
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    copy_ongpu(l.outputs, l.biases_gpu, 1, l.output_gpu + i * l.outputs, 1);
+    copy_ongpu(l->outputs, l->biases_gpu, 1, l->output_gpu + i * l->outputs, 1);
   }
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    float* input = state.input + i * l.w * l.h * l.c;
+    float* input = state.input + i * l->w * l->h * l->c;
     im2col_ongpu(
-        input, l.c, l.h, l.w, l.size, l.stride, l.pad, l.col_image_gpu);
-    float* output = l.output_gpu + i * l.outputs;
+        input, l->c, l->h, l->w, l->size, l->stride, l->pad, l->col_image_gpu);
+    float* output = l->output_gpu + i * l->outputs;
     for (j = 0; j < locations; ++j)
     {
-      float* a = l.weights_gpu + j * l.size * l.size * l.c * l.n;
-      float* b = l.col_image_gpu + j;
+      float* a = l->weights_gpu + j * l->size * l->size * l->c * l->n;
+      float* b = l->col_image_gpu + j;
       float* c = output + j;
 
-      int m = l.n;
+      int m = l->n;
       int n = 1;
-      int k = l.size * l.size * l.c;
+      int k = l->size * l->size * l->c;
 
       gemm_ongpu(0, 0, m, n, k, 1, a, k, b, locations, 1, c, locations);
     }
   }
-  activate_array_ongpu(l.output_gpu, l.outputs * l.batch, l.activation);
+  activate_array_ongpu(l->output_gpu, l->outputs * l->batch, l->activation);
 }
 
-void backward_local_layer_gpu(local_layer l, NetworkState state)
+void BackwardLocalLayerGpu(layer* l, NetworkState state)
 {
   int i, j;
-  int locations = l.out_w * l.out_h;
+  int locations = l->out_w * l->out_h;
 
   gradient_array_ongpu(
-      l.output_gpu, l.outputs * l.batch, l.activation, l.delta_gpu);
-  for (i = 0; i < l.batch; ++i)
+      l->output_gpu, l->outputs * l->batch, l->activation, l->delta_gpu);
+  for (i = 0; i < l->batch; ++i)
   {
-    axpy_ongpu(
-        l.outputs, 1, l.delta_gpu + i * l.outputs, 1, l.bias_updates_gpu, 1);
+    axpy_ongpu(l->outputs, 1, l->delta_gpu + i * l->outputs, 1,
+        l->bias_updates_gpu, 1);
   }
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    float* input = state.input + i * l.w * l.h * l.c;
+    float* input = state.input + i * l->w * l->h * l->c;
     im2col_ongpu(
-        input, l.c, l.h, l.w, l.size, l.stride, l.pad, l.col_image_gpu);
+        input, l->c, l->h, l->w, l->size, l->stride, l->pad, l->col_image_gpu);
 
     for (j = 0; j < locations; ++j)
     {
-      float* a = l.delta_gpu + i * l.outputs + j;
-      float* b = l.col_image_gpu + j;
-      float* c = l.weight_updates_gpu + j * l.size * l.size * l.c * l.n;
-      int m = l.n;
-      int n = l.size * l.size * l.c;
+      float* a = l->delta_gpu + i * l->outputs + j;
+      float* b = l->col_image_gpu + j;
+      float* c = l->weight_updates_gpu + j * l->size * l->size * l->c * l->n;
+      int m = l->n;
+      int n = l->size * l->size * l->c;
       int k = 1;
 
       gemm_ongpu(0, 1, m, n, k, 1, a, locations, b, locations, 1, c, n);
@@ -268,51 +270,51 @@ void backward_local_layer_gpu(local_layer l, NetworkState state)
     {
       for (j = 0; j < locations; ++j)
       {
-        float* a = l.weights_gpu + j * l.size * l.size * l.c * l.n;
-        float* b = l.delta_gpu + i * l.outputs + j;
-        float* c = l.col_image_gpu + j;
+        float* a = l->weights_gpu + j * l->size * l->size * l->c * l->n;
+        float* b = l->delta_gpu + i * l->outputs + j;
+        float* c = l->col_image_gpu + j;
 
-        int m = l.size * l.size * l.c;
+        int m = l->size * l->size * l->c;
         int n = 1;
-        int k = l.n;
+        int k = l->n;
 
         gemm_ongpu(1, 0, m, n, k, 1, a, m, b, locations, 0, c, locations);
       }
 
-      col2im_ongpu(l.col_image_gpu, l.c, l.h, l.w, l.size, l.stride, l.pad,
-          state.delta + i * l.c * l.h * l.w);
+      col2im_ongpu(l->col_image_gpu, l->c, l->h, l->w, l->size, l->stride,
+          l->pad, state.delta + i * l->c * l->h * l->w);
     }
   }
 }
 
-void update_local_layer_gpu(local_layer l, int batch, float learning_rate,
+void UpdateLocalLayerGpu(layer* l, int batch, float learning_rate,
     float momentum, float decay, float loss_scale)
 {
-  int locations = l.out_w * l.out_h;
-  int size = l.size * l.size * l.c * l.n * locations;
-  axpy_ongpu(
-      l.outputs, learning_rate / batch, l.bias_updates_gpu, 1, l.biases_gpu, 1);
-  scal_ongpu(l.outputs, momentum, l.bias_updates_gpu, 1);
+  int locations = l->out_w * l->out_h;
+  int size = l->size * l->size * l->c * l->n * locations;
+  axpy_ongpu(l->outputs, learning_rate / batch, l->bias_updates_gpu, 1,
+      l->biases_gpu, 1);
+  scal_ongpu(l->outputs, momentum, l->bias_updates_gpu, 1);
 
-  axpy_ongpu(size, -decay * batch, l.weights_gpu, 1, l.weight_updates_gpu, 1);
+  axpy_ongpu(size, -decay * batch, l->weights_gpu, 1, l->weight_updates_gpu, 1);
   axpy_ongpu(
-      size, learning_rate / batch, l.weight_updates_gpu, 1, l.weights_gpu, 1);
-  scal_ongpu(size, momentum, l.weight_updates_gpu, 1);
+      size, learning_rate / batch, l->weight_updates_gpu, 1, l->weights_gpu, 1);
+  scal_ongpu(size, momentum, l->weight_updates_gpu, 1);
 }
 
-void pull_local_layer(local_layer l)
+void PushLocalLayer(layer* l)
 {
-  int locations = l.out_w * l.out_h;
-  int size = l.size * l.size * l.c * l.n * locations;
-  cuda_pull_array(l.weights_gpu, l.weights, size);
-  cuda_pull_array(l.biases_gpu, l.biases, l.outputs);
+  int locations = l->out_w * l->out_h;
+  int size = l->size * l->size * l->c * l->n * locations;
+  cuda_push_array(l->weights_gpu, l->weights, size);
+  cuda_push_array(l->biases_gpu, l->biases, l->outputs);
 }
 
-void push_local_layer(local_layer l)
+void PullLocalLayer(layer* l)
 {
-  int locations = l.out_w * l.out_h;
-  int size = l.size * l.size * l.c * l.n * locations;
-  cuda_push_array(l.weights_gpu, l.weights, size);
-  cuda_push_array(l.biases_gpu, l.biases, l.outputs);
+  int locations = l->out_w * l->out_h;
+  int size = l->size * l->size * l->c * l->n * locations;
+  cuda_pull_array(l->weights_gpu, l->weights, size);
+  cuda_pull_array(l->biases_gpu, l->biases, l->outputs);
 }
 #endif

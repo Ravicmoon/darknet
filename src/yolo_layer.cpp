@@ -138,16 +138,10 @@ void ResizeYoloLayer(layer* l, int w, int h)
 #endif
 }
 
-Box get_yolo_box(float* x, float* biases, int n, int index, int i, int j,
-    int lw, int lh, int w, int h, int stride)
+Box GetYoloBox(float const* x, float const* biases, int n, int index, int i,
+    int j, int lw, int lh, int w, int h, int stride)
 {
   Box b;
-  // ln - natural logarithm (base = e)
-  // x` = t.x * lw - i;   // x = ln(x`/(1-x`))   // x - output of previous
-  // conv-layer y` = t.y * lh - i;   // y = ln(y`/(1-y`))   // y - output of
-  // previous conv-layer w = ln(t.w * net.w / anchors_w); // w - output of
-  // previous conv-layer h = ln(t.h * net.h / anchors_h); // h - output of
-  // previous conv-layer
   b.x = (i + x[index + 0 * stride]) / lw;
   b.y = (j + x[index + 1 * stride]) / lh;
   b.w = exp(x[index + 2 * stride]) * biases[2 * n] / w;
@@ -185,7 +179,7 @@ Ious delta_yolo_box(Box truth, float* x, float* biases, int n, int index, int i,
   // i - step in layer width
   // j - step in layer height
   //  Returns a box in absolute coordinates
-  Box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride);
+  Box pred = GetYoloBox(x, biases, n, index, i, j, lw, lh, w, h, stride);
   all_ious.iou = Box::Iou(pred, truth);
   all_ious.giou = Box::Giou(pred, truth);
   all_ious.diou = Box::Diou(pred, truth);
@@ -385,36 +379,37 @@ int compare_yolo_class(float* output, int classes, int class_index, int stride,
   return 0;
 }
 
-static int EntryIndex(layer l, int batch, int location, int entry)
+static int EntryIndex(layer const* l, int batch, int location, int entry)
 {
-  int n = location / (l.w * l.h);
-  int loc = location % (l.w * l.h);
-  return batch * l.outputs + n * l.w * l.h * (4 + l.classes + 1) +
-         entry * l.w * l.h + loc;
+  int n = location / (l->w * l->h);
+  int loc = location % (l->w * l->h);
+  return batch * l->outputs + n * l->w * l->h * (4 + l->classes + 1) +
+         entry * l->w * l->h + loc;
 }
 
-void ForwardYoloLayer(const layer l, NetworkState state)
+void ForwardYoloLayer(layer* l, NetworkState state)
 {
   int i, j, b, t, n;
-  memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
+  memcpy(l->output, state.input, l->outputs * l->batch * sizeof(float));
 
 #ifndef GPU
-  for (b = 0; b < l.batch; ++b)
+  for (b = 0; b < l->batch; ++b)
   {
-    for (n = 0; n < l.n; ++n)
+    for (n = 0; n < l->n; ++n)
     {
-      int index = EntryIndex(l, b, n * l.w * l.h, 0);
-      activate_array(l.output + index, 2 * l.w * l.h, LOGISTIC);  // x,y,
-      scal_add_cpu(2 * l.w * l.h, l.scale_x_y, -0.5 * (l.scale_x_y - 1),
-          l.output + index, 1);  // scale x,y
-      index = EntryIndex(l, b, n * l.w * l.h, 4);
-      activate_array(l.output + index, (1 + l.classes) * l.w * l.h, LOGISTIC);
+      int index = EntryIndex(l, b, n * l->w * l->h, 0);
+      activate_array(l->output + index, 2 * l->w * l->h, LOGISTIC);  // x,y,
+      scal_add_cpu(2 * l->w * l->h, l->scale_x_y, -0.5 * (l->scale_x_y - 1),
+          l->output + index, 1);  // scale x,y
+      index = EntryIndex(l, b, n * l->w * l->h, 4);
+      activate_array(
+          l->output + index, (1 + l->classes) * l->w * l->h, LOGISTIC);
     }
   }
 #endif
 
   // delta is zeroed
-  memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
+  memset(l->delta, 0, l->outputs * l->batch * sizeof(float));
   if (!state.train)
     return;
   // float avg_iou = 0;
@@ -433,32 +428,32 @@ void ForwardYoloLayer(const layer l, NetworkState state)
   float avg_anyobj = 0;
   int count = 0;
   int class_count = 0;
-  *(l.cost) = 0;
-  for (b = 0; b < l.batch; ++b)
+  *(l->cost) = 0;
+  for (b = 0; b < l->batch; ++b)
   {
-    for (j = 0; j < l.h; ++j)
+    for (j = 0; j < l->h; ++j)
     {
-      for (i = 0; i < l.w; ++i)
+      for (i = 0; i < l->w; ++i)
       {
-        for (n = 0; n < l.n; ++n)
+        for (n = 0; n < l->n; ++n)
         {
-          int box_index = EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 0);
-          Box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i,
-              j, l.w, l.h, state.net->w, state.net->h, l.w * l.h);
+          int box_index = EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 0);
+          Box pred = GetYoloBox(l->output, l->biases, l->mask[n], box_index, i,
+              j, l->w, l->h, state.net->w, state.net->h, l->w * l->h);
           float best_match_iou = 0;
           float best_iou = 0;
           int best_t = 0;
-          for (t = 0; t < l.max_boxes; ++t)
+          for (t = 0; t < l->max_boxes; ++t)
           {
-            Box truth(state.truth + t * (4 + 1) + b * l.truths);
-            int class_id = state.truth[t * (4 + 1) + b * l.truths + 4];
-            if (class_id >= l.classes || class_id < 0)
+            Box truth(state.truth + t * (4 + 1) + b * l->truths);
+            int class_id = state.truth[t * (4 + 1) + b * l->truths + 4];
+            if (class_id >= l->classes || class_id < 0)
             {
               printf(
                   "\n Warning: in txt-labels class_id=%d >= classes=%d in "
                   "cfg-file. In txt-labels class_id should be [from 0 to %d] "
                   "\n",
-                  class_id, l.classes, l.classes - 1);
+                  class_id, l->classes, l->classes - 1);
               printf(
                   "\n truth.x = %f, truth.y = %f, truth.w = %f, truth.h = %f, "
                   "class_id = %d \n",
@@ -471,13 +466,13 @@ void ForwardYoloLayer(const layer l, NetworkState state)
               break;  // continue;
 
             int class_index =
-                EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
-            int obj_index = EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 4);
-            float objectness = l.output[obj_index];
+                EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 4 + 1);
+            int obj_index = EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 4);
+            float objectness = l->output[obj_index];
             if (isnan(objectness) || isinf(objectness))
-              l.output[obj_index] = 0;
-            int class_id_match = compare_yolo_class(l.output, l.classes,
-                class_index, l.w * l.h, objectness, class_id, 0.25f);
+              l->output[obj_index] = 0;
+            int class_id_match = compare_yolo_class(l->output, l->classes,
+                class_index, l->w * l->h, objectness, class_id, 0.25f);
 
             float iou = Box::Iou(pred, truth);
             if (iou > best_match_iou && class_id_match == 1)
@@ -490,60 +485,62 @@ void ForwardYoloLayer(const layer l, NetworkState state)
               best_t = t;
             }
           }
-          int obj_index = EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 4);
-          avg_anyobj += l.output[obj_index];
-          l.delta[obj_index] = l.cls_normalizer * (0 - l.output[obj_index]);
-          if (best_match_iou > l.ignore_thresh)
+          int obj_index = EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 4);
+          avg_anyobj += l->output[obj_index];
+          l->delta[obj_index] = l->cls_normalizer * (0 - l->output[obj_index]);
+          if (best_match_iou > l->ignore_thresh)
           {
-            l.delta[obj_index] = 0;
+            l->delta[obj_index] = 0;
           }
           else if (state.net->adversarial)
           {
             int class_index =
-                EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
-            int stride = l.w * l.h;
+                EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 4 + 1);
+            int stride = l->w * l->h;
             float scale = pred.w * pred.h;
             if (scale > 0)
               scale = sqrt(scale);
-            l.delta[obj_index] =
-                scale * l.cls_normalizer * (0 - l.output[obj_index]);
+            l->delta[obj_index] =
+                scale * l->cls_normalizer * (0 - l->output[obj_index]);
             int cl_id;
-            for (cl_id = 0; cl_id < l.classes; ++cl_id)
+            for (cl_id = 0; cl_id < l->classes; ++cl_id)
             {
-              if (l.output[class_index + stride * cl_id] * l.output[obj_index] >
+              if (l->output[class_index + stride * cl_id] *
+                      l->output[obj_index] >
                   0.25)
-                l.delta[class_index + stride * cl_id] =
-                    scale * (0 - l.output[class_index + stride * cl_id]);
+                l->delta[class_index + stride * cl_id] =
+                    scale * (0 - l->output[class_index + stride * cl_id]);
             }
           }
-          if (best_iou > l.truth_thresh)
+          if (best_iou > l->truth_thresh)
           {
-            l.delta[obj_index] = l.cls_normalizer * (1 - l.output[obj_index]);
+            l->delta[obj_index] =
+                l->cls_normalizer * (1 - l->output[obj_index]);
 
-            int class_id = state.truth[best_t * (4 + 1) + b * l.truths + 4];
-            if (l.map)
-              class_id = l.map[class_id];
+            int class_id = state.truth[best_t * (4 + 1) + b * l->truths + 4];
+            if (l->map)
+              class_id = l->map[class_id];
             int class_index =
-                EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
-            delta_yolo_class(l.output, l.delta, class_index, class_id,
-                l.classes, l.w * l.h, 0, l.focal_loss, l.label_smooth_eps,
-                l.classes_multipliers);
-            Box truth(state.truth + best_t * (4 + 1) + b * l.truths);
-            const float class_multiplier = (l.classes_multipliers) ?
-                                               l.classes_multipliers[class_id] :
-                                               1.0f;
-            delta_yolo_box(truth, l.output, l.biases, l.mask[n], box_index, i,
-                j, l.w, l.h, state.net->w, state.net->h, l.delta,
-                (2 - truth.w * truth.h), l.w * l.h,
-                l.iou_normalizer * class_multiplier, l.iou_loss, 1,
-                l.max_delta);
+                EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 4 + 1);
+            delta_yolo_class(l->output, l->delta, class_index, class_id,
+                l->classes, l->w * l->h, 0, l->focal_loss, l->label_smooth_eps,
+                l->classes_multipliers);
+            Box truth(state.truth + best_t * (4 + 1) + b * l->truths);
+            const float class_multiplier =
+                (l->classes_multipliers) ? l->classes_multipliers[class_id] :
+                                           1.0f;
+            delta_yolo_box(truth, l->output, l->biases, l->mask[n], box_index,
+                i, j, l->w, l->h, state.net->w, state.net->h, l->delta,
+                (2 - truth.w * truth.h), l->w * l->h,
+                l->iou_normalizer * class_multiplier, l->iou_loss, 1,
+                l->max_delta);
           }
         }
       }
     }
-    for (t = 0; t < l.max_boxes; ++t)
+    for (t = 0; t < l->max_boxes; ++t)
     {
-      Box truth(state.truth + t * (4 + 1) + b * l.truths);
+      Box truth(state.truth + t * (4 + 1) + b * l->truths);
       if (truth.x < 0 || truth.y < 0 || truth.x > 1 || truth.y > 1 ||
           truth.w < 0 || truth.h < 0)
       {
@@ -554,12 +551,12 @@ void ForwardYoloLayer(const layer l, NetworkState state)
             truth.x, truth.y, truth.w, truth.h);
         sprintf(buff,
             "echo \"Wrong label: truth.x = %f, truth.y = %f, truth.w = %f, "
-            "truth.h = %f\" >> bad_label.list",
+            "truth.h = %f\" >> bad_label->list",
             truth.x, truth.y, truth.w, truth.h);
         system(buff);
       }
-      int class_id = state.truth[t * (4 + 1) + b * l.truths + 4];
-      if (class_id >= l.classes || class_id < 0)
+      int class_id = state.truth[t * (4 + 1) + b * l->truths + 4];
+      if (class_id >= l->classes || class_id < 0)
         continue;  // if label contains class_id more than number of classes in
                    // the cfg-file and class_id check garbage value
 
@@ -567,15 +564,15 @@ void ForwardYoloLayer(const layer l, NetworkState state)
         break;  // continue;
       float best_iou = 0;
       int best_n = 0;
-      i = (truth.x * l.w);
-      j = (truth.y * l.h);
+      i = (truth.x * l->w);
+      j = (truth.y * l->h);
       Box truth_shift = truth;
       truth_shift.x = truth_shift.y = 0;
-      for (n = 0; n < l.total; ++n)
+      for (n = 0; n < l->total; ++n)
       {
         Box pred;
-        pred.w = l.biases[2 * n] / state.net->w;
-        pred.h = l.biases[2 * n + 1] / state.net->h;
+        pred.w = l->biases[2 * n] / state.net->w;
+        pred.h = l->biases[2 * n + 1] / state.net->h;
         float iou = Box::Iou(pred, truth_shift);
         if (iou > best_iou)
         {
@@ -584,20 +581,21 @@ void ForwardYoloLayer(const layer l, NetworkState state)
         }
       }
 
-      int mask_n = int_index(l.mask, best_n, l.n);
+      int mask_n = int_index(l->mask, best_n, l->n);
       if (mask_n >= 0)
       {
-        int class_id = state.truth[t * (4 + 1) + b * l.truths + 4];
-        if (l.map)
-          class_id = l.map[class_id];
+        int class_id = state.truth[t * (4 + 1) + b * l->truths + 4];
+        if (l->map)
+          class_id = l->map[class_id];
 
-        int box_index = EntryIndex(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
+        int box_index =
+            EntryIndex(l, b, mask_n * l->w * l->h + j * l->w + i, 0);
         const float class_multiplier =
-            (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
-        Ious all_ious = delta_yolo_box(truth, l.output, l.biases, best_n,
-            box_index, i, j, l.w, l.h, state.net->w, state.net->h, l.delta,
-            (2 - truth.w * truth.h), l.w * l.h,
-            l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta);
+            (l->classes_multipliers) ? l->classes_multipliers[class_id] : 1.0f;
+        Ious all_ious = delta_yolo_box(truth, l->output, l->biases, best_n,
+            box_index, i, j, l->w, l->h, state.net->w, state.net->h, l->delta,
+            (2 - truth.w * truth.h), l->w * l->h,
+            l->iou_normalizer * class_multiplier, l->iou_loss, 1, l->max_delta);
 
         // range is 0 <= 1
         tot_iou += all_ious.iou;
@@ -612,22 +610,17 @@ void ForwardYoloLayer(const layer l, NetworkState state)
         tot_ciou += all_ious.ciou;
         tot_ciou_loss += 1 - all_ious.ciou;
 
-        int obj_index = EntryIndex(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
-        avg_obj += l.output[obj_index];
-        l.delta[obj_index] =
-            class_multiplier * l.cls_normalizer * (1 - l.output[obj_index]);
+        int obj_index =
+            EntryIndex(l, b, mask_n * l->w * l->h + j * l->w + i, 4);
+        avg_obj += l->output[obj_index];
+        l->delta[obj_index] =
+            class_multiplier * l->cls_normalizer * (1 - l->output[obj_index]);
 
         int class_index =
-            EntryIndex(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
-        delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes,
-            l.w * l.h, &avg_cat, l.focal_loss, l.label_smooth_eps,
-            l.classes_multipliers);
-
-        // printf(" label: class_id = %d, truth.x = %f, truth.y = %f, truth.w =
-        // %f, truth.h = %f \n", class_id, truth.x, truth.y, truth.w, truth.h);
-        // printf(" mask_n = %d, l.output[obj_index] = %f, l.output[class_index
-        // + class_id] = %f \n\n", mask_n, l.output[obj_index],
-        // l.output[class_index + class_id]);
+            EntryIndex(l, b, mask_n * l->w * l->h + j * l->w + i, 4 + 1);
+        delta_yolo_class(l->output, l->delta, class_index, class_id, l->classes,
+            l->w * l->h, &avg_cat, l->focal_loss, l->label_smooth_eps,
+            l->classes_multipliers);
 
         ++count;
         ++class_count;
@@ -638,32 +631,32 @@ void ForwardYoloLayer(const layer l, NetworkState state)
       }
 
       // iou_thresh
-      for (n = 0; n < l.total; ++n)
+      for (n = 0; n < l->total; ++n)
       {
-        int mask_n = int_index(l.mask, n, l.n);
-        if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
+        int mask_n = int_index(l->mask, n, l->n);
+        if (mask_n >= 0 && n != best_n && l->iou_thresh < 1.0f)
         {
           Box pred;
-          pred.w = l.biases[2 * n] / state.net->w;
-          pred.h = l.biases[2 * n + 1] / state.net->h;
-          float iou = Box::Iou(pred, truth_shift, l.iou_thresh_kind);
+          pred.w = l->biases[2 * n] / state.net->w;
+          pred.h = l->biases[2 * n + 1] / state.net->h;
+          float iou = Box::Iou(pred, truth_shift, l->iou_thresh_kind);
 
-          if (iou > l.iou_thresh)
+          if (iou > l->iou_thresh)
           {
-            int class_id = state.truth[t * (4 + 1) + b * l.truths + 4];
-            if (l.map)
-              class_id = l.map[class_id];
+            int class_id = state.truth[t * (4 + 1) + b * l->truths + 4];
+            if (l->map)
+              class_id = l->map[class_id];
 
             int box_index =
-                EntryIndex(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
-            const float class_multiplier = (l.classes_multipliers) ?
-                                               l.classes_multipliers[class_id] :
-                                               1.0f;
-            Ious all_ious = delta_yolo_box(truth, l.output, l.biases, n,
-                box_index, i, j, l.w, l.h, state.net->w, state.net->h, l.delta,
-                (2 - truth.w * truth.h), l.w * l.h,
-                l.iou_normalizer * class_multiplier, l.iou_loss, 1,
-                l.max_delta);
+                EntryIndex(l, b, mask_n * l->w * l->h + j * l->w + i, 0);
+            const float class_multiplier =
+                (l->classes_multipliers) ? l->classes_multipliers[class_id] :
+                                           1.0f;
+            Ious all_ious = delta_yolo_box(truth, l->output, l->biases, n,
+                box_index, i, j, l->w, l->h, state.net->w, state.net->h,
+                l->delta, (2 - truth.w * truth.h), l->w * l->h,
+                l->iou_normalizer * class_multiplier, l->iou_loss, 1,
+                l->max_delta);
 
             // range is 0 <= 1
             tot_iou += all_ious.iou;
@@ -679,16 +672,16 @@ void ForwardYoloLayer(const layer l, NetworkState state)
             tot_ciou_loss += 1 - all_ious.ciou;
 
             int obj_index =
-                EntryIndex(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
-            avg_obj += l.output[obj_index];
-            l.delta[obj_index] =
-                class_multiplier * l.cls_normalizer * (1 - l.output[obj_index]);
+                EntryIndex(l, b, mask_n * l->w * l->h + j * l->w + i, 4);
+            avg_obj += l->output[obj_index];
+            l->delta[obj_index] = class_multiplier * l->cls_normalizer *
+                                  (1 - l->output[obj_index]);
 
             int class_index =
-                EntryIndex(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
-            delta_yolo_class(l.output, l.delta, class_index, class_id,
-                l.classes, l.w * l.h, &avg_cat, l.focal_loss,
-                l.label_smooth_eps, l.classes_multipliers);
+                EntryIndex(l, b, mask_n * l->w * l->h + j * l->w + i, 4 + 1);
+            delta_yolo_class(l->output, l->delta, class_index, class_id,
+                l->classes, l->w * l->h, &avg_cat, l->focal_loss,
+                l->label_smooth_eps, l->classes_multipliers);
 
             ++count;
             ++class_count;
@@ -702,19 +695,19 @@ void ForwardYoloLayer(const layer l, NetworkState state)
     }
 
     // averages the deltas obtained by the function: delta_yolo_box()_accumulate
-    for (j = 0; j < l.h; ++j)
+    for (j = 0; j < l->h; ++j)
     {
-      for (i = 0; i < l.w; ++i)
+      for (i = 0; i < l->w; ++i)
       {
-        for (n = 0; n < l.n; ++n)
+        for (n = 0; n < l->n; ++n)
         {
-          int box_index = EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 0);
+          int box_index = EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 0);
           int class_index =
-              EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
-          const int stride = l.w * l.h;
+              EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 4 + 1);
+          const int stride = l->w * l->h;
 
           averages_yolo_deltas(
-              class_index, box_index, stride, l.classes, l.delta);
+              class_index, box_index, stride, l->classes, l->delta);
         }
       }
     }
@@ -725,24 +718,25 @@ void ForwardYoloLayer(const layer l, NetworkState state)
   if (class_count == 0)
     class_count = 1;
 
-  //*(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
+  //*(l->cost) = pow(mag_array(l->delta, l->outputs * l->batch), 2);
   // printf("Region %d Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, .5R: %f,
   // .75R: %f,  count: %d\n", state.index, avg_iou / count, avg_cat /
-  // class_count, avg_obj / count, avg_anyobj / (l.w*l.h*l.n*l.batch), recall /
-  // count, recall75 / count, count);
+  // class_count, avg_obj / count, avg_anyobj / (l->w*l->h*l->n*l->batch),
+  // recall / count, recall75 / count, count);
 
-  int stride = l.w * l.h;
-  float* no_iou_loss_delta = (float*)calloc(l.batch * l.outputs, sizeof(float));
-  memcpy(no_iou_loss_delta, l.delta, l.batch * l.outputs * sizeof(float));
-  for (b = 0; b < l.batch; ++b)
+  int stride = l->w * l->h;
+  float* no_iou_loss_delta =
+      (float*)calloc(l->batch * l->outputs, sizeof(float));
+  memcpy(no_iou_loss_delta, l->delta, l->batch * l->outputs * sizeof(float));
+  for (b = 0; b < l->batch; ++b)
   {
-    for (j = 0; j < l.h; ++j)
+    for (j = 0; j < l->h; ++j)
     {
-      for (i = 0; i < l.w; ++i)
+      for (i = 0; i < l->w; ++i)
       {
-        for (n = 0; n < l.n; ++n)
+        for (n = 0; n < l->n; ++n)
         {
-          int index = EntryIndex(l, b, n * l.w * l.h + j * l.w + i, 0);
+          int index = EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 0);
           no_iou_loss_delta[index + 0 * stride] = 0;
           no_iou_loss_delta[index + 1 * stride] = 0;
           no_iou_loss_delta[index + 2 * stride] = 0;
@@ -752,17 +746,17 @@ void ForwardYoloLayer(const layer l, NetworkState state)
     }
   }
   float classification_loss =
-      l.cls_normalizer *
-      pow(mag_array(no_iou_loss_delta, l.outputs * l.batch), 2);
+      l->cls_normalizer *
+      pow(mag_array(no_iou_loss_delta, l->outputs * l->batch), 2);
   free(no_iou_loss_delta);
-  float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
+  float loss = pow(mag_array(l->delta, l->outputs * l->batch), 2);
   float iou_loss = loss - classification_loss;
 
   float avg_iou_loss = 0;
   // gIOU loss + MSE (objectness) loss
-  if (l.iou_loss == MSE)
+  if (l->iou_loss == MSE)
   {
-    *(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
+    *(l->cost) = pow(mag_array(l->delta, l->outputs * l->batch), 2);
   }
   else
   {
@@ -770,35 +764,36 @@ void ForwardYoloLayer(const layer l, NetworkState state)
     // logging with mse loss
     // TODO: remove IOU loss fields before computing MSE on class
     //   probably split into two arrays
-    if (l.iou_loss == GIOU)
+    if (l->iou_loss == GIOU)
     {
-      avg_iou_loss = count > 0 ? l.iou_normalizer * (tot_giou_loss / count) : 0;
+      avg_iou_loss =
+          count > 0 ? l->iou_normalizer * (tot_giou_loss / count) : 0;
     }
     else
     {
-      avg_iou_loss = count > 0 ? l.iou_normalizer * (tot_iou_loss / count) : 0;
+      avg_iou_loss = count > 0 ? l->iou_normalizer * (tot_iou_loss / count) : 0;
     }
-    *(l.cost) = avg_iou_loss + classification_loss;
+    *(l->cost) = avg_iou_loss + classification_loss;
   }
 
-  loss /= l.batch;
-  classification_loss /= l.batch;
-  iou_loss /= l.batch;
+  loss /= l->batch;
+  classification_loss /= l->batch;
+  iou_loss /= l->batch;
 
   fprintf(stderr,
       "v3 (%s loss, Normalizer: (iou: %.2f, cls: %.2f) Region %d Avg (IOU: "
       "%f, GIOU: %f), Class: %f, Obj: %f, No Obj: %f, .5R: %f, .75R: %f, "
       "count: %d, class_loss = %f, iou_loss = %f, total_loss = %f \n",
-      (l.iou_loss == MSE ? "mse" : (l.iou_loss == GIOU ? "giou" : "iou")),
-      l.iou_normalizer, l.cls_normalizer, state.index, tot_iou / count,
+      (l->iou_loss == MSE ? "mse" : (l->iou_loss == GIOU ? "giou" : "iou")),
+      l->iou_normalizer, l->cls_normalizer, state.index, tot_iou / count,
       tot_giou / count, avg_cat / class_count, avg_obj / count,
-      avg_anyobj / (l.w * l.h * l.n * l.batch), recall / count,
+      avg_anyobj / (l->w * l->h * l->n * l->batch), recall / count,
       recall75 / count, count, classification_loss, iou_loss, loss);
 }
 
-void BackwardYoloLayer(const layer l, NetworkState state)
+void BackwardYoloLayer(layer* l, NetworkState state)
 {
-  axpy_cpu(l.batch * l.inputs, 1, l.delta, 1, state.delta, 1);
+  axpy_cpu(l->batch * l->inputs, 1, l->delta, 1, state.delta, 1);
 }
 
 // Converts output of the network to detection boxes
@@ -868,52 +863,45 @@ void CorrectYoloBoxes(Detection* dets, int n, int w, int h, int netw, int neth,
   }
 }
 
-int YoloNumDetections(layer l, float thresh)
+int YoloNumDetections(layer const* l, float thresh)
 {
   int count = 0;
-  for (int n = 0; n < l.n; ++n)
+  for (int n = 0; n < l->n; ++n)
   {
-    for (int i = 0; i < l.w * l.h; ++i)
+    for (int i = 0; i < l->w * l->h; ++i)
     {
-      int obj_index = EntryIndex(l, 0, n * l.w * l.h + i, 4);
-      if (l.output[obj_index] > thresh)
+      int obj_index = EntryIndex(l, 0, n * l->w * l->h + i, 4);
+      if (l->output[obj_index] > thresh)
         ++count;
     }
   }
   return count;
 }
 
-int GetYoloDetections(layer l, int w, int h, int netw, int neth, float thresh,
-    int* map, int relative, Detection* dets, int letter)
+int GetYoloDetections(layer const* l, int w, int h, int netw, int neth,
+    float thresh, int* map, int relative, Detection* dets, int letter)
 {
-  // printf("\n l.batch = %d, l.w = %d, l.h = %d, l.n = %d \n", l.batch, l.w,
-  // l.h, l.n);
-  int i, j, n;
-  float* predictions = l.output;
+  float const* predictions = l->output;
 
   int count = 0;
-  for (i = 0; i < l.w * l.h; ++i)
+  for (int i = 0; i < l->w * l->h; ++i)
   {
-    int row = i / l.w;
-    int col = i % l.w;
-    for (n = 0; n < l.n; ++n)
+    int row = i / l->w;
+    int col = i % l->w;
+    for (int n = 0; n < l->n; ++n)
     {
-      int obj_index = EntryIndex(l, 0, n * l.w * l.h + i, 4);
+      int obj_index = EntryIndex(l, 0, n * l->w * l->h + i, 4);
       float objectness = predictions[obj_index];
-      // if(objectness <= thresh) continue;    // incorrect behavior for Nan
-      // values
       if (objectness > thresh)
       {
-        // printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n",
-        // objectness, thresh, i, n);
-        int box_index = EntryIndex(l, 0, n * l.w * l.h + i, 0);
-        dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n],
-            box_index, col, row, l.w, l.h, netw, neth, l.w * l.h);
+        int box_index = EntryIndex(l, 0, n * l->w * l->h + i, 0);
+        dets[count].bbox = GetYoloBox(predictions, l->biases, l->mask[n],
+            box_index, col, row, l->w, l->h, netw, neth, l->w * l->h);
         dets[count].objectness = objectness;
-        dets[count].classes = l.classes;
-        for (j = 0; j < l.classes; ++j)
+        dets[count].classes = l->classes;
+        for (int j = 0; j < l->classes; ++j)
         {
-          int class_index = EntryIndex(l, 0, n * l.w * l.h + i, 4 + 1 + j);
+          int class_index = EntryIndex(l, 0, n * l->w * l->h + i, 4 + 1 + j);
           float prob = objectness * predictions[class_index];
           dets[count].prob[j] = (prob > thresh) ? prob : 0;
         }
@@ -927,45 +915,38 @@ int GetYoloDetections(layer l, int w, int h, int netw, int neth, float thresh,
 
 #ifdef GPU
 
-void ForwardYoloLayerGpu(const layer l, NetworkState state)
+void ForwardYoloLayerGpu(layer* l, NetworkState state)
 {
-  // copy_ongpu(l.batch*l.inputs, state.input, 1, l.output_gpu, 1);
-  simple_copy_ongpu(l.batch * l.inputs, state.input, l.output_gpu);
-  int b, n;
-  for (b = 0; b < l.batch; ++b)
+  simple_copy_ongpu(l->batch * l->inputs, state.input, l->output_gpu);
+  for (int b = 0; b < l->batch; ++b)
   {
-    for (n = 0; n < l.n; ++n)
+    for (int n = 0; n < l->n; ++n)
     {
-      int index = EntryIndex(l, b, n * l.w * l.h, 0);
-      // y = 1./(1. + exp(-x))
-      // x = ln(y/(1-y))  // ln - natural logarithm (base = e)
-      // if(y->1) x -> inf
-      // if(y->0) x -> -inf
-      activate_array_ongpu(l.output_gpu + index, 2 * l.w * l.h,
-          LOGISTIC);  // x,y
-      if (l.scale_x_y != 1)
-        scal_add_ongpu(2 * l.w * l.h, l.scale_x_y, -0.5 * (l.scale_x_y - 1),
-            l.output_gpu + index, 1);  // scale x,y
-      index = EntryIndex(l, b, n * l.w * l.h, 4);
-      activate_array_ongpu(l.output_gpu + index, (1 + l.classes) * l.w * l.h,
-          LOGISTIC);  // classes and objectness
+      int index = EntryIndex(l, b, n * l->w * l->h, 0);
+      activate_array_ongpu(l->output_gpu + index, 2 * l->w * l->h, LOGISTIC);
+      if (l->scale_x_y != 1)
+        scal_add_ongpu(2 * l->w * l->h, l->scale_x_y, -0.5 * (l->scale_x_y - 1),
+            l->output_gpu + index, 1);
+
+      index = EntryIndex(l, b, n * l->w * l->h, 4);
+      activate_array_ongpu(
+          l->output_gpu + index, (1 + l->classes) * l->w * l->h, LOGISTIC);
     }
   }
-  if (!state.train || l.onlyforward)
+  if (!state.train || l->onlyforward)
   {
-    // cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
-    cuda_pull_array_async(l.output_gpu, l.output, l.batch * l.outputs);
+    cuda_pull_array_async(l->output_gpu, l->output, l->batch * l->outputs);
     CHECK_CUDA(cudaPeekAtLastError());
     return;
   }
 
-  float* in_cpu = (float*)xcalloc(l.batch * l.inputs, sizeof(float));
-  cuda_pull_array(l.output_gpu, l.output, l.batch * l.outputs);
-  memcpy(in_cpu, l.output, l.batch * l.outputs * sizeof(float));
+  float* in_cpu = (float*)xcalloc(l->batch * l->inputs, sizeof(float));
+  cuda_pull_array(l->output_gpu, l->output, l->batch * l->outputs);
+  memcpy(in_cpu, l->output, l->batch * l->outputs * sizeof(float));
   float* truth_cpu = 0;
   if (state.truth)
   {
-    int num_truth = l.batch * l.truths;
+    int num_truth = l->batch * l->truths;
     truth_cpu = (float*)xcalloc(num_truth, sizeof(float));
     cuda_pull_array(state.truth, truth_cpu, num_truth);
   }
@@ -976,15 +957,15 @@ void ForwardYoloLayerGpu(const layer l, NetworkState state)
   cpu_state.truth = truth_cpu;
   cpu_state.input = in_cpu;
   ForwardYoloLayer(l, cpu_state);
-  cuda_push_array(l.delta_gpu, l.delta, l.batch * l.outputs);
+  cuda_push_array(l->delta_gpu, l->delta, l->batch * l->outputs);
   free(in_cpu);
   if (cpu_state.truth)
     free(cpu_state.truth);
 }
 
-void BackwardYoloLayerGpu(const layer l, NetworkState state)
+void BackwardYoloLayerGpu(layer* l, NetworkState state)
 {
-  axpy_ongpu(l.batch * l.inputs, state.net->loss_scale, l.delta_gpu, 1,
+  axpy_ongpu(l->batch * l->inputs, state.net->loss_scale, l->delta_gpu, 1,
       state.delta, 1);
 }
 #endif

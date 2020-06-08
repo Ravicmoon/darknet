@@ -6,11 +6,11 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-route_layer make_route_layer(int batch, int n, int* input_layers,
-    int* input_sizes, int groups, int group_id)
+layer make_route_layer(int batch, int n, int* input_layers, int* input_sizes,
+    int groups, int group_id)
 {
   fprintf(stderr, "route ");
-  route_layer l = {(LAYER_TYPE)0};
+  layer l = {(LAYER_TYPE)0};
   l.type = ROUTE;
   l.batch = batch;
   l.n = n;
@@ -33,11 +33,11 @@ route_layer make_route_layer(int batch, int n, int* input_layers,
   l.delta = (float*)xcalloc(outputs * batch, sizeof(float));
   l.output = (float*)xcalloc(outputs * batch, sizeof(float));
 
-  l.forward = forward_route_layer;
-  l.backward = backward_route_layer;
+  l.forward = ForwardRouteLayer;
+  l.backward = BackwardRouteLayer;
 #ifdef GPU
-  l.forward_gpu = forward_route_layer_gpu;
-  l.backward_gpu = backward_route_layer_gpu;
+  l.forward_gpu = ForwardRouteLayerGpu;
+  l.backward_gpu = BackwardRouteLayerGpu;
 
   l.delta_gpu = cuda_make_array(l.delta, outputs * batch);
   l.output_gpu = cuda_make_array(l.output, outputs * batch);
@@ -45,7 +45,7 @@ route_layer make_route_layer(int batch, int n, int* input_layers,
   return l;
 }
 
-void resize_route_layer(route_layer* l, Network* net)
+void ResizeRouteLayer(layer* l, Network* net)
 {
   int i;
   layer first = net->layers[l->input_layers[0]];
@@ -87,94 +87,77 @@ void resize_route_layer(route_layer* l, Network* net)
 #endif
 }
 
-void forward_route_layer(const route_layer l, NetworkState state)
+void ForwardRouteLayer(layer* l, NetworkState state)
 {
-  int i, j;
   int offset = 0;
-  for (i = 0; i < l.n; ++i)
+  for (int i = 0; i < l->n; ++i)
   {
-    int index = l.input_layers[i];
+    int index = l->input_layers[i];
     float* input = state.net->layers[index].output;
-    int input_size = l.input_sizes[i];
-    int part_input_size = input_size / l.groups;
-    for (j = 0; j < l.batch; ++j)
+    int input_size = l->input_sizes[i];
+    int part_input_size = input_size / l->groups;
+    for (int j = 0; j < l->batch; ++j)
     {
-      // copy_cpu(input_size, input + j*input_size, 1, l.output + offset +
-      // j*l.outputs, 1);
       copy_cpu(part_input_size,
-          input + j * input_size + part_input_size * l.group_id, 1,
-          l.output + offset + j * l.outputs, 1);
+          input + j * input_size + part_input_size * l->group_id, 1,
+          l->output + offset + j * l->outputs, 1);
     }
-    // offset += input_size;
     offset += part_input_size;
   }
 }
 
-void backward_route_layer(const route_layer l, NetworkState state)
+void BackwardRouteLayer(layer* l, NetworkState state)
 {
-  int i, j;
   int offset = 0;
-  for (i = 0; i < l.n; ++i)
+  for (int i = 0; i < l->n; ++i)
   {
-    int index = l.input_layers[i];
+    int index = l->input_layers[i];
     float* delta = state.net->layers[index].delta;
-    int input_size = l.input_sizes[i];
-    int part_input_size = input_size / l.groups;
-    for (j = 0; j < l.batch; ++j)
+    int input_size = l->input_sizes[i];
+    int part_input_size = input_size / l->groups;
+    for (int j = 0; j < l->batch; ++j)
     {
-      // axpy_cpu(input_size, 1, l.delta + offset + j*l.outputs, 1, delta +
-      // j*input_size, 1);
-      axpy_cpu(part_input_size, 1, l.delta + offset + j * l.outputs, 1,
-          delta + j * input_size + part_input_size * l.group_id, 1);
+      axpy_cpu(part_input_size, 1, l->delta + offset + j * l->outputs, 1,
+          delta + j * input_size + part_input_size * l->group_id, 1);
     }
-    // offset += input_size;
     offset += part_input_size;
   }
 }
 
 #ifdef GPU
-void forward_route_layer_gpu(const route_layer l, NetworkState state)
+void ForwardRouteLayerGpu(layer* l, NetworkState state)
 {
-  int i, j;
   int offset = 0;
-  for (i = 0; i < l.n; ++i)
+  for (int i = 0; i < l->n; ++i)
   {
-    int index = l.input_layers[i];
+    int index = l->input_layers[i];
     float* input = state.net->layers[index].output_gpu;
-    int input_size = l.input_sizes[i];
-    int part_input_size = input_size / l.groups;
-    for (j = 0; j < l.batch; ++j)
+    int input_size = l->input_sizes[i];
+    int part_input_size = input_size / l->groups;
+    for (int j = 0; j < l->batch; ++j)
     {
-      // copy_ongpu(input_size, input + j*input_size, 1, l.output_gpu + offset +
-      // j*l.outputs, 1); simple_copy_ongpu(input_size, input + j*input_size,
-      // l.output_gpu + offset + j*l.outputs);
       simple_copy_ongpu(part_input_size,
-          input + j * input_size + part_input_size * l.group_id,
-          l.output_gpu + offset + j * l.outputs);
+          input + j * input_size + part_input_size * l->group_id,
+          l->output_gpu + offset + j * l->outputs);
     }
-    // offset += input_size;
     offset += part_input_size;
   }
 }
 
-void backward_route_layer_gpu(const route_layer l, NetworkState state)
+void BackwardRouteLayerGpu(layer* l, NetworkState state)
 {
-  int i, j;
   int offset = 0;
-  for (i = 0; i < l.n; ++i)
+  for (int i = 0; i < l->n; ++i)
   {
-    int index = l.input_layers[i];
+    int index = l->input_layers[i];
     float* delta = state.net->layers[index].delta_gpu;
-    int input_size = l.input_sizes[i];
-    int part_input_size = input_size / l.groups;
-    for (j = 0; j < l.batch; ++j)
+    int input_size = l->input_sizes[i];
+    int part_input_size = input_size / l->groups;
+    for (int j = 0; j < l->batch; ++j)
     {
-      // axpy_ongpu(input_size, 1, l.delta_gpu + offset + j*l.outputs, 1, delta
-      // + j*input_size, 1);
-      axpy_ongpu(part_input_size, 1, l.delta_gpu + offset + j * l.outputs, 1,
-          delta + j * input_size + part_input_size * l.group_id, 1);
+      axpy_ongpu(part_input_size, 1, l->delta_gpu + offset + j * l->outputs, 1,
+          delta + j * input_size + part_input_size * l->group_id, 1);
     }
-    // offset += input_size;
     offset += part_input_size;
   }
 }

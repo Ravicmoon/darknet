@@ -1,26 +1,14 @@
-#ifndef COST_LAYER_H
-#define COST_LAYER_H
+#pragma once
+
 #include "network.h"
 
-typedef layer cost_layer;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 COST_TYPE get_cost_type(char* s);
-char* get_cost_string(COST_TYPE a);
-cost_layer make_cost_layer(
-    int batch, int inputs, COST_TYPE cost_type, float scale);
-void forward_cost_layer(const cost_layer l, NetworkState state);
-void backward_cost_layer(const cost_layer l, NetworkState state);
-void resize_cost_layer(cost_layer* l, int inputs);
+layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale);
+void ResizeCostLayer(layer* l, int inputs);
+void ForwardCostLayer(layer* l, NetworkState state);
+void BackwardCostLayer(layer* l, NetworkState state);
 
 #ifdef GPU
-void forward_cost_layer_gpu(cost_layer l, NetworkState state);
-void backward_cost_layer_gpu(const cost_layer l, NetworkState state);
-#endif
-
-#ifdef __cplusplus
-}
-#endif
+void ForwardCostLayerGpu(layer* l, NetworkState state);
+void BackwardCostLayerGpu(layer* l, NetworkState state);
 #endif

@@ -26,7 +26,7 @@
 void forward_xnor_layer(layer l, NetworkState state);
 #endif
 
-void swap_binary(convolutional_layer* l)
+void swap_binary(layer* l)
 {
   float* swap = l->weights;
   l->weights = l->binary_weights;
@@ -84,32 +84,14 @@ void binarize_input(float* input, int n, int size, float* binary)
   }
 }
 
-int convolutional_out_height(convolutional_layer l)
+int ConvOutHeight(layer* l)
 {
-  return (l.h + 2 * l.pad - l.size) / l.stride_y + 1;
+  return (l->h + 2 * l->pad - l->size) / l->stride_y + 1;
 }
 
-int convolutional_out_width(convolutional_layer l)
+int ConvOutWidth(layer* l)
 {
-  return (l.w + 2 * l.pad - l.size) / l.stride_x + 1;
-}
-
-Image get_convolutional_image(convolutional_layer l)
-{
-  int h, w, c;
-  h = convolutional_out_height(l);
-  w = convolutional_out_width(l);
-  c = l.n;
-  return float_to_image(w, h, c, l.output);
-}
-
-Image get_convolutional_delta(convolutional_layer l)
-{
-  int h, w, c;
-  h = convolutional_out_height(l);
-  w = convolutional_out_width(l);
-  c = l.n;
-  return float_to_image(w, h, c, l.delta);
+  return (l->w + 2 * l->pad - l->size) / l->stride_x + 1;
 }
 
 size_t get_workspace_size32(layer l)
@@ -368,7 +350,7 @@ void cudnn_convolutional_setup(
 #endif
 #endif
 
-void free_convolutional_batchnorm(convolutional_layer* l)
+void free_convolutional_batchnorm(layer* l)
 {
   if (!l->share_layer)
   {
@@ -418,16 +400,15 @@ void free_convolutional_batchnorm(convolutional_layer* l)
   }
 }
 
-convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
-    int c, int n, int groups, int size, int stride_x, int stride_y,
-    int dilation, int padding, ACTIVATION activation, int batch_normalize,
-    int binary, int xnor, int adam, int use_bin_output, int index,
-    int antialiasing, convolutional_layer* share_layer, int assisted_excitation,
-    int deform, int train)
+layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n,
+    int groups, int size, int stride_x, int stride_y, int dilation, int padding,
+    ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam,
+    int use_bin_output, int index, int antialiasing, layer* share_layer,
+    int assisted_excitation, int deform, int train)
 {
   int total_batch = batch * steps;
   int i;
-  convolutional_layer l = {(LAYER_TYPE)0};
+  layer l = {(LAYER_TYPE)0};
   l.type = CONVOLUTIONAL;
   l.train = train;
 
@@ -511,8 +492,8 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
     for (i = 0; i < l.nweights; ++i)
       l.weights[i] = scale * rand_uniform(-1, 1);  // rand_normal();
   }
-  int out_h = convolutional_out_height(l);
-  int out_w = convolutional_out_width(l);
+  int out_h = ConvOutHeight(&l);
+  int out_w = ConvOutWidth(&l);
   l.out_h = out_h;
   l.out_w = out_w;
   l.out_c = n;
@@ -526,9 +507,9 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
     l.delta = (float*)xcalloc(total_batch * l.outputs, sizeof(float));
 #endif  // not GPU
 
-  l.forward = forward_convolutional_layer;
-  l.backward = backward_convolutional_layer;
-  l.update = update_convolutional_layer;
+  l.forward = ForwardConvolutionalLayer;
+  l.backward = BackwardConvolutionalLayer;
+  l.update = UpdateConvolutionalLayer;
   if (binary)
   {
     l.binary_weights = (float*)xcalloc(l.nweights, sizeof(float));
@@ -619,9 +600,9 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 
 #ifdef GPU
 
-  l.forward_gpu = forward_convolutional_layer_gpu;
-  l.backward_gpu = backward_convolutional_layer_gpu;
-  l.update_gpu = update_convolutional_layer_gpu;
+  l.forward_gpu = ForwardConvolutionalLayerGpu;
+  l.backward_gpu = BackwardConvolutionalLayerGpu;
+  l.update_gpu = UpdateConvolutionalLayerGpu;
 
   if (gpu_index >= 0)
   {
@@ -828,7 +809,7 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
     if (gpu_index >= 0)
     {
       l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch * l.outputs);
-      push_convolutional_layer(*(l.input_layer));
+      PushConvolutionalLayer(l.input_layer);
     }
 #endif  // GPU
   }
@@ -836,7 +817,7 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
   return l;
 }
 
-void denormalize_convolutional_layer(convolutional_layer l)
+void denormalize_convolutional_layer(layer l)
 {
   int i, j;
   for (i = 0; i < l.n; ++i)
@@ -853,21 +834,7 @@ void denormalize_convolutional_layer(convolutional_layer l)
   }
 }
 
-void test_convolutional_layer()
-{
-  convolutional_layer l = make_convolutional_layer(1, 1, 5, 5, 3, 2, 1, 5, 2, 2,
-      1, 1, LEAKY, 1, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
-  l.batch_normalize = 1;
-  float data[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3};
-  NetworkState state = {0};
-  state.input = data;
-  forward_convolutional_layer(l, state);
-}
-
-void resize_convolutional_layer(convolutional_layer* l, int w, int h)
+void resize_convolutional_layer(layer* l, int w, int h)
 {
   int total_batch = l->batch * l->steps;
 #ifdef GPU
@@ -876,8 +843,8 @@ void resize_convolutional_layer(convolutional_layer* l, int w, int h)
 #endif
   l->w = w;
   l->h = h;
-  int out_w = convolutional_out_width(*l);
-  int out_h = convolutional_out_height(*l);
+  int out_w = ConvOutWidth(l);
+  int out_h = ConvOutHeight(l);
 
   l->out_w = out_w;
   l->out_h = out_h;
@@ -978,8 +945,7 @@ void resize_convolutional_layer(convolutional_layer* l, int w, int h)
 #endif
 }
 
-void set_specified_workspace_limit(
-    convolutional_layer* l, size_t workspace_size_limit)
+void set_specified_workspace_limit(layer* l, size_t workspace_size_limit)
 {
 #ifdef CUDNN
   size_t free_byte;
@@ -1093,7 +1059,7 @@ void bit_to_float(unsigned char* src, float* dst, size_t size, size_t filters,
   }
 }
 
-void binary_align_weights(convolutional_layer* l)
+void binary_align_weights(layer* l)
 {
   int m = l->n;                      // (l->n / l->groups)
   int k = l->size * l->size * l->c;  // ->size*l->size*(l->c / l->groups)
@@ -1214,270 +1180,189 @@ void binary_align_weights(convolutional_layer* l)
   free(align_weights);
 }
 
-void forward_convolutional_layer(convolutional_layer l, NetworkState state)
+void ForwardConvolutionalLayer(layer* l, NetworkState state)
 {
-  int out_h = convolutional_out_height(l);
-  int out_w = convolutional_out_width(l);
+  int out_h = ConvOutHeight(l);
+  int out_w = ConvOutWidth(l);
   int i, j;
 
-  fill_cpu(l.outputs * l.batch, 0, l.output, 1);
+  fill_cpu(l->outputs * l->batch, 0, l->output, 1);
 
-  if (l.xnor && (!l.align_bit_weights || state.train))
+  if (l->xnor && (!l->align_bit_weights || state.train))
   {
-    if (!l.align_bit_weights || state.train)
+    if (!l->align_bit_weights || state.train)
     {
-      binarize_weights(l.weights, l.n, l.nweights, l.binary_weights);
-      // printf("\n binarize_weights l.align_bit_weights = %p \n",
-      // l.align_bit_weights);
+      binarize_weights(l->weights, l->n, l->nweights, l->binary_weights);
     }
-    swap_binary(&l);
-    binarize_cpu(state.input, l.c * l.h * l.w * l.batch, l.binary_input);
-    state.input = l.binary_input;
+    swap_binary(l);
+    binarize_cpu(state.input, l->c * l->h * l->w * l->batch, l->binary_input);
+    state.input = l->binary_input;
   }
 
-  int m = l.n / l.groups;
-  int k = l.size * l.size * l.c / l.groups;
+  int m = l->n / l->groups;
+  int k = l->size * l->size * l->c / l->groups;
   int n = out_h * out_w;
 
   static int u = 0;
   u++;
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    for (j = 0; j < l.groups; ++j)
+    for (j = 0; j < l->groups; ++j)
     {
-      float* a = l.weights + j * l.nweights / l.groups;
+      float* a = l->weights + j * l->nweights / l->groups;
       float* b = state.workspace;
-      float* c = l.output + (i * l.groups + j) * n * m;
+      float* c = l->output + (i * l->groups + j) * n * m;
 
-      // gemm(0,0,m,n,k,1,a,k,b,n,1,c,n);
-      // gemm_nn_custom(m, n, k, 1, a, k, b, n, c, n);
-      if (l.xnor && l.align_bit_weights && !state.train &&
-          l.stride_x == l.stride_y)
+      if (l->xnor && l->align_bit_weights && !state.train &&
+          l->stride_x == l->stride_y)
       {
-        memset(b, 0, l.bit_align * l.size * l.size * l.c * sizeof(float));
+        memset(b, 0, l->bit_align * l->size * l->size * l->c * sizeof(float));
 
-        if (l.c % 32 == 0)
+        if (l->c % 32 == 0)
         {
-          // printf(" l.index = %d - new XNOR \n", l.index);
-
-          int ldb_align = l.lda_align;
+          int ldb_align = l->lda_align;
           size_t new_ldb = k + (ldb_align - k % ldb_align);  // (k / 8 + 1) * 8;
 
-          int re_packed_input_size = l.c * l.w * l.h;
+          int re_packed_input_size = l->c * l->w * l->h;
           memset(state.workspace, 0, re_packed_input_size * sizeof(float));
 
-          const size_t new_c = l.c / 32;
-          size_t in_re_packed_input_size = new_c * l.w * l.h + 1;
-          memset(l.bin_re_packed_input, 0,
+          const size_t new_c = l->c / 32;
+          size_t in_re_packed_input_size = new_c * l->w * l->h + 1;
+          memset(l->bin_re_packed_input, 0,
               in_re_packed_input_size * sizeof(uint32_t));
 
-          // float *re_packed_input = calloc(l.c * l.w * l.h, sizeof(float));
-          // uint32_t *bin_re_packed_input = calloc(new_c * l.w * l.h + 1,
-          // sizeof(uint32_t));
-
           // float32x4 by channel (as in cuDNN)
-          repack_input(state.input, state.workspace, l.w, l.h, l.c);
+          repack_input(state.input, state.workspace, l->w, l->h, l->c);
 
           // 32 x floats -> 1 x uint32_t
-          float_to_bit(state.workspace, (unsigned char*)l.bin_re_packed_input,
-              l.c * l.w * l.h);
+          float_to_bit(state.workspace, (unsigned char*)l->bin_re_packed_input,
+              l->c * l->w * l->h);
 
-          // free(re_packed_input);
+          im2col_cpu_custom((float*)l->bin_re_packed_input, new_c, l->h, l->w,
+              l->size, l->stride, l->pad, state.workspace);
 
-          // slow - convolution the packed inputs and weights: float x 32 by
-          // channel (as in cuDNN)
-          // convolution_repacked((uint32_t *)bin_re_packed_input, (uint32_t
-          // *)l.align_bit_weights, l.output,
-          //    l.w, l.h, l.c, l.n, l.size, l.pad, l.new_lda, l.mean_arr);
+          int new_k = l->size * l->size * l->c / 32;
 
-          // // then exit from if()
-
-          im2col_cpu_custom((float*)l.bin_re_packed_input, new_c, l.h, l.w,
-              l.size, l.stride, l.pad, state.workspace);
-          // im2col_cpu((float *)bin_re_packed_input, new_c, l.h, l.w, l.size,
-          // l.stride, l.pad, b);
-
-          // free(bin_re_packed_input);
-
-          int new_k = l.size * l.size * l.c / 32;
-
-          // good for (l.c == 64)
-          // gemm_nn_bin_32bit_packed(m, n, new_k, 1,
-          //    l.align_bit_weights, l.new_lda/32,
-          //    b, n,
-          //    c, n, l.mean_arr);
-
-          // // then exit from if()
-
-          transpose_uint32((uint32_t*)state.workspace, (uint32_t*)l.t_bit_input,
-              new_k, n, n, new_ldb);
+          transpose_uint32((uint32_t*)state.workspace,
+              (uint32_t*)l->t_bit_input, new_k, n, n, new_ldb);
 
           // the main GEMM function
           gemm_nn_custom_bin_mean_transposed(m, n, k, 1,
-              (unsigned char*)l.align_bit_weights, new_ldb,
-              (unsigned char*)l.t_bit_input, new_ldb, c, n, l.mean_arr);
-
-          // // alternative GEMM
-          // gemm_nn_bin_transposed_32bit_packed(m, n, new_k, 1,
-          //    l.align_bit_weights, l.new_lda/32,
-          //    t_bit_input, new_ldb / 32,
-          //    c, n, l.mean_arr);
-
-          // free(t_bit_input);
+              (unsigned char*)l->align_bit_weights, new_ldb,
+              (unsigned char*)l->t_bit_input, new_ldb, c, n, l->mean_arr);
         }
         else
-        {  // else (l.c % 32 != 0)
+        {
+          im2col_cpu_custom_bin(state.input, l->c, l->h, l->w, l->size,
+              l->stride, l->pad, state.workspace, l->bit_align);
 
-          //--------------------------------------------------------
-          // printf(" l.index = %d - old XNOR \n", l.index);
-
-          // im2col_cpu_custom_align(state.input, l.c, l.h, l.w, l.size,
-          // l.stride, l.pad, b, l.bit_align);
-          im2col_cpu_custom_bin(state.input, l.c, l.h, l.w, l.size, l.stride,
-              l.pad, state.workspace, l.bit_align);
-
-          // size_t output_size = l.outputs;
-          // float *count_output = calloc(output_size, sizeof(float));
-          // size_t bit_output_size = output_size / 8 + 1;
-          // char *bit_output = calloc(bit_output_size, sizeof(char));
-
-          // size_t intput_size = n * k; // (out_h*out_w) X (l.size*l.size*l.c)
-          // : after im2col() size_t bit_input_size = intput_size / 8 + 1; char
-          // *bit_input = calloc(bit_input_size, sizeof(char));
-
-          // size_t weights_size = k * m; //l.size*l.size*l.c*l.n; // l.nweights
-          // size_t bit_weights_size = weights_size / 8 + 1;
-
-          // char *bit_weights = calloc(bit_weights_size, sizeof(char));
-          // float *mean_arr = calloc(l.n, sizeof(float));
-
-          // transpose B from NxK to KxN (x-axis (ldb = l.size*l.size*l.c) -
-          // should be multiple of 8 bits)
           {
-            // size_t ldb_align = 256; // 256 bit for AVX2
-            int ldb_align = l.lda_align;
+            int ldb_align = l->lda_align;
             size_t new_ldb = k + (ldb_align - k % ldb_align);
 
             // 5x times faster than gemm()-float32
             gemm_nn_custom_bin_mean_transposed(m, n, k, 1,
-                (unsigned char*)l.align_bit_weights, new_ldb,
-                (unsigned char*)l.t_bit_input, new_ldb, c, n, l.mean_arr);
-
-            // gemm_nn_custom_bin_mean_transposed(m, n, k, 1, bit_weights, k,
-            // t_bit_input, new_ldb, c, n, mean_arr);
-
-            // free(t_input);
-            // free(t_bit_input);
-            //}
+                (unsigned char*)l->align_bit_weights, new_ldb,
+                (unsigned char*)l->t_bit_input, new_ldb, c, n, l->mean_arr);
           }
         }
 
-        add_bias(l.output, l.biases, l.batch, l.n, out_h * out_w);
+        add_bias(l->output, l->biases, l->batch, l->n, out_h * out_w);
 
-        // activate_array(l.output, m*n*l.batch, l.activation);
-        if (l.activation == SWISH)
+        if (l->activation == SWISH)
           activate_array_swish(
-              l.output, l.outputs * l.batch, l.activation_input, l.output);
-        else if (l.activation == MISH)
+              l->output, l->outputs * l->batch, l->activation_input, l->output);
+        else if (l->activation == MISH)
           activate_array_mish(
-              l.output, l.outputs * l.batch, l.activation_input, l.output);
-        else if (l.activation == NORM_CHAN)
-          activate_array_normalize_channels(l.output, l.outputs * l.batch,
-              l.batch, l.out_c, l.out_w * l.out_h, l.output);
-        else if (l.activation == NORM_CHAN_SOFTMAX)
-          activate_array_normalize_channels_softmax(l.output,
-              l.outputs * l.batch, l.batch, l.out_c, l.out_w * l.out_h,
-              l.output, 0);
-        else if (l.activation == NORM_CHAN_SOFTMAX_MAXVAL)
-          activate_array_normalize_channels_softmax(l.output,
-              l.outputs * l.batch, l.batch, l.out_c, l.out_w * l.out_h,
-              l.output, 1);
+              l->output, l->outputs * l->batch, l->activation_input, l->output);
+        else if (l->activation == NORM_CHAN)
+          activate_array_normalize_channels(l->output, l->outputs * l->batch,
+              l->batch, l->out_c, l->out_w * l->out_h, l->output);
+        else if (l->activation == NORM_CHAN_SOFTMAX)
+          activate_array_normalize_channels_softmax(l->output,
+              l->outputs * l->batch, l->batch, l->out_c, l->out_w * l->out_h,
+              l->output, 0);
+        else if (l->activation == NORM_CHAN_SOFTMAX_MAXVAL)
+          activate_array_normalize_channels_softmax(l->output,
+              l->outputs * l->batch, l->batch, l->out_c, l->out_w * l->out_h,
+              l->output, 1);
         else
-          activate_array_cpu_custom(l.output, m * n * l.batch, l.activation);
+          activate_array_cpu_custom(l->output, m * n * l->batch, l->activation);
         return;
       }
       else
       {
-        // printf(" l.index = %d - FP32 \n", l.index);
-        float* im =
-            state.input + (i * l.groups + j) * (l.c / l.groups) * l.h * l.w;
-        if (l.size == 1)
+        float* im = state.input +
+                    (i * l->groups + j) * (l->c / l->groups) * l->h * l->w;
+        if (l->size == 1)
         {
           b = im;
         }
         else
         {
-          // im2col_cpu(im, l.c / l.groups, l.h, l.w, l.size, l.stride, l.pad,
-          // b);
-
-          im2col_cpu_ext(im,                           // input
-              l.c / l.groups,                          // input channels
-              l.h, l.w,                                // input size (h, w)
-              l.size, l.size,                          // kernel size (h, w)
-              l.pad * l.dilation, l.pad * l.dilation,  // padding (h, w)
-              l.stride_y, l.stride_x,                  // stride (h, w)
-              l.dilation, l.dilation,                  // dilation (h, w)
-              b);                                      // output
+          im2col_cpu_ext(im,                               // input
+              l->c / l->groups,                            // input channels
+              l->h, l->w,                                  // input size (h, w)
+              l->size, l->size,                            // kernel size (h, w)
+              l->pad * l->dilation, l->pad * l->dilation,  // padding (h, w)
+              l->stride_y, l->stride_x,                    // stride (h, w)
+              l->dilation, l->dilation,                    // dilation (h, w)
+              b);                                          // output
         }
 
         gemm(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
-        // bit-count to float
       }
-      // c += n*m;
-      // state.input += l.c*l.h*l.w;
     }
   }
 
-  if (l.batch_normalize)
+  if (l->batch_normalize)
   {
-    forward_batchnorm_layer(l, state);
+    ForwardBatchnormLayer(l, state);
   }
   else
   {
-    add_bias(l.output, l.biases, l.batch, l.n, out_h * out_w);
+    add_bias(l->output, l->biases, l->batch, l->n, out_h * out_w);
   }
 
-  // activate_array(l.output, m*n*l.batch, l.activation);
-  if (l.activation == SWISH)
+  if (l->activation == SWISH)
     activate_array_swish(
-        l.output, l.outputs * l.batch, l.activation_input, l.output);
-  else if (l.activation == MISH)
+        l->output, l->outputs * l->batch, l->activation_input, l->output);
+  else if (l->activation == MISH)
     activate_array_mish(
-        l.output, l.outputs * l.batch, l.activation_input, l.output);
-  else if (l.activation == NORM_CHAN)
-    activate_array_normalize_channels(l.output, l.outputs * l.batch, l.batch,
-        l.out_c, l.out_w * l.out_h, l.output);
-  else if (l.activation == NORM_CHAN_SOFTMAX)
-    activate_array_normalize_channels_softmax(l.output, l.outputs * l.batch,
-        l.batch, l.out_c, l.out_w * l.out_h, l.output, 0);
-  else if (l.activation == NORM_CHAN_SOFTMAX_MAXVAL)
-    activate_array_normalize_channels_softmax(l.output, l.outputs * l.batch,
-        l.batch, l.out_c, l.out_w * l.out_h, l.output, 1);
+        l->output, l->outputs * l->batch, l->activation_input, l->output);
+  else if (l->activation == NORM_CHAN)
+    activate_array_normalize_channels(l->output, l->outputs * l->batch,
+        l->batch, l->out_c, l->out_w * l->out_h, l->output);
+  else if (l->activation == NORM_CHAN_SOFTMAX)
+    activate_array_normalize_channels_softmax(l->output, l->outputs * l->batch,
+        l->batch, l->out_c, l->out_w * l->out_h, l->output, 0);
+  else if (l->activation == NORM_CHAN_SOFTMAX_MAXVAL)
+    activate_array_normalize_channels_softmax(l->output, l->outputs * l->batch,
+        l->batch, l->out_c, l->out_w * l->out_h, l->output, 1);
   else
-    activate_array_cpu_custom(l.output, l.outputs * l.batch, l.activation);
+    activate_array_cpu_custom(l->output, l->outputs * l->batch, l->activation);
 
-  if (l.binary || l.xnor)
-    swap_binary(&l);
+  if (l->binary || l->xnor)
+    swap_binary(l);
 
-  if (l.assisted_excitation && state.train)
-    assisted_excitation_forward(l, state);
+  if (l->assisted_excitation && state.train)
+    AssistedExcitationForward(l, state);
 
-  if (l.antialiasing)
+  if (l->antialiasing)
   {
     NetworkState s = {0};
     s.train = state.train;
     s.workspace = state.workspace;
     s.net = state.net;
-    s.input = l.output;
-    forward_convolutional_layer(*(l.input_layer), s);
-    // simple_copy_ongpu(l.outputs*l.batch, l.output, l.input_antialiasing);
-    memcpy(l.output, l.input_layer->output,
-        l.input_layer->outputs * l.input_layer->batch * sizeof(float));
+    s.input = l->output;
+    ForwardConvolutionalLayer(l->input_layer, s);
+    memcpy(l->output, l->input_layer->output,
+        l->input_layer->outputs * l->input_layer->batch * sizeof(float));
   }
 }
 
-void assisted_excitation_forward(convolutional_layer l, NetworkState state)
+void AssistedExcitationForward(layer* l, NetworkState state)
 {
   const int iteration_num =
       (*state.net->seen) / (state.net->batch * state.net->subdivisions);
@@ -1492,12 +1377,12 @@ void assisted_excitation_forward(convolutional_layer l, NetworkState state)
   // * state.net.max_batches);
   float alpha = (1 + cos(3.141592 * iteration_num / state.net->max_batches));
 
-  if (l.assisted_excitation > 1)
+  if (l->assisted_excitation > 1)
   {
-    if (iteration_num > l.assisted_excitation)
+    if (iteration_num > l->assisted_excitation)
       alpha = 0;
     else
-      alpha = (1 + cos(3.141592 * iteration_num / l.assisted_excitation));
+      alpha = (1 + cos(3.141592 * iteration_num / l->assisted_excitation));
   }
 
   // printf("\n epoch = %f, alpha = %f, seen = %d, max_batches = %d,
@@ -1505,75 +1390,75 @@ void assisted_excitation_forward(convolutional_layer l, NetworkState state)
   //    epoch, alpha, (*state.net.seen), state.net.max_batches,
   //    state.net.train_images_num);
 
-  float* a_avg = (float*)xcalloc(l.out_w * l.out_h * l.batch, sizeof(float));
-  float* g = (float*)xcalloc(l.out_w * l.out_h * l.batch, sizeof(float));
+  float* a_avg = (float*)xcalloc(l->out_w * l->out_h * l->batch, sizeof(float));
+  float* g = (float*)xcalloc(l->out_w * l->out_h * l->batch, sizeof(float));
 
   int b;
   int w, h, c;
 
-  l.max_boxes = state.net->num_boxes;
-  l.truths = l.max_boxes * (4 + 1);
+  l->max_boxes = state.net->num_boxes;
+  l->truths = l->max_boxes * (4 + 1);
 
-  for (b = 0; b < l.batch; ++b)
+  for (b = 0; b < l->batch; ++b)
   {
     // calculate G
     int t;
     for (t = 0; t < state.net->num_boxes; ++t)
     {
-      Box truth(state.truth + t * (4 + 1) + b * l.truths);
+      Box truth(state.truth + t * (4 + 1) + b * l->truths);
       if (!truth.x)
         break;  // continue;
 
-      int left = floor((truth.x - truth.w / 2) * l.out_w);
-      int right = ceil((truth.x + truth.w / 2) * l.out_w);
-      int top = floor((truth.y - truth.h / 2) * l.out_h);
-      int bottom = ceil((truth.y + truth.h / 2) * l.out_h);
+      int left = floor((truth.x - truth.w / 2) * l->out_w);
+      int right = ceil((truth.x + truth.w / 2) * l->out_w);
+      int top = floor((truth.y - truth.h / 2) * l->out_h);
+      int bottom = ceil((truth.y + truth.h / 2) * l->out_h);
 
       for (w = left; w <= right; w++)
       {
         for (h = top; h < bottom; h++)
         {
-          g[w + l.out_w * h + l.out_w * l.out_h * b] = 1;
+          g[w + l->out_w * h + l->out_w * l->out_h * b] = 1;
         }
       }
     }
   }
 
-  for (b = 0; b < l.batch; ++b)
+  for (b = 0; b < l->batch; ++b)
   {
     // calculate average A
-    for (w = 0; w < l.out_w; w++)
+    for (w = 0; w < l->out_w; w++)
     {
-      for (h = 0; h < l.out_h; h++)
+      for (h = 0; h < l->out_h; h++)
       {
-        for (c = 0; c < l.out_c; c++)
+        for (c = 0; c < l->out_c; c++)
         {
-          a_avg[w + l.out_w * (h + l.out_h * b)] +=
-              l.output[w + l.out_w * (h + l.out_h * (c + l.out_c * b))];
+          a_avg[w + l->out_w * (h + l->out_h * b)] +=
+              l->output[w + l->out_w * (h + l->out_h * (c + l->out_c * b))];
         }
-        a_avg[w + l.out_w * (h + l.out_h * b)] /= l.out_c;  // a_avg / d
+        a_avg[w + l->out_w * (h + l->out_h * b)] /= l->out_c;  // a_avg / d
       }
     }
   }
 
   // change activation
-  for (b = 0; b < l.batch; ++b)
+  for (b = 0; b < l->batch; ++b)
   {
-    for (w = 0; w < l.out_w; w++)
+    for (w = 0; w < l->out_w; w++)
     {
-      for (h = 0; h < l.out_h; h++)
+      for (h = 0; h < l->out_h; h++)
       {
-        for (c = 0; c < l.out_c; c++)
+        for (c = 0; c < l->out_c; c++)
         {
           // a = a + alpha(t) + e(c,i,j) = a + alpha(t) + g(i,j) * avg_a(i,j) /
           // channels
-          l.output[w + l.out_w * (h + l.out_h * (c + l.out_c * b))] +=
-              alpha * g[w + l.out_w * (h + l.out_h * b)] *
-              a_avg[w + l.out_w * (h + l.out_h * b)];
+          l->output[w + l->out_w * (h + l->out_h * (c + l->out_c * b))] +=
+              alpha * g[w + l->out_w * (h + l->out_h * b)] *
+              a_avg[w + l->out_w * (h + l->out_h * b)];
 
-          // l.output[w + l.out_w*(h + l.out_h*(c + l.out_c*b))] =
-          //    alpha * g[w + l.out_w*(h + l.out_h*b)] * a_avg[w + l.out_w*(h +
-          //    l.out_h*b)];
+          // l->output[w + l->out_w*(h + l->out_h*(c + l->out_c*b))] =
+          //    alpha * g[w + l->out_w*(h + l->out_h*b)] * a_avg[w + l->out_w*(h
+          //    + l->out_h*b)];
         }
       }
     }
@@ -1582,16 +1467,16 @@ void assisted_excitation_forward(convolutional_layer l, NetworkState state)
   if (0)  // visualize ground truth
   {
 #ifdef OPENCV
-    for (b = 0; b < l.batch; ++b)
+    for (b = 0; b < l->batch; ++b)
     {
       Image img =
-          float_to_image(l.out_w, l.out_h, 1, &g[l.out_w * l.out_h * b]);
+          float_to_image(l->out_w, l->out_h, 1, &g[l->out_w * l->out_h * b]);
       char buff[100];
       sprintf(buff, "a_excitation_%d", b);
       show_image_cv(img, buff);
 
-      Image img2 = float_to_image(
-          l.out_w, l.out_h, 1, &l.output[l.out_w * l.out_h * l.out_c * b]);
+      Image img2 = float_to_image(l->out_w, l->out_h, 1,
+          &l->output[l->out_w * l->out_h * l->out_c * b]);
       char buff2[100];
       sprintf(buff2, "a_excitation_act_%d", b);
       show_image_cv(img2, buff2);
@@ -1605,110 +1490,102 @@ void assisted_excitation_forward(convolutional_layer l, NetworkState state)
   free(a_avg);
 }
 
-void backward_convolutional_layer(convolutional_layer l, NetworkState state)
+void BackwardConvolutionalLayer(layer* l, NetworkState state)
 {
   int i, j;
-  int m = l.n / l.groups;
-  int n = l.size * l.size * l.c / l.groups;
-  int k = l.out_w * l.out_h;
+  int m = l->n / l->groups;
+  int n = l->size * l->size * l->c / l->groups;
+  int k = l->out_w * l->out_h;
 
-  if (l.activation == SWISH)
+  if (l->activation == SWISH)
     gradient_array_swish(
-        l.output, l.outputs * l.batch, l.activation_input, l.delta);
-  else if (l.activation == MISH)
-    gradient_array_mish(l.outputs * l.batch, l.activation_input, l.delta);
-  else if (l.activation == NORM_CHAN_SOFTMAX ||
-           l.activation == NORM_CHAN_SOFTMAX_MAXVAL)
-    gradient_array_normalize_channels_softmax(l.output, l.outputs * l.batch,
-        l.batch, l.out_c, l.out_w * l.out_h, l.delta);
-  else if (l.activation == NORM_CHAN)
-    gradient_array_normalize_channels(l.output, l.outputs * l.batch, l.batch,
-        l.out_c, l.out_w * l.out_h, l.delta);
+        l->output, l->outputs * l->batch, l->activation_input, l->delta);
+  else if (l->activation == MISH)
+    gradient_array_mish(l->outputs * l->batch, l->activation_input, l->delta);
+  else if (l->activation == NORM_CHAN_SOFTMAX ||
+           l->activation == NORM_CHAN_SOFTMAX_MAXVAL)
+    gradient_array_normalize_channels_softmax(l->output, l->outputs * l->batch,
+        l->batch, l->out_c, l->out_w * l->out_h, l->delta);
+  else if (l->activation == NORM_CHAN)
+    gradient_array_normalize_channels(l->output, l->outputs * l->batch,
+        l->batch, l->out_c, l->out_w * l->out_h, l->delta);
   else
-    gradient_array(l.output, l.outputs * l.batch, l.activation, l.delta);
+    gradient_array(l->output, l->outputs * l->batch, l->activation, l->delta);
 
-  if (l.batch_normalize)
+  if (l->batch_normalize)
   {
-    backward_batchnorm_layer(l, state);
+    BackwardBatchnormLayer(l, state);
   }
   else
   {
-    backward_bias(l.bias_updates, l.delta, l.batch, l.n, k);
+    backward_bias(l->bias_updates, l->delta, l->batch, l->n, k);
   }
 
-  for (i = 0; i < l.batch; ++i)
+  for (i = 0; i < l->batch; ++i)
   {
-    for (j = 0; j < l.groups; ++j)
+    for (j = 0; j < l->groups; ++j)
     {
-      float* a = l.delta + (i * l.groups + j) * m * k;
+      float* a = l->delta + (i * l->groups + j) * m * k;
       float* b = state.workspace;
-      float* c = l.weight_updates + j * l.nweights / l.groups;
+      float* c = l->weight_updates + j * l->nweights / l->groups;
 
       float* im =
-          state.input + (i * l.groups + j) * (l.c / l.groups) * l.h * l.w;
+          state.input + (i * l->groups + j) * (l->c / l->groups) * l->h * l->w;
 
-      // im2col_cpu(im, l.c / l.groups, l.h, l.w, l.size, l.stride, l.pad, b);
-      im2col_cpu_ext(im,                           // input
-          l.c / l.groups,                          // input channels
-          l.h, l.w,                                // input size (h, w)
-          l.size, l.size,                          // kernel size (h, w)
-          l.pad * l.dilation, l.pad * l.dilation,  // padding (h, w)
-          l.stride_y, l.stride_x,                  // stride (h, w)
-          l.dilation, l.dilation,                  // dilation (h, w)
-          b);                                      // output
+      im2col_cpu_ext(im,                               // input
+          l->c / l->groups,                            // input channels
+          l->h, l->w,                                  // input size (h, w)
+          l->size, l->size,                            // kernel size (h, w)
+          l->pad * l->dilation, l->pad * l->dilation,  // padding (h, w)
+          l->stride_y, l->stride_x,                    // stride (h, w)
+          l->dilation, l->dilation,                    // dilation (h, w)
+          b);                                          // output
 
       gemm(0, 1, m, n, k, 1, a, k, b, k, 1, c, n);
 
       if (state.delta)
       {
-        a = l.weights + j * l.nweights / l.groups;
-        b = l.delta + (i * l.groups + j) * m * k;
+        a = l->weights + j * l->nweights / l->groups;
+        b = l->delta + (i * l->groups + j) * m * k;
         c = state.workspace;
 
         gemm(1, 0, n, k, m, 1, a, n, b, k, 0, c, k);
 
-        // col2im_cpu(state.workspace, l.c / l.groups, l.h, l.w, l.size,
-        // l.stride,
-        //     l.pad, state.delta + (i*l.groups + j)*l.c / l.groups*l.h*l.w);
-
-        col2im_cpu_ext(state.workspace,              // input
-            l.c / l.groups,                          // input channels (h, w)
-            l.h, l.w,                                // input size (h, w)
-            l.size, l.size,                          // kernel size (h, w)
-            l.pad * l.dilation, l.pad * l.dilation,  // padding (h, w)
-            l.stride_y, l.stride_x,                  // stride (h, w)
-            l.dilation, l.dilation,                  // dilation (h, w)
-            state.delta + (i * l.groups + j) * (l.c / l.groups) * l.h *
-                              l.w);  // output (delta)
+        col2im_cpu_ext(state.workspace,  // input
+            l->c / l->groups,            // input channels (h, w)
+            l->h, l->w,                  // input size (h, w)
+            l->size, l->size,            // kernel size (h, w)
+            l->pad * l->dilation, l->pad * l->dilation,  // padding (h, w)
+            l->stride_y, l->stride_x,                    // stride (h, w)
+            l->dilation, l->dilation,                    // dilation (h, w)
+            state.delta + (i * l->groups + j) * (l->c / l->groups) * l->h *
+                              l->w);  // output (delta)
       }
     }
   }
 }
 
-void update_convolutional_layer(convolutional_layer l, int batch,
-    float learning_rate_init, float momentum, float decay)
+void UpdateConvolutionalLayer(
+    layer* l, int batch, float learning_rate_init, float momentum, float decay)
 {
-  float learning_rate = learning_rate_init * l.learning_rate_scale;
-  // float momentum = a.momentum;
-  // float decay = a.decay;
-  // int batch = a.batch;
+  float learning_rate = learning_rate_init * l->learning_rate_scale;
 
-  axpy_cpu(l.nweights, -decay * batch, l.weights, 1, l.weight_updates, 1);
+  axpy_cpu(l->nweights, -decay * batch, l->weights, 1, l->weight_updates, 1);
   axpy_cpu(
-      l.nweights, learning_rate / batch, l.weight_updates, 1, l.weights, 1);
-  scal_cpu(l.nweights, momentum, l.weight_updates, 1);
+      l->nweights, learning_rate / batch, l->weight_updates, 1, l->weights, 1);
+  scal_cpu(l->nweights, momentum, l->weight_updates, 1);
 
-  axpy_cpu(l.n, learning_rate / batch, l.bias_updates, 1, l.biases, 1);
-  scal_cpu(l.n, momentum, l.bias_updates, 1);
+  axpy_cpu(l->n, learning_rate / batch, l->bias_updates, 1, l->biases, 1);
+  scal_cpu(l->n, momentum, l->bias_updates, 1);
 
-  if (l.scales)
+  if (l->scales)
   {
-    axpy_cpu(l.n, learning_rate / batch, l.scale_updates, 1, l.scales, 1);
-    scal_cpu(l.n, momentum, l.scale_updates, 1);
+    axpy_cpu(l->n, learning_rate / batch, l->scale_updates, 1, l->scales, 1);
+    scal_cpu(l->n, momentum, l->scale_updates, 1);
   }
 }
 
-Image get_convolutional_weight(convolutional_layer l, int i)
+Image get_convolutional_weight(layer l, int i)
 {
   int h = l.size;
   int w = l.size;
@@ -1716,35 +1593,7 @@ Image get_convolutional_weight(convolutional_layer l, int i)
   return float_to_image(w, h, c, l.weights + i * h * w * c);
 }
 
-void rgbgr_weights(convolutional_layer l)
-{
-  int i;
-  for (i = 0; i < l.n; ++i)
-  {
-    Image im = get_convolutional_weight(l, i);
-    if (im.c == 3)
-    {
-      rgbgr_image(im);
-    }
-  }
-}
-
-void rescale_weights(convolutional_layer l, float scale, float trans)
-{
-  int i;
-  for (i = 0; i < l.n; ++i)
-  {
-    Image im = get_convolutional_weight(l, i);
-    if (im.c == 3)
-    {
-      scale_image(im, scale);
-      float sum = sum_array(im.data, im.w * im.h * im.c);
-      l.biases[i] += sum * trans;
-    }
-  }
-}
-
-Image* get_weights(convolutional_layer l)
+Image* get_weights(layer l)
 {
   Image* weights = (Image*)xcalloc(l.n, sizeof(Image));
   int i;

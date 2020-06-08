@@ -205,12 +205,12 @@ struct layer
   LAYER_TYPE type;
   ACTIVATION activation;
   COST_TYPE cost_type;
-  void (*forward)(struct layer, struct NetworkState);
-  void (*backward)(struct layer, struct NetworkState);
-  void (*update)(struct layer, int, float, float, float);
-  void (*forward_gpu)(struct layer, struct NetworkState);
-  void (*backward_gpu)(struct layer, struct NetworkState);
-  void (*update_gpu)(struct layer, int, float, float, float, float);
+  void (*forward)(struct layer*, struct NetworkState);
+  void (*backward)(struct layer*, struct NetworkState);
+  void (*update)(struct layer*, int, float, float, float);
+  void (*forward_gpu)(struct layer*, struct NetworkState);
+  void (*backward_gpu)(struct layer*, struct NetworkState);
+  void (*update_gpu)(struct layer*, int, float, float, float, float);
   layer* share_layer;
   int train;
   int avgpool;

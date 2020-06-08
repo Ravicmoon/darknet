@@ -21,27 +21,11 @@ COST_TYPE get_cost_type(char* s)
   return SSE;
 }
 
-char* get_cost_string(COST_TYPE a)
-{
-  switch (a)
-  {
-    case SSE:
-      return "sse";
-    case MASKED:
-      return "masked";
-    case SMOOTH:
-      return "smooth";
-    default:
-      return "sse";
-  }
-}
-
-cost_layer make_cost_layer(
-    int batch, int inputs, COST_TYPE cost_type, float scale)
+layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale)
 {
   fprintf(
       stderr, "cost                                           %4d\n", inputs);
-  cost_layer l = {(LAYER_TYPE)0};
+  layer l = {(LAYER_TYPE)0};
   l.type = COST;
 
   l.scale = scale;
@@ -53,11 +37,11 @@ cost_layer make_cost_layer(
   l.output = (float*)xcalloc(inputs * batch, sizeof(float));
   l.cost = (float*)xcalloc(1, sizeof(float));
 
-  l.forward = forward_cost_layer;
-  l.backward = backward_cost_layer;
+  l.forward = ForwardCostLayer;
+  l.backward = BackwardCostLayer;
 #ifdef GPU
-  l.forward_gpu = forward_cost_layer_gpu;
-  l.backward_gpu = backward_cost_layer_gpu;
+  l.forward_gpu = ForwardCostLayerGpu;
+  l.backward_gpu = BackwardCostLayerGpu;
 
   l.delta_gpu = cuda_make_array(l.delta, inputs * batch);
   l.output_gpu = cuda_make_array(l.output, inputs * batch);
@@ -65,7 +49,7 @@ cost_layer make_cost_layer(
   return l;
 }
 
-void resize_cost_layer(cost_layer* l, int inputs)
+void ResizeCostLayer(layer* l, int inputs)
 {
   l->inputs = inputs;
   l->outputs = inputs;
@@ -79,44 +63,44 @@ void resize_cost_layer(cost_layer* l, int inputs)
 #endif
 }
 
-void forward_cost_layer(cost_layer l, NetworkState state)
+void ForwardCostLayer(layer* l, NetworkState state)
 {
   if (!state.truth)
     return;
-  if (l.cost_type == MASKED)
+  if (l->cost_type == MASKED)
   {
     int i;
-    for (i = 0; i < l.batch * l.inputs; ++i)
+    for (i = 0; i < l->batch * l->inputs; ++i)
     {
       if (state.truth[i] == SECRET_NUM)
         state.input[i] = SECRET_NUM;
     }
   }
-  if (l.cost_type == SMOOTH)
+  if (l->cost_type == SMOOTH)
   {
     smooth_l1_cpu(
-        l.batch * l.inputs, state.input, state.truth, l.delta, l.output);
+        l->batch * l->inputs, state.input, state.truth, l->delta, l->output);
   }
   else
   {
-    l2_cpu(l.batch * l.inputs, state.input, state.truth, l.delta, l.output);
+    l2_cpu(l->batch * l->inputs, state.input, state.truth, l->delta, l->output);
   }
-  l.cost[0] = sum_array(l.output, l.batch * l.inputs);
+  l->cost[0] = sum_array(l->output, l->batch * l->inputs);
 }
 
-void backward_cost_layer(const cost_layer l, NetworkState state)
+void BackwardCostLayer(layer* l, NetworkState state)
 {
-  axpy_cpu(l.batch * l.inputs, l.scale, l.delta, 1, state.delta, 1);
+  axpy_cpu(l->batch * l->inputs, l->scale, l->delta, 1, state.delta, 1);
 }
 
 #ifdef GPU
 
-void pull_cost_layer(cost_layer l)
+void pull_cost_layer(layer l)
 {
   cuda_pull_array(l.delta_gpu, l.delta, l.batch * l.inputs);
 }
 
-void push_cost_layer(cost_layer l)
+void push_cost_layer(layer l)
 {
   cuda_push_array(l.delta_gpu, l.delta, l.batch * l.inputs);
 }
@@ -132,43 +116,43 @@ int float_abs_compare(const void* a, const void* b)
   return (fa > fb) - (fa < fb);
 }
 
-void forward_cost_layer_gpu(cost_layer l, NetworkState state)
+void ForwardCostLayerGpu(layer* l, NetworkState state)
 {
   if (!state.truth)
     return;
-  if (l.cost_type == MASKED)
+  if (l->cost_type == MASKED)
   {
-    mask_ongpu(l.batch * l.inputs, state.input, SECRET_NUM, state.truth);
+    mask_ongpu(l->batch * l->inputs, state.input, SECRET_NUM, state.truth);
   }
 
-  if (l.cost_type == SMOOTH)
+  if (l->cost_type == SMOOTH)
   {
-    smooth_l1_gpu(l.batch * l.inputs, state.input, state.truth, l.delta_gpu,
-        l.output_gpu);
+    smooth_l1_gpu(l->batch * l->inputs, state.input, state.truth, l->delta_gpu,
+        l->output_gpu);
   }
   else
   {
-    l2_gpu(l.batch * l.inputs, state.input, state.truth, l.delta_gpu,
-        l.output_gpu);
+    l2_gpu(l->batch * l->inputs, state.input, state.truth, l->delta_gpu,
+        l->output_gpu);
   }
 
-  if (l.ratio)
+  if (l->ratio)
   {
-    cuda_pull_array(l.delta_gpu, l.delta, l.batch * l.inputs);
-    qsort(l.delta, l.batch * l.inputs, sizeof(float), float_abs_compare);
-    int n = (1 - l.ratio) * l.batch * l.inputs;
-    float thresh = l.delta[n];
+    cuda_pull_array(l->delta_gpu, l->delta, l->batch * l->inputs);
+    qsort(l->delta, l->batch * l->inputs, sizeof(float), float_abs_compare);
+    int n = (1 - l->ratio) * l->batch * l->inputs;
+    float thresh = l->delta[n];
     thresh = 0;
     printf("%f\n", thresh);
-    supp_ongpu(l.batch * l.inputs, thresh, l.delta_gpu, 1);
+    supp_ongpu(l->batch * l->inputs, thresh, l->delta_gpu, 1);
   }
 
-  cuda_pull_array(l.output_gpu, l.output, l.batch * l.inputs);
-  l.cost[0] = sum_array(l.output, l.batch * l.inputs);
+  cuda_pull_array(l->output_gpu, l->output, l->batch * l->inputs);
+  l->cost[0] = sum_array(l->output, l->batch * l->inputs);
 }
 
-void backward_cost_layer_gpu(const cost_layer l, NetworkState state)
+void BackwardCostLayerGpu(layer* l, NetworkState state)
 {
-  axpy_ongpu(l.batch * l.inputs, l.scale, l.delta_gpu, 1, state.delta, 1);
+  axpy_ongpu(l->batch * l->inputs, l->scale, l->delta_gpu, 1, state.delta, 1);
 }
 #endif

@@ -1,12 +1,9 @@
 #pragma once
+
 #include <stdint.h>
 
 #include "data.h"
 #include "yolo_core.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef GPU
 float TrainNetworks(Network* nets, int n, data d, int interval);
@@ -44,7 +41,3 @@ int GetNetworkInputSize(Network* net);
 float GetNetworkCost(Network* net);
 
 void copy_weights_net(Network net_train, Network* net_map);
-
-#ifdef __cplusplus
-}
-#endif

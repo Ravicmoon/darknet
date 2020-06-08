@@ -1,40 +1,22 @@
-#ifndef LOCAL_LAYER_H
-#define LOCAL_LAYER_H
+#pragma once
 
 #include "activations.h"
-#include "dark_cuda.h"
-#include "image.h"
 #include "network.h"
 
-typedef layer local_layer;
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-#ifdef GPU
-void forward_local_layer_gpu(local_layer layer, NetworkState state);
-void backward_local_layer_gpu(local_layer layer, NetworkState state);
-void update_local_layer_gpu(local_layer layer, int batch, float learning_rate,
-    float momentum, float decay, float loss_scale);
-
-void push_local_layer(local_layer layer);
-void pull_local_layer(local_layer layer);
-#endif
-
-local_layer make_local_layer(int batch, int h, int w, int c, int n, int size,
+layer make_local_layer(int batch, int h, int w, int c, int n, int size,
     int stride, int pad, ACTIVATION activation);
 
-void forward_local_layer(const local_layer layer, NetworkState state);
-void backward_local_layer(local_layer layer, NetworkState state);
-void update_local_layer(local_layer layer, int batch, float learning_rate,
-    float momentum, float decay);
+void ForwardLocalLayer(layer* l, NetworkState state);
+void BackwardLocalLayer(layer* l, NetworkState state);
+void UpdateLocalLayer(
+    layer* l, int batch, float learning_rate, float momentum, float decay);
 
-void bias_output(float* output, float* biases, int batch, int n, int size);
-void backward_bias(
-    float* bias_updates, float* delta, int batch, int n, int size);
+#ifdef GPU
+void ForwardLocalLayerGpu(layer* l, NetworkState state);
+void BackwardLocalLayerGpu(layer* l, NetworkState state);
+void UpdateLocalLayerGpu(layer* l, int batch, float learning_rate,
+    float momentum, float decay, float loss_scale);
 
-#ifdef __cplusplus
-}
-#endif
-
+void PushLocalLayer(layer* l);
+void PullLocalLayer(layer* l);
 #endif

@@ -1,23 +1,14 @@
-#ifndef SAM_CHANNELS_LAYER_H
-#define SAM_CHANNELS_LAYER_H
+#pragma once
 
 #include "network.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 layer make_sam_layer(
     int batch, int index, int w, int h, int c, int w2, int h2, int c2);
-void forward_sam_layer(const layer l, NetworkState state);
-void backward_sam_layer(const layer l, NetworkState state);
-void resize_sam_layer(layer* l, int w, int h);
+void ResizeSamLayer(layer* l, int w, int h);
+void ForwardSamLayer(layer* l, NetworkState state);
+void BackwardSamLayer(layer* l, NetworkState state);
 
 #ifdef GPU
-void forward_sam_layer_gpu(const layer l, NetworkState state);
-void backward_sam_layer_gpu(const layer l, NetworkState state);
+void ForwardSamLayerGpu(layer* l, NetworkState state);
+void BackwardSamLayerGpu(layer* l, NetworkState state);
 #endif
-
-#ifdef __cplusplus
-}
-#endif
-#endif  // SAM_CHANNELS_LAYER_H

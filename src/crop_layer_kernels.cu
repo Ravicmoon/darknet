@@ -229,53 +229,31 @@ __global__ void forward_crop_layer_kernel(float* input, float* rand, int size,
   output[count] = bilinear_interpolate_kernel(input, w, h, rx, ry, k);
 }
 
-extern "C" void forward_crop_layer_gpu(crop_layer layer, NetworkState state)
+void ForwardCropLayerGpu(layer* l, NetworkState state)
 {
-  cuda_random(layer.rand_gpu, layer.batch * 8);
+  cuda_random(l->rand_gpu, l->batch * 8);
 
-  float radians = layer.angle * 3.14159265 / 180.;
+  float radians = l->angle * 3.14159265 / 180.;
 
   float scale = 2;
   float translate = -1;
-  if (layer.noadjust)
+  if (l->noadjust)
   {
     scale = 1;
     translate = 0;
   }
 
-  int size = layer.batch * layer.w * layer.h;
+  int size = l->batch * l->w * l->h;
 
   levels_image_kernel<<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream()>>>(
-      state.input, layer.rand_gpu, layer.batch, layer.w, layer.h, state.train,
-      layer.saturation, layer.exposure, translate, scale, layer.shift);
+      state.input, l->rand_gpu, l->batch, l->w, l->h, state.train,
+      l->saturation, l->exposure, translate, scale, l->shift);
   CHECK_CUDA(cudaPeekAtLastError());
 
-  size = layer.batch * layer.c * layer.out_w * layer.out_h;
+  size = l->batch * l->c * l->out_w * l->out_h;
 
   forward_crop_layer_kernel<<<cuda_gridsize(size), BLOCK, 0,
-      get_cuda_stream()>>>(state.input, layer.rand_gpu, size, layer.c, layer.h,
-      layer.w, layer.out_h, layer.out_w, state.train, layer.flip, radians,
-      layer.output_gpu);
+      get_cuda_stream()>>>(state.input, l->rand_gpu, size, l->c, l->h, l->w,
+      l->out_h, l->out_w, state.train, l->flip, radians, l->output_gpu);
   CHECK_CUDA(cudaPeekAtLastError());
-
-  /*
-         cuda_pull_array(layer.output_gpu, layer.output, size);
-         image im = float_to_image(layer.crop_width, layer.crop_height, layer.c,
-     layer.output + 0*(size/layer.batch)); image im2 =
-     float_to_image(layer.crop_width, layer.crop_height, layer.c, layer.output +
-     1*(size/layer.batch)); image im3 = float_to_image(layer.crop_width,
-     layer.crop_height, layer.c, layer.output + 2*(size/layer.batch));
-
-         translate_image(im, -translate);
-         scale_image(im, 1/scale);
-         translate_image(im2, -translate);
-         scale_image(im2, 1/scale);
-         translate_image(im3, -translate);
-         scale_image(im3, 1/scale);
-
-         show_image(im, "cropped");
-         show_image(im2, "cropped2");
-         show_image(im3, "cropped3");
-         cvWaitKey(0);
-         */
 }

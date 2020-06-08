@@ -398,7 +398,7 @@ void TrainDetector(char const* data_file, char const* model_file,
         printf("New best mAP!\n");
         char buff[256];
         sprintf(buff, "%s/%s_best.weights", backup_directory, base);
-        save_weights(net, buff);
+        SaveWeights(net, buff);
       }
 
       draw_precision = 1;
@@ -427,7 +427,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 #endif
       char buff[256];
       sprintf(buff, "%s/%s_%d.weights", backup_directory, base, iteration);
-      save_weights(net, buff);
+      SaveWeights(net, buff);
     }
 
     if (iteration >= (iter_save_last + 100) ||
@@ -440,7 +440,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 #endif
       char buff[256];
       sprintf(buff, "%s/%s_last.weights", backup_directory, base);
-      save_weights(net, buff);
+      SaveWeights(net, buff);
     }
     free_data(train);
   }
@@ -450,7 +450,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 #endif
   char buff[256];
   sprintf(buff, "%s/%s_final.weights", backup_directory, base);
-  save_weights(net, buff);
+  SaveWeights(net, buff);
 
 #ifdef OPENCV
   release_mat(&img);

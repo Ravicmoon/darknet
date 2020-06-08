@@ -134,7 +134,7 @@ __global__ void yoloswag420blazeit360noscope(
     input[id] = (rand[id] < prob) ? 0 : input[id] * scale;
 }
 
-void forward_dropout_layer_gpu(dropout_layer l, NetworkState state)
+void ForwardDropoutLayerGpu(layer* l, NetworkState state)
 {
   if (!state.train)
     return;
@@ -147,107 +147,101 @@ void forward_dropout_layer_gpu(dropout_layer l, NetworkState state)
     multiplier = (iteration_num / (float)(state.net->max_batches * 0.85));
 
   // dropblock
-  if (l.dropblock)
+  if (l->dropblock)
   {
-    const float cur_prob = l.probability * multiplier;
+    const float cur_prob = l->probability * multiplier;
 
-    int block_width = l.dropblock_size_abs * multiplier;
-    int block_height = l.dropblock_size_abs * multiplier;
+    int block_width = l->dropblock_size_abs * multiplier;
+    int block_height = l->dropblock_size_abs * multiplier;
 
-    if (l.dropblock_size_rel)
+    if (l->dropblock_size_rel)
     {
-      block_width = l.dropblock_size_rel * l.w * multiplier;
-      block_height = l.dropblock_size_rel * l.h * multiplier;
+      block_width = l->dropblock_size_rel * l->w * multiplier;
+      block_height = l->dropblock_size_rel * l->h * multiplier;
     }
 
     block_width = max_val_cmp(1, block_width);
     block_height = max_val_cmp(1, block_height);
 
-    block_width = min_val_cmp(l.w, block_width);
-    block_height = min_val_cmp(l.h, block_height);
+    block_width = min_val_cmp(l->w, block_width);
+    block_height = min_val_cmp(l->h, block_height);
 
     const int block_size = min_val_cmp(block_width, block_height);
     const float block_prob = cur_prob / (block_size * block_size);
-    assert(block_size <= l.w && block_size <= l.h);
+    assert(block_size <= l->w && block_size <= l->h);
 
-    const int size = l.inputs * l.batch;
-    cuda_random(l.rand_gpu, size);
+    const int size = l->inputs * l->batch;
+    cuda_random(l->rand_gpu, size);
 
-    fill_ongpu(l.batch, 0, l.drop_blocks_scale_gpu, 1);
+    fill_ongpu(l->batch, 0, l->drop_blocks_scale_gpu, 1);
 
-    // fill_ongpu(l.outputs * l.batch, 1, state.input, 1); // remove!!!
-
-    int num_blocks = l.batch * l.c;
+    int num_blocks = l->batch * l->c;
     dropblock_fast_kernel<<<num_blocks, BLOCK, 0, get_cuda_stream()>>>(
-        l.rand_gpu, block_prob, l.w, l.h, l.w * l.h, l.c, l.batch, block_size,
-        l.drop_blocks_scale_gpu, state.input);
+        l->rand_gpu, block_prob, l->w, l->h, l->w * l->h, l->c, l->batch,
+        block_size, l->drop_blocks_scale_gpu, state.input);
     CHECK_CUDA(cudaPeekAtLastError());
 
-    num_blocks = get_number_of_blocks(l.batch, BLOCK);
+    num_blocks = get_number_of_blocks(l->batch, BLOCK);
     set_scales_dropblock_kernel<<<num_blocks, BLOCK, 0, get_cuda_stream()>>>(
-        l.drop_blocks_scale_gpu, block_size, block_size, l.outputs, l.batch);
+        l->drop_blocks_scale_gpu, block_size, block_size, l->outputs, l->batch);
     CHECK_CUDA(cudaPeekAtLastError());
 
-    num_blocks = get_number_of_blocks(l.outputs * l.batch, BLOCK);
+    num_blocks = get_number_of_blocks(l->outputs * l->batch, BLOCK);
     scale_dropblock_kernel<<<num_blocks, BLOCK, 0, get_cuda_stream()>>>(
-        state.input, l.outputs * l.batch, l.outputs, l.drop_blocks_scale_gpu);
+        state.input, l->outputs * l->batch, l->outputs,
+        l->drop_blocks_scale_gpu);
     CHECK_CUDA(cudaPeekAtLastError());
   }
   // dropout
   else
   {
-    int size = l.inputs * l.batch;
-    cuda_random(l.rand_gpu, size);
+    int size = l->inputs * l->batch;
+    cuda_random(l->rand_gpu, size);
 
     yoloswag420blazeit360noscope<<<cuda_gridsize(size), BLOCK, 0,
         get_cuda_stream()>>>(
-        state.input, size, l.rand_gpu, l.probability, l.scale);
+        state.input, size, l->rand_gpu, l->probability, l->scale);
     CHECK_CUDA(cudaPeekAtLastError());
   }
 }
 
-void backward_dropout_layer_gpu(dropout_layer l, NetworkState state)
+void BackwardDropoutLayerGpu(layer* l, NetworkState state)
 {
   if (!state.delta)
     return;
-  // int iteration_num = get_current_iteration(state.net); //(*state.net.seen) /
-  // (state.net.batch*state.net.subdivisions); if (iteration_num <
-  // state.net.burn_in) return;
-
-  const int size = l.inputs * l.batch;
+  const int size = l->inputs * l->batch;
 
   // dropblock
-  if (l.dropblock)
+  if (l->dropblock)
   {
-    int iteration_num = GetCurrentIteration(
-        state.net);  //(*state.net.seen) /
-                     //(state.net.batch*state.net.subdivisions);
+    int iteration_num = GetCurrentIteration(state.net);
     float multiplier = 1.0;
     if (iteration_num < (state.net->max_batches * 0.85))
       multiplier = (iteration_num / (float)(state.net->max_batches * 0.85));
 
-    int block_width = l.dropblock_size_abs * multiplier;
-    int block_height = l.dropblock_size_abs * multiplier;
+    int block_width = l->dropblock_size_abs * multiplier;
+    int block_height = l->dropblock_size_abs * multiplier;
 
-    if (l.dropblock_size_rel)
+    if (l->dropblock_size_rel)
     {
-      block_width = l.dropblock_size_rel * l.w * multiplier;
-      block_height = l.dropblock_size_rel * l.h * multiplier;
+      block_width = l->dropblock_size_rel * l->w * multiplier;
+      block_height = l->dropblock_size_rel * l->h * multiplier;
     }
 
     block_width = max_val_cmp(1, block_width);
     block_height = max_val_cmp(1, block_height);
 
-    block_width = min_val_cmp(l.w, block_width);
-    block_height = min_val_cmp(l.h, block_height);
+    block_width = min_val_cmp(l->w, block_width);
+    block_height = min_val_cmp(l->h, block_height);
 
-    int num_blocks = get_number_of_blocks(l.outputs * l.batch, BLOCK);
+    int num_blocks = get_number_of_blocks(l->outputs * l->batch, BLOCK);
     backward_dropblock_kernel<<<num_blocks, BLOCK, 0, get_cuda_stream()>>>(
-        l.rand_gpu, state.delta, l.outputs * l.batch);
+        l->rand_gpu, state.delta, l->outputs * l->batch);
     CHECK_CUDA(cudaPeekAtLastError());
 
     scale_dropblock_kernel<<<num_blocks, BLOCK, 0, get_cuda_stream()>>>(
-        state.delta, l.outputs * l.batch, l.outputs, l.drop_blocks_scale_gpu);
+        state.delta, l->outputs * l->batch, l->outputs,
+        l->drop_blocks_scale_gpu);
     CHECK_CUDA(cudaPeekAtLastError());
   }
   // dropout
@@ -255,7 +249,7 @@ void backward_dropout_layer_gpu(dropout_layer l, NetworkState state)
   {
     yoloswag420blazeit360noscope<<<cuda_gridsize(size), BLOCK, 0,
         get_cuda_stream()>>>(
-        state.delta, size, l.rand_gpu, l.probability, l.scale);
+        state.delta, size, l->rand_gpu, l->probability, l->scale);
     CHECK_CUDA(cudaPeekAtLastError());
   }
 }

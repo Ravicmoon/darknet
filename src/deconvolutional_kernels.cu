@@ -11,76 +11,69 @@
 #include "im2col.h"
 #include "utils.h"
 
-extern "C" void forward_deconvolutional_layer_gpu(
-    deconvolutional_layer layer, NetworkState state)
+void forward_deconvolutional_layer_gpu(layer* l, NetworkState state)
 {
-  int i;
-  int out_h = deconvolutional_out_height(layer);
-  int out_w = deconvolutional_out_width(layer);
-  int size = out_h * out_w;
+  int out_w = DeconvolutionalOutWidth(l);
+  int out_h = DeconvolutionalOutHeight(l);
+  int size = out_w * out_h;
 
-  int m = layer.size * layer.size * layer.n;
-  int n = layer.h * layer.w;
-  int k = layer.c;
+  int m = l->size * l->size * l->n;
+  int n = l->h * l->w;
+  int k = l->c;
 
-  fill_ongpu(layer.outputs * layer.batch, 0, layer.output_gpu, 1);
+  fill_ongpu(l->outputs * l->batch, 0, l->output_gpu, 1);
 
-  for (i = 0; i < layer.batch; ++i)
+  for (int i = 0; i < l->batch; ++i)
   {
-    float* a = layer.weights_gpu;
-    float* b = state.input + i * layer.c * layer.h * layer.w;
-    float* c = layer.col_image_gpu;
+    float* a = l->weights_gpu;
+    float* b = state.input + i * l->c * l->h * l->w;
+    float* c = l->col_image_gpu;
 
     gemm_ongpu(1, 0, m, n, k, 1, a, m, b, n, 0, c, n);
 
-    col2im_ongpu(c, layer.n, out_h, out_w, layer.size, layer.stride, 0,
-        layer.output_gpu + i * layer.n * size);
+    col2im_ongpu(c, l->n, out_h, out_w, l->size, l->stride, 0,
+        l->output_gpu + i * l->n * size);
   }
-  add_bias_gpu(layer.output_gpu, layer.biases_gpu, layer.batch, layer.n, size);
-  activate_array(
-      layer.output_gpu, layer.batch * layer.n * size, layer.activation);
+  add_bias_gpu(l->output_gpu, l->biases_gpu, l->batch, l->n, size);
+  activate_array(l->output_gpu, l->batch * l->n * size, l->activation);
 }
 
-extern "C" void backward_deconvolutional_layer_gpu(
-    deconvolutional_layer layer, NetworkState state)
+void backward_deconvolutional_layer_gpu(layer* l, NetworkState state)
 {
-  float alpha = 1. / layer.batch;
-  int out_h = deconvolutional_out_height(layer);
-  int out_w = deconvolutional_out_width(layer);
-  int size = out_h * out_w;
-  int i;
+  float alpha = 1. / l->batch;
+  int out_w = DeconvolutionalOutWidth(l);
+  int out_h = DeconvolutionalOutHeight(l);
+  int size = out_w * out_h;
 
-  gradient_array(layer.output_gpu, size * layer.n * layer.batch,
-      layer.activation, layer.delta_gpu);
-  backward_bias(
-      layer.bias_updates_gpu, layer.delta, layer.batch, layer.n, size);
+  gradient_array(
+      l->output_gpu, size * l->n * l->batch, l->activation, l->delta_gpu);
+  backward_bias(l->bias_updates_gpu, l->delta, l->batch, l->n, size);
 
   if (state.delta)
-    memset(state.delta, 0,
-        layer.batch * layer.h * layer.w * layer.c * sizeof(float));
+    memset(state.delta, 0, l->batch * l->h * l->w * l->c * sizeof(float));
 
-  for (i = 0; i < layer.batch; ++i)
+  for (int i = 0; i < l->batch; ++i)
   {
-    int m = layer.c;
-    int n = layer.size * layer.size * layer.n;
-    int k = layer.h * layer.w;
+    int m = l->c;
+    int n = l->size * l->size * l->n;
+    int k = l->h * l->w;
 
     float* a = state.input + i * m * n;
-    float* b = layer.col_image_gpu;
-    float* c = layer.weight_updates_gpu;
+    float* b = l->col_image_gpu;
+    float* c = l->weight_updates_gpu;
 
-    im2col_ongpu(layer.delta_gpu + i * layer.n * size, layer.n, out_h, out_w,
-        layer.size, layer.stride, 0, b);
+    im2col_ongpu(l->delta_gpu + i * l->n * size, l->n, out_h, out_w, l->size,
+        l->stride, 0, b);
     gemm_ongpu(0, 1, m, n, k, alpha, a, k, b, k, 1, c, n);
 
     if (state.delta)
     {
-      int m = layer.c;
-      int n = layer.h * layer.w;
-      int k = layer.size * layer.size * layer.n;
+      int m = l->c;
+      int n = l->h * l->w;
+      int k = l->size * l->size * l->n;
 
-      float* a = layer.weights_gpu;
-      float* b = layer.col_image_gpu;
+      float* a = l->weights_gpu;
+      float* b = l->col_image_gpu;
       float* c = state.delta + i * n * m;
 
       gemm(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
@@ -88,37 +81,33 @@ extern "C" void backward_deconvolutional_layer_gpu(
   }
 }
 
-extern "C" void pull_deconvolutional_layer(deconvolutional_layer layer)
+void update_deconvolutional_layer_gpu(
+    layer* l, int skip, float learning_rate, float momentum, float decay)
 {
-  cuda_pull_array(layer.weights_gpu, layer.weights,
-      layer.c * layer.n * layer.size * layer.size);
-  cuda_pull_array(layer.biases_gpu, layer.biases, layer.n);
-  cuda_pull_array(layer.weight_updates_gpu, layer.weight_updates,
-      layer.c * layer.n * layer.size * layer.size);
-  cuda_pull_array(layer.bias_updates_gpu, layer.bias_updates, layer.n);
+  int size = l->size * l->size * l->c * l->n;
+
+  axpy_ongpu(l->n, learning_rate, l->bias_updates_gpu, 1, l->biases_gpu, 1);
+  scal_ongpu(l->n, momentum, l->bias_updates_gpu, 1);
+
+  axpy_ongpu(size, -decay, l->weights_gpu, 1, l->weight_updates_gpu, 1);
+  axpy_ongpu(size, learning_rate, l->weight_updates_gpu, 1, l->weights_gpu, 1);
+  scal_ongpu(size, momentum, l->weight_updates_gpu, 1);
 }
 
-extern "C" void push_deconvolutional_layer(deconvolutional_layer layer)
+void pull_deconvolutional_layer(layer* l)
 {
-  cuda_push_array(layer.weights_gpu, layer.weights,
-      layer.c * layer.n * layer.size * layer.size);
-  cuda_push_array(layer.biases_gpu, layer.biases, layer.n);
-  cuda_push_array(layer.weight_updates_gpu, layer.weight_updates,
-      layer.c * layer.n * layer.size * layer.size);
-  cuda_push_array(layer.bias_updates_gpu, layer.bias_updates, layer.n);
+  cuda_pull_array(l->weights_gpu, l->weights, l->c * l->n * l->size * l->size);
+  cuda_pull_array(l->biases_gpu, l->biases, l->n);
+  cuda_pull_array(l->weight_updates_gpu, l->weight_updates,
+      l->c * l->n * l->size * l->size);
+  cuda_pull_array(l->bias_updates_gpu, l->bias_updates, l->n);
 }
 
-extern "C" void update_deconvolutional_layer_gpu(deconvolutional_layer layer,
-    int skip, float learning_rate, float momentum, float decay)
+void push_deconvolutional_layer(layer* l)
 {
-  int size = layer.size * layer.size * layer.c * layer.n;
-
-  axpy_ongpu(
-      layer.n, learning_rate, layer.bias_updates_gpu, 1, layer.biases_gpu, 1);
-  scal_ongpu(layer.n, momentum, layer.bias_updates_gpu, 1);
-
-  axpy_ongpu(size, -decay, layer.weights_gpu, 1, layer.weight_updates_gpu, 1);
-  axpy_ongpu(
-      size, learning_rate, layer.weight_updates_gpu, 1, layer.weights_gpu, 1);
-  scal_ongpu(size, momentum, layer.weight_updates_gpu, 1);
+  cuda_push_array(l->weights_gpu, l->weights, l->c * l->n * l->size * l->size);
+  cuda_push_array(l->biases_gpu, l->biases, l->n);
+  cuda_push_array(l->weight_updates_gpu, l->weight_updates,
+      l->c * l->n * l->size * l->size);
+  cuda_push_array(l->bias_updates_gpu, l->bias_updates, l->n);
 }
