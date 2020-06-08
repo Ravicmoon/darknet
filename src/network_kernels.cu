@@ -18,7 +18,6 @@
 #include "local_layer.h"
 #include "maxpool_layer.h"
 #include "network.h"
-#include "normalization_layer.h"
 #include "parser.h"
 #include "region_layer.h"
 #include "reorg_layer.h"

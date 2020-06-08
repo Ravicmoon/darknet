@@ -164,7 +164,6 @@ typedef enum
   CROP,
   ROUTE,
   COST,
-  NORMALIZATION,
   AVGPOOL,
   LOCAL,
   SHORTCUT,

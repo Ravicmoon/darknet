@@ -21,7 +21,6 @@
 #include "list.h"
 #include "local_layer.h"
 #include "maxpool_layer.h"
-#include "normalization_layer.h"
 #include "option_list.h"
 #include "region_layer.h"
 #include "reorg_layer.h"
@@ -83,8 +82,6 @@ LAYER_TYPE string_to_layer_type(char* type)
     return AVGPOOL;
   if (strcmp(type, "[dropout]") == 0)
     return DROPOUT;
-  if (strcmp(type, "[lrn]") == 0 || strcmp(type, "[normalization]") == 0)
-    return NORMALIZATION;
   if (strcmp(type, "[batchnorm]") == 0)
     return BATCHNORM;
   if (strcmp(type, "[soft]") == 0 || strcmp(type, "[softmax]") == 0)
@@ -873,17 +870,6 @@ layer parse_dropout(list* options, size_params params)
   return l;
 }
 
-layer parse_normalization(list* options, size_params params)
-{
-  float alpha = FindOptionFloat(options, "alpha", .0001);
-  float beta = FindOptionFloat(options, "beta", .75);
-  float kappa = FindOptionFloat(options, "kappa", 1);
-  int size = FindOptionInt(options, "size", 5);
-  layer l = make_normalization_layer(
-      params.batch, params.w, params.h, params.c, size, alpha, beta, kappa);
-  return l;
-}
-
 layer parse_batchnorm(list* options, size_params params)
 {
   layer l = make_batchnorm_layer(
@@ -1459,10 +1445,6 @@ void ParseNetworkCfgCustom(
       l = parse_softmax(options, params);
       net->hierarchy = l.softmax_tree;
       l.keep_delta_gpu = 1;
-    }
-    else if (lt == NORMALIZATION)
-    {
-      l = parse_normalization(options, params);
     }
     else if (lt == BATCHNORM)
     {

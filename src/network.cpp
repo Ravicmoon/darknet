@@ -17,7 +17,6 @@
 #include "gaussian_yolo_layer.h"
 #include "local_layer.h"
 #include "maxpool_layer.h"
-#include "normalization_layer.h"
 #include "region_layer.h"
 #include "reorg_layer.h"
 #include "reorg_old_layer.h"
@@ -444,10 +443,6 @@ int ResizeNetwork(Network* net, int w, int h)
     else if (l.type == AVGPOOL)
     {
       ResizeAvgpoolLayer(&l, w, h);
-    }
-    else if (l.type == NORMALIZATION)
-    {
-      ResizeNormalizationLayer(&l, w, h);
     }
     else if (l.type == COST)
     {
