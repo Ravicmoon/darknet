@@ -72,8 +72,6 @@ LAYER_TYPE string_to_layer_type(char* type)
     return CONNECTED;
   if (strcmp(type, "[max]") == 0 || strcmp(type, "[maxpool]") == 0)
     return MAXPOOL;
-  if (strcmp(type, "[local_avg]") == 0 || strcmp(type, "[local_avgpool]") == 0)
-    return LOCAL_AVGPOOL;
   if (strcmp(type, "[reorg3d]") == 0)
     return REORG;
   if (strcmp(type, "[reorg]") == 0)
@@ -769,30 +767,6 @@ layer parse_reorg_old(list* options, size_params params)
   return layer;
 }
 
-layer parse_local_avgpool(list* options, size_params params)
-{
-  int stride = FindOptionInt(options, "stride", 1);
-  int stride_x = FindOptionIntQuiet(options, "stride_x", stride);
-  int stride_y = FindOptionIntQuiet(options, "stride_y", stride);
-  int size = FindOptionInt(options, "size", stride);
-  int padding = FindOptionIntQuiet(options, "padding", size - 1);
-  int maxpool_depth = 0;
-  int out_channels = 1;
-  int antialiasing = 0;
-  const int avgpool = 1;
-
-  int batch, h, w, c;
-  h = params.h;
-  w = params.w;
-  c = params.c;
-  batch = params.batch;
-  if (!(h && w && c))
-    error("Layer before [local_avgpool] layer must output image.");
-
-  return make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding,
-      maxpool_depth, out_channels, antialiasing, avgpool, params.train);
-}
-
 layer parse_maxpool(list* options, size_params params)
 {
   int stride = FindOptionInt(options, "stride", 1);
@@ -803,7 +777,6 @@ layer parse_maxpool(list* options, size_params params)
   int maxpool_depth = FindOptionIntQuiet(options, "maxpool_depth", 0);
   int out_channels = FindOptionIntQuiet(options, "out_channels", 1);
   int antialiasing = FindOptionIntQuiet(options, "antialiasing", 0);
-  const int avgpool = 0;
 
   int batch, h, w, c;
   h = params.h;
@@ -814,7 +787,7 @@ layer parse_maxpool(list* options, size_params params)
     error("Layer before [maxpool] layer must output image.");
 
   return make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding,
-      maxpool_depth, out_channels, antialiasing, avgpool, params.train);
+      maxpool_depth, out_channels, antialiasing, params.train);
 }
 
 layer parse_avgpool(list* options, size_params params)
@@ -1453,10 +1426,6 @@ void ParseNetworkCfgCustom(
     else if (lt == MAXPOOL)
     {
       l = parse_maxpool(options, params);
-    }
-    else if (lt == LOCAL_AVGPOOL)
-    {
-      l = parse_local_avgpool(options, params);
     }
     else if (lt == REORG)
     {

@@ -207,7 +207,6 @@ struct layer
   void (*update_gpu)(struct layer*, int, float, float, float, float);
   layer* share_layer;
   int train;
-  int avgpool;
   int batch_normalize;
   int shortcut;
   int batch;

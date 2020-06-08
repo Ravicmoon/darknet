@@ -30,34 +30,12 @@ void CudnnMaxpoolSetup(layer* l)
 #endif  // CUDNN
 }
 
-void cudnn_local_avgpool_setup(layer* l)
-{
-#ifdef CUDNN
-  CHECK_CUDNN(cudnnSetPooling2dDescriptor(l->poolingDesc,
-      CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING,
-      CUDNN_NOT_PROPAGATE_NAN,  // CUDNN_PROPAGATE_NAN, CUDNN_NOT_PROPAGATE_NAN
-      l->size, l->size,
-      l->pad / 2,  // 0, //l.pad,
-      l->pad / 2,  // 0, //l.pad,
-      l->stride_x, l->stride_y));
-
-  CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->srcTensorDesc, CUDNN_TENSOR_NCHW,
-      CUDNN_DATA_FLOAT, l->batch, l->c, l->h, l->w));
-  CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW,
-      CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w));
-#endif  // CUDNN
-}
-
 layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x,
     int stride_y, int padding, int maxpool_depth, int out_channels,
-    int antialiasing, int avgpool, int train)
+    int antialiasing, int train)
 {
   layer l = {(LAYER_TYPE)0};
-  l.avgpool = avgpool;
-  if (avgpool)
-    l.type = LOCAL_AVGPOOL;
-  else
-    l.type = MAXPOOL;
+  l.type = MAXPOOL;
   l.train = train;
 
   const int blur_stride_x = stride_x;
@@ -98,81 +76,46 @@ layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x,
 
   if (train)
   {
-    if (!avgpool)
-      l.indexes = (int*)xcalloc(output_size, sizeof(int));
+    l.indexes = (int*)xcalloc(output_size, sizeof(int));
     l.delta = (float*)xcalloc(output_size, sizeof(float));
   }
   l.output = (float*)xcalloc(output_size, sizeof(float));
-  if (avgpool)
-  {
-    l.forward = ForwardLocalAvgpoolLayer;
-    l.backward = BackwardLocalAvgpoolLayer;
-  }
-  else
-  {
-    l.forward = ForwardMaxpoolLayer;
-    l.backward = BackwardMaxpoolLayer;
-  }
+
+  l.forward = ForwardMaxpoolLayer;
+  l.backward = BackwardMaxpoolLayer;
+
 #ifdef GPU
-  if (avgpool)
-  {
-    l.forward_gpu = ForwardLocalAvgpoolLayerGpu;
-    l.backward_gpu = BackwardLocalAvgpoolLayerGpu;
-  }
-  else
-  {
-    l.forward_gpu = ForwardMaxpoolLayerGpu;
-    l.backward_gpu = BackwardMaxpoolLayerGpu;
-  }
+  l.forward_gpu = ForwardMaxpoolLayerGpu;
+  l.backward_gpu = BackwardMaxpoolLayerGpu;
 
   if (train)
   {
-    if (!avgpool)
-      l.indexes_gpu = cuda_make_int_array(output_size);
+    l.indexes_gpu = cuda_make_int_array(output_size);
     l.delta_gpu = cuda_make_array(l.delta, output_size);
   }
   l.output_gpu = cuda_make_array(l.output, output_size);
   create_maxpool_cudnn_tensors(&l);
-  if (avgpool)
-    cudnn_local_avgpool_setup(&l);
-  else
-    CudnnMaxpoolSetup(&l);
+  CudnnMaxpoolSetup(&l);
 
 #endif  // GPU
   l.bflops = (l.size * l.size * l.c * l.out_h * l.out_w) / 1000000000.;
-  if (avgpool)
-  {
-    if (stride_x == stride_y)
-      fprintf(stderr,
-          "avg               %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
-          "%5.3f BF\n",
-          size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-    else
-      fprintf(stderr,
-          "avg              %2dx%2d/%2dx%2d %4d x%4d x%4d -> %4d x%4d x%4d "
-          "%5.3f BF\n",
-          size, size, stride_x, stride_y, w, h, c, l.out_w, l.out_h, l.out_c,
-          l.bflops);
-  }
+
+  if (maxpool_depth)
+    fprintf(stderr,
+        "max-depth         %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
+        "%5.3f BF\n",
+        size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
+  else if (stride_x == stride_y)
+    fprintf(stderr,
+        "max               %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
+        "%5.3f BF\n",
+        size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
   else
-  {
-    if (maxpool_depth)
-      fprintf(stderr,
-          "max-depth         %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
-          "%5.3f BF\n",
-          size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-    else if (stride_x == stride_y)
-      fprintf(stderr,
-          "max               %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
-          "%5.3f BF\n",
-          size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-    else
-      fprintf(stderr,
-          "max              %2dx%2d/%2dx%2d %4d x%4d x%4d -> %4d x%4d x%4d "
-          "%5.3f BF\n",
-          size, size, stride_x, stride_y, w, h, c, l.out_w, l.out_h, l.out_c,
-          l.bflops);
-  }
+    fprintf(stderr,
+        "max              %2dx%2d/%2dx%2d %4d x%4d x%4d -> %4d x%4d x%4d "
+        "%5.3f BF\n",
+        size, size, stride_x, stride_y, w, h, c, l.out_w, l.out_h, l.out_c,
+        l.bflops);
 
   if (l.antialiasing)
   {
@@ -246,8 +189,7 @@ void ResizeMaxpoolLayer(layer* l, int w, int h)
 
   if (l->train)
   {
-    if (!l->avgpool)
-      l->indexes = (int*)xrealloc(l->indexes, output_size * sizeof(int));
+    l->indexes = (int*)xrealloc(l->indexes, output_size * sizeof(int));
     l->delta = (float*)xrealloc(l->delta, output_size * sizeof(float));
   }
   l->output = (float*)xrealloc(l->output, output_size * sizeof(float));
@@ -258,19 +200,14 @@ void ResizeMaxpoolLayer(layer* l, int w, int h)
 
   if (l->train)
   {
-    if (!l->avgpool)
-    {
-      CHECK_CUDA(cudaFree((float*)l->indexes_gpu));
-      l->indexes_gpu = cuda_make_int_array(output_size);
-    }
+    CHECK_CUDA(cudaFree((float*)l->indexes_gpu));
+    l->indexes_gpu = cuda_make_int_array(output_size);
+
     CHECK_CUDA(cudaFree(l->delta_gpu));
     l->delta_gpu = cuda_make_array(l->delta, output_size);
   }
 
-  if (l->avgpool)
-    cudnn_local_avgpool_setup(l);
-  else
-    CudnnMaxpoolSetup(l);
+  CudnnMaxpoolSetup(l);
 #endif
 }
 
