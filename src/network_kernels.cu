@@ -63,20 +63,18 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
     cudaDeviceSynchronize();
   }
 
-  // printf("\n");
   state.workspace = net->workspace;
-  int i;
-  for (i = 0; i < net->n; ++i)
+  for (int i = 0; i < net->n; ++i)
   {
     state.index = i;
-    layer l = net->layers[i];
-    if (l.delta_gpu && state.train)
-      fill_ongpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
+    layer* l = &net->layers[i];
+    if (l->delta_gpu && state.train)
+      fill_ongpu(l->outputs * l->batch, 0, l->delta_gpu, 1);
 
     if (net->benchmark_layers)
       start_time = get_time_point();
 
-    l.forward_gpu(&l, state);
+    l->forward_gpu(l, state);
 
     if (net->benchmark_layers)
     {
@@ -87,7 +85,7 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
       if (avg_time_per_layer[i].time == 0)
       {
         avg_time_per_layer[i].layer_id = i;
-        avg_time_per_layer[i].layer_type = l.type;
+        avg_time_per_layer[i].layer_type = l->type;
         avg_time_per_layer[i].time = took_time;
       }
       else
@@ -96,12 +94,12 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
 
       sorted_avg_time_per_layer[i] = avg_time_per_layer[i];
       printf("\n fw-layer %d - type: %d - %lf ms - avg_time %lf ms \n", i,
-          l.type, took_time, avg_time_per_layer[i].time);
+          l->type, took_time, avg_time_per_layer[i].time);
     }
 
     if (net->wait_stream)
       cudaStreamSynchronize(get_cuda_stream());
-    state.input = l.output_gpu;
+    state.input = l->output_gpu;
   }
 
   if (net->benchmark_layers)
@@ -109,7 +107,7 @@ void ForwardNetworkGpu(Network* net, NetworkState state)
     printf("\n\nSorted by time (forward):\n");
     qsort(sorted_avg_time_per_layer, net->n, sizeof(time_benchmark_layers),
         time_comparator);
-    for (i = 0; i < net->n; ++i)
+    for (int i = 0; i < net->n; ++i)
     {
       printf("%d - fw-sort-layer %d - type: %d - avg_time %lf ms \n", i,
           sorted_avg_time_per_layer[i].layer_id,
@@ -137,16 +135,15 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
   }
 
   state.workspace = net->workspace;
-  int i;
   float* original_input = state.input;
   float* original_delta = state.delta;
-  for (i = net->n - 1; i >= 0; --i)
+  for (int i = net->n - 1; i >= 0; --i)
   {
     state.index = i;
-    layer l = net->layers[i];
-    if (l.stopbackward == 1)
+    layer* l = &net->layers[i];
+    if (l->stopbackward == 1)
       break;
-    if (l.stopbackward > GetCurrentIteration(net))
+    if (l->stopbackward > GetCurrentIteration(net))
       break;
     if (i == 0)
     {
@@ -163,7 +160,7 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
         state.delta = net->state_delta_gpu;
       }
     }
-    if (l.onlyforward)
+    if (l->onlyforward)
       continue;
 
     if (net->benchmark_layers)
@@ -171,7 +168,7 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
       start_time = get_time_point();
     }
 
-    l.backward_gpu(&l, state);
+    l->backward_gpu(l, state);
 
     if (net->benchmark_layers)
     {
@@ -182,7 +179,7 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
       if (avg_time_per_layer[i].time == 0)
       {
         avg_time_per_layer[i].layer_id = i;
-        avg_time_per_layer[i].layer_type = l.type;
+        avg_time_per_layer[i].layer_type = l->type;
         avg_time_per_layer[i].time = took_time;
       }
       else
@@ -191,7 +188,7 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
 
       sorted_avg_time_per_layer[i] = avg_time_per_layer[i];
       printf("\n bw-layer %d - type: %d - %lf ms - avg_time %lf ms \n", i,
-          l.type, took_time, avg_time_per_layer[i].time);
+          l->type, took_time, avg_time_per_layer[i].time);
     }
 
     if (i != 0)
@@ -241,7 +238,7 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
     printf("\n\nSorted by time (backward):\n");
     qsort(sorted_avg_time_per_layer, net->n, sizeof(time_benchmark_layers),
         time_comparator);
-    for (i = 0; i < net->n; ++i)
+    for (int i = 0; i < net->n; ++i)
     {
       printf("%d - bw-sort-layer %d - type: %d - avg_time %lf ms \n", i,
           sorted_avg_time_per_layer[i].layer_id,
@@ -255,24 +252,23 @@ void UpdateNetworkGpu(Network* net)
 {
   cuda_set_device(net->gpu_index);
   const int iteration_num = (*net->seen) / (net->batch * net->subdivisions);
-  int i;
   int update_batch = net->batch * net->subdivisions * GetSequenceValue(net);
   float rate = GetCurrentRate(net);
-  for (i = 0; i < net->n; ++i)
+  for (int i = 0; i < net->n; ++i)
   {
-    layer l = net->layers[i];
-    l.t = GetCurrentBatch(net);
+    layer* l = &net->layers[i];
+    l->t = GetCurrentBatch(net);
     if (iteration_num > (net->max_batches * 1 / 2))
-      l.deform = 0;
-    if (l.burnin_update && (l.burnin_update * net->burn_in > iteration_num))
+      l->deform = 0;
+    if (l->burnin_update && (l->burnin_update * net->burn_in > iteration_num))
       continue;
-    if (l.train_only_bn)
+    if (l->train_only_bn)
       continue;
 
-    if (l.update_gpu && l.dont_update < iteration_num)
+    if (l->update_gpu && l->dont_update < iteration_num)
     {
-      l.update_gpu(
-          &l, update_batch, rate, net->momentum, net->decay, net->loss_scale);
+      l->update_gpu(
+          l, update_batch, rate, net->momentum, net->decay, net->loss_scale);
     }
   }
 }
@@ -312,10 +308,10 @@ void ForwardBackwardNetworkGpu(Network* net, float* x, float* y)
     layer l = net->layers[i];
     if (net->cudnn_half)
     {
-      if (l.type == CONVOLUTIONAL && l.weights_gpu && l.weights_gpu16)
+      if (l->type == CONVOLUTIONAL && l->weights_gpu && l->weights_gpu16)
       {
-        assert((l.nweights) > 0);
-        cuda_convert_f32_to_f16(l.weights_gpu, l.nweights, l.weights_gpu16);
+        assert((l->nweights) > 0);
+        cuda_convert_f32_to_f16(l->weights_gpu, l->nweights, l->weights_gpu16);
       }
     }
   }
@@ -389,180 +385,91 @@ pthread_t train_network_in_thread(Network net, data d, float* err)
   return thread;
 }
 
-void pull_updates(layer l)
+void merge_weights(layer* l, layer* base)
 {
-  if (l.type == CONVOLUTIONAL)
+  if (l->type == CONVOLUTIONAL)
   {
-    cuda_pull_array(l.bias_updates_gpu, l.bias_updates, l.n);
-    cuda_pull_array(l.weight_updates_gpu, l.weight_updates, l.nweights);
-    if (l.scale_updates)
-      cuda_pull_array(l.scale_updates_gpu, l.scale_updates, l.n);
-  }
-  else if (l.type == CONNECTED)
-  {
-    cuda_pull_array(l.bias_updates_gpu, l.bias_updates, l.outputs);
-    cuda_pull_array(
-        l.weight_updates_gpu, l.weight_updates, l.outputs * l.inputs);
-  }
-}
-
-void push_updates(layer l)
-{
-  if (l.type == CONVOLUTIONAL)
-  {
-    cuda_push_array(l.bias_updates_gpu, l.bias_updates, l.n);
-    cuda_push_array(l.weight_updates_gpu, l.weight_updates, l.nweights);
-    if (l.scale_updates)
-      cuda_push_array(l.scale_updates_gpu, l.scale_updates, l.n);
-  }
-  else if (l.type == CONNECTED)
-  {
-    cuda_push_array(l.bias_updates_gpu, l.bias_updates, l.outputs);
-    cuda_push_array(
-        l.weight_updates_gpu, l.weight_updates, l.outputs * l.inputs);
-  }
-}
-
-void merge_weights(layer l, layer base)
-{
-  if (l.type == CONVOLUTIONAL)
-  {
-    axpy_cpu(l.n, 1, l.biases, 1, base.biases, 1);
-    axpy_cpu(l.nweights, 1, l.weights, 1, base.weights, 1);
-    if (l.scales)
+    axpy_cpu(l->n, 1, l->biases, 1, base->biases, 1);
+    axpy_cpu(l->nweights, 1, l->weights, 1, base->weights, 1);
+    if (l->scales)
     {
-      axpy_cpu(l.n, 1, l.scales, 1, base.scales, 1);
+      axpy_cpu(l->n, 1, l->scales, 1, base->scales, 1);
     }
   }
-  else if (l.type == CONNECTED)
+  else if (l->type == CONNECTED)
   {
-    axpy_cpu(l.outputs, 1, l.biases, 1, base.biases, 1);
-    axpy_cpu(l.outputs * l.inputs, 1, l.weights, 1, base.weights, 1);
+    axpy_cpu(l->outputs, 1, l->biases, 1, base->biases, 1);
+    axpy_cpu(l->outputs * l->inputs, 1, l->weights, 1, base->weights, 1);
   }
 }
 
-void scale_weights(layer l, float s)
+void scale_weights(layer* l, float s)
 {
-  if (l.type == CONVOLUTIONAL)
+  if (l->type == CONVOLUTIONAL)
   {
-    scal_cpu(l.n, s, l.biases, 1);
-    scal_cpu(l.nweights, s, l.weights, 1);
-    if (l.scales)
-    {
-      scal_cpu(l.n, s, l.scales, 1);
-    }
+    scal_cpu(l->n, s, l->biases, 1);
+    scal_cpu(l->nweights, s, l->weights, 1);
+    if (l->scales)
+      scal_cpu(l->n, s, l->scales, 1);
   }
-  else if (l.type == CONNECTED)
+  else if (l->type == CONNECTED)
   {
-    scal_cpu(l.outputs, s, l.biases, 1);
-    scal_cpu(l.outputs * l.inputs, s, l.weights, 1);
+    scal_cpu(l->outputs, s, l->biases, 1);
+    scal_cpu(l->outputs * l->inputs, s, l->weights, 1);
   }
 }
 
-void pull_weights(layer l)
+void pull_weights(layer* l)
 {
-  if (l.type == CONVOLUTIONAL)
+  if (l->type == CONVOLUTIONAL)
   {
-    cuda_pull_array(l.biases_gpu, l.biases, l.n);
-    cuda_pull_array(l.weights_gpu, l.weights, l.nweights);
-    if (l.scales)
-      cuda_pull_array(l.scales_gpu, l.scales, l.n);
+    cuda_pull_array(l->biases_gpu, l->biases, l->n);
+    cuda_pull_array(l->weights_gpu, l->weights, l->nweights);
+    if (l->scales)
+      cuda_pull_array(l->scales_gpu, l->scales, l->n);
   }
-  else if (l.type == CONNECTED)
+  else if (l->type == CONNECTED)
   {
-    cuda_pull_array(l.biases_gpu, l.biases, l.outputs);
-    cuda_pull_array(l.weights_gpu, l.weights, l.outputs * l.inputs);
+    cuda_pull_array(l->biases_gpu, l->biases, l->outputs);
+    cuda_pull_array(l->weights_gpu, l->weights, l->outputs * l->inputs);
   }
 }
 
-void push_weights(layer l)
+void distribute_weights(layer* l, layer* base)
 {
-  if (l.type == CONVOLUTIONAL)
+  if (l->type == CONVOLUTIONAL)
   {
-    cuda_push_array(l.biases_gpu, l.biases, l.n);
-    cuda_push_array(l.weights_gpu, l.weights, l.nweights);
-    if (l.scales)
-      cuda_push_array(l.scales_gpu, l.scales, l.n);
+    cuda_push_array(l->biases_gpu, base->biases, l->n);
+    cuda_push_array(l->weights_gpu, base->weights, l->nweights);
+    if (base->scales)
+      cuda_push_array(l->scales_gpu, base->scales, l->n);
   }
-  else if (l.type == CONNECTED)
+  else if (l->type == CONNECTED)
   {
-    cuda_push_array(l.biases_gpu, l.biases, l.outputs);
-    cuda_push_array(l.weights_gpu, l.weights, l.outputs * l.inputs);
-  }
-}
-
-void distribute_weights(layer l, layer base)
-{
-  if (l.type == CONVOLUTIONAL)
-  {
-    cuda_push_array(l.biases_gpu, base.biases, l.n);
-    cuda_push_array(l.weights_gpu, base.weights, l.nweights);
-    if (base.scales)
-      cuda_push_array(l.scales_gpu, base.scales, l.n);
-  }
-  else if (l.type == CONNECTED)
-  {
-    cuda_push_array(l.biases_gpu, base.biases, l.outputs);
-    cuda_push_array(l.weights_gpu, base.weights, l.outputs * l.inputs);
-  }
-}
-
-void merge_updates(layer l, layer base)
-{
-  if (l.type == CONVOLUTIONAL)
-  {
-    axpy_cpu(l.n, 1, l.bias_updates, 1, base.bias_updates, 1);
-    axpy_cpu(l.nweights, 1, l.weight_updates, 1, base.weight_updates, 1);
-    if (l.scale_updates)
-    {
-      axpy_cpu(l.n, 1, l.scale_updates, 1, base.scale_updates, 1);
-    }
-  }
-  else if (l.type == CONNECTED)
-  {
-    axpy_cpu(l.outputs, 1, l.bias_updates, 1, base.bias_updates, 1);
-    axpy_cpu(
-        l.outputs * l.inputs, 1, l.weight_updates, 1, base.weight_updates, 1);
-  }
-}
-
-void distribute_updates(layer l, layer base)
-{
-  if (l.type == CONVOLUTIONAL)
-  {
-    cuda_push_array(l.bias_updates_gpu, base.bias_updates, l.n);
-    cuda_push_array(l.weight_updates_gpu, base.weight_updates, l.nweights);
-    if (base.scale_updates)
-      cuda_push_array(l.scale_updates_gpu, base.scale_updates, l.n);
-  }
-  else if (l.type == CONNECTED)
-  {
-    cuda_push_array(l.bias_updates_gpu, base.bias_updates, l.outputs);
-    cuda_push_array(
-        l.weight_updates_gpu, base.weight_updates, l.outputs * l.inputs);
+    cuda_push_array(l->biases_gpu, base->biases, l->outputs);
+    cuda_push_array(l->weights_gpu, base->weights, l->outputs * l->inputs);
   }
 }
 
 void sync_layer(Network* nets, int n, int j)
 {
   // printf("Syncing layer %d\n", j);
-  int i;
   Network net = nets[0];
-  layer base = net.layers[j];
+  layer* base = &net.layers[j];
   cuda_set_device(net.gpu_index);
   pull_weights(base);
-  for (i = 1; i < n; ++i)
+  for (int i = 1; i < n; ++i)
   {
     cuda_set_device(nets[i].gpu_index);
-    layer l = nets[i].layers[j];
+    layer* l = &nets[i].layers[j];
     pull_weights(l);
     merge_weights(l, base);
   }
   scale_weights(base, 1. / n);
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
     cuda_set_device(nets[i].gpu_index);
-    layer l = nets[i].layers[j];
+    layer* l = &nets[i].layers[j];
     distribute_weights(l, base);
   }
   // printf("Done syncing layer %d\n", j);
@@ -597,20 +504,19 @@ pthread_t sync_layer_in_thread(Network* nets, int n, int j)
 
 void SyncNetworks(Network* nets, int n, int interval)
 {
-  int j;
   int layers = nets[0].n;
   pthread_t* threads = (pthread_t*)calloc(layers, sizeof(pthread_t));
 
   *nets[0].seen += interval * (n - 1) * nets[0].batch * nets[0].subdivisions;
-  for (j = 0; j < n; ++j)
+  for (int j = 0; j < n; ++j)
   {
     *nets[j].seen = *nets[0].seen;
   }
-  for (j = 0; j < layers; ++j)
+  for (int j = 0; j < layers; ++j)
   {
     threads[j] = sync_layer_in_thread(nets, n, j);
   }
-  for (j = 0; j < layers; ++j)
+  for (int j = 0; j < layers; ++j)
   {
     pthread_join(threads[j], 0);
   }
@@ -663,9 +569,7 @@ float* GetNetworkOutputLayerGpu(Network* net, int i)
 {
   layer* l = &net->layers[i];
   if (l->type != REGION)
-  {
     cuda_pull_array(l->output_gpu, l->output, l->outputs * l->batch);
-  }
 
   return l->output;
 }
