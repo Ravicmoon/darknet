@@ -34,7 +34,7 @@
 #include "version.h"
 #include "yolo_layer.h"
 
-typedef struct
+typedef struct Section
 {
   char* type;
   list* options;
@@ -1268,8 +1268,7 @@ int IsNetwork(Section* s)
 void SetTrainOnlyBn(Network* net)
 {
   int train_only_bn = 0;
-  int i;
-  for (i = net->n - 1; i >= 0; --i)
+  for (int i = net->n - 1; i >= 0; --i)
   {
     // set l->train_only_bn for all previous layers
     if (net->layers[i].train_only_bn)
@@ -1359,130 +1358,130 @@ void ParseNetworkCfgCustom(
   {
     params.index = count;
     fprintf(stderr, "%4d ", count);
+
     s = (Section*)n->val;
     options = s->options;
-    layer l = {(LAYER_TYPE)0};
+
+    layer* l = &net->layers[count];
     LAYER_TYPE lt = StrToLayerType(s->type);
     if (lt == CONVOLUTIONAL)
     {
-      ParseConv(&l, options, params);
+      ParseConv(l, options, params);
     }
     else if (lt == LOCAL)
     {
-      ParseLocal(&l, options, params);
+      ParseLocal(l, options, params);
     }
     else if (lt == ACTIVE)
     {
-      ParseActivation(&l, options, params);
+      ParseActivation(l, options, params);
     }
     else if (lt == CONNECTED)
     {
-      ParseConnected(&l, options, params);
+      ParseConnected(l, options, params);
     }
     else if (lt == CROP)
     {
-      ParseCrop(&l, options, params);
+      ParseCrop(l, options, params);
     }
     else if (lt == COST)
     {
-      ParseCost(&l, options, params);
-      l.keep_delta_gpu = 1;
+      ParseCost(l, options, params);
+      l->keep_delta_gpu = 1;
     }
     else if (lt == REGION)
     {
-      ParseRegion(&l, options, params);
-      l.keep_delta_gpu = 1;
+      ParseRegion(l, options, params);
+      l->keep_delta_gpu = 1;
     }
     else if (lt == YOLO)
     {
-      ParseYolo(&l, options, params);
-      l.keep_delta_gpu = 1;
+      ParseYolo(l, options, params);
+      l->keep_delta_gpu = 1;
     }
     else if (lt == GAUSSIAN_YOLO)
     {
-      ParseGaussianYolo(&l, options, params);
-      l.keep_delta_gpu = 1;
+      ParseGaussianYolo(l, options, params);
+      l->keep_delta_gpu = 1;
     }
     else if (lt == DETECTION)
     {
-      ParseDetection(&l, options, params);
+      ParseDetection(l, options, params);
     }
     else if (lt == SOFTMAX)
     {
-      ParseSoftmax(&l, options, params);
-      net->hierarchy = l.softmax_tree;
-      l.keep_delta_gpu = 1;
+      ParseSoftmax(l, options, params);
+      net->hierarchy = l->softmax_tree;
+      l->keep_delta_gpu = 1;
     }
     else if (lt == BATCHNORM)
     {
-      ParseBatchnorm(&l, options, params);
+      ParseBatchnorm(l, options, params);
     }
     else if (lt == MAXPOOL)
     {
-      ParseMaxpool(&l, options, params);
+      ParseMaxpool(l, options, params);
     }
     else if (lt == REORG)
     {
-      ParseReorg(&l, options, params);
+      ParseReorg(l, options, params);
     }
     else if (lt == REORG_OLD)
     {
-      ParseReorgOld(&l, options, params);
+      ParseReorgOld(l, options, params);
     }
     else if (lt == AVGPOOL)
     {
-      ParseAvgpool(&l, options, params);
+      ParseAvgpool(l, options, params);
     }
     else if (lt == ROUTE)
     {
-      ParseRoute(&l, options, params);
-      for (int k = 0; k < l.n; ++k)
+      ParseRoute(l, options, params);
+      for (int k = 0; k < l->n; ++k)
       {
-        net->layers[l.input_layers[k]].use_bin_output = 0;
-        net->layers[l.input_layers[k]].keep_delta_gpu = 1;
+        net->layers[l->input_layers[k]].use_bin_output = 0;
+        net->layers[l->input_layers[k]].keep_delta_gpu = 1;
       }
     }
     else if (lt == UPSAMPLE)
     {
-      ParseUpsample(&l, options, params);
+      ParseUpsample(l, options, params);
     }
     else if (lt == SHORTCUT)
     {
-      ParseShortcut(&l, options, params, net);
+      ParseShortcut(l, options, params, net);
       net->layers[count - 1].use_bin_output = 0;
-      net->layers[l.index].use_bin_output = 0;
-      net->layers[l.index].keep_delta_gpu = 1;
+      net->layers[l->index].use_bin_output = 0;
+      net->layers[l->index].keep_delta_gpu = 1;
     }
     else if (lt == SCALE_CHANNELS)
     {
-      ParseScaleChannels(&l, options, params, net);
+      ParseScaleChannels(l, options, params, net);
       net->layers[count - 1].use_bin_output = 0;
-      net->layers[l.index].use_bin_output = 0;
-      net->layers[l.index].keep_delta_gpu = 1;
+      net->layers[l->index].use_bin_output = 0;
+      net->layers[l->index].keep_delta_gpu = 1;
     }
     else if (lt == DROPOUT)
     {
-      ParseDropout(&l, options, params);
-      l.output = net->layers[count - 1].output;
-      l.delta = net->layers[count - 1].delta;
+      ParseDropout(l, options, params);
+      l->output = net->layers[count - 1].output;
+      l->delta = net->layers[count - 1].delta;
 #ifdef GPU
-      l.output_gpu = net->layers[count - 1].output_gpu;
-      l.delta_gpu = net->layers[count - 1].delta_gpu;
-      l.keep_delta_gpu = 1;
+      l->output_gpu = net->layers[count - 1].output_gpu;
+      l->delta_gpu = net->layers[count - 1].delta_gpu;
+      l->keep_delta_gpu = 1;
 #endif
     }
     else if (lt == EMPTY)
     {
-      layer empty_layer = {(LAYER_TYPE)0};
-      empty_layer.out_w = params.w;
-      empty_layer.out_h = params.h;
-      empty_layer.out_c = params.c;
-      l = empty_layer;
-      l.output = net->layers[count - 1].output;
-      l.delta = net->layers[count - 1].delta;
+      l->out_w = params.w;
+      l->out_h = params.h;
+      l->out_c = params.c;
+      l->output = net->layers[count - 1].output;
+      l->delta = net->layers[count - 1].delta;
 #ifdef GPU
-      l.output_gpu = net->layers[count - 1].output_gpu;
-      l.delta_gpu = net->layers[count - 1].delta_gpu;
+      l->output_gpu = net->layers[count - 1].output_gpu;
+      l->delta_gpu = net->layers[count - 1].delta_gpu;
 #endif
     }
     else
@@ -1493,31 +1492,31 @@ void ParseNetworkCfgCustom(
     // calculate receptive field
     if (show_receptive_field)
     {
-      int dilation = max_val_cmp(1, l.dilation);
-      int stride = max_val_cmp(1, l.stride);
-      int size = max_val_cmp(1, l.size);
+      int dilation = max_val_cmp(1, l->dilation);
+      int stride = max_val_cmp(1, l->stride);
+      int size = max_val_cmp(1, l->size);
 
-      if (l.type == UPSAMPLE || (l.type == REORG))
+      if (l->type == UPSAMPLE || (l->type == REORG))
       {
-        l.receptive_w = receptive_w;
-        l.receptive_h = receptive_h;
-        l.receptive_w_scale = receptive_w_scale = receptive_w_scale / stride;
-        l.receptive_h_scale = receptive_h_scale = receptive_h_scale / stride;
+        l->receptive_w = receptive_w;
+        l->receptive_h = receptive_h;
+        l->receptive_w_scale = receptive_w_scale = receptive_w_scale / stride;
+        l->receptive_h_scale = receptive_h_scale = receptive_h_scale / stride;
       }
       else
       {
-        if (l.type == ROUTE)
+        if (l->type == ROUTE)
         {
           receptive_w = receptive_h = receptive_w_scale = receptive_h_scale = 0;
-          for (int k = 0; k < l.n; ++k)
+          for (int k = 0; k < l->n; ++k)
           {
-            layer route_l = net->layers[l.input_layers[k]];
-            receptive_w = max_val_cmp(receptive_w, route_l.receptive_w);
-            receptive_h = max_val_cmp(receptive_h, route_l.receptive_h);
+            layer* route_l = &net->layers[l->input_layers[k]];
+            receptive_w = max_val_cmp(receptive_w, route_l->receptive_w);
+            receptive_h = max_val_cmp(receptive_h, route_l->receptive_h);
             receptive_w_scale =
-                max_val_cmp(receptive_w_scale, route_l.receptive_w_scale);
+                max_val_cmp(receptive_w_scale, route_l->receptive_w_scale);
             receptive_h_scale =
-                max_val_cmp(receptive_h_scale, route_l.receptive_h_scale);
+                max_val_cmp(receptive_h_scale, route_l->receptive_h_scale);
           }
         }
         else
@@ -1531,10 +1530,10 @@ void ParseNetworkCfgCustom(
           receptive_h_scale *= stride;
         }
 
-        l.receptive_w = receptive_w;
-        l.receptive_h = receptive_h;
-        l.receptive_w_scale = receptive_w_scale;
-        l.receptive_h_scale = receptive_h_scale;
+        l->receptive_w = receptive_w;
+        l->receptive_h = receptive_h;
+        l->receptive_w_scale = receptive_w_scale;
+        l->receptive_h_scale = receptive_h_scale;
       }
       // printf(" size = %d, dilation = %d, stride = %d, receptive_w = %d,
       // receptive_w_scale = %d - ", size, dilation, stride, receptive_w,
@@ -1549,93 +1548,94 @@ void ParseNetworkCfgCustom(
 
 #ifdef GPU
     // futher GPU-memory optimization: net.optimized_memory == 2
-    if (net->optimized_memory >= 2 && params.train && l.type != DROPOUT)
+    if (net->optimized_memory >= 2 && params.train && l->type != DROPOUT)
     {
-      l.optimized_memory = net->optimized_memory;
-      if (l.output_gpu)
+      l->optimized_memory = net->optimized_memory;
+      if (l->output_gpu)
       {
-        cuda_free(l.output_gpu);
-        l.output_gpu =
-            cuda_make_array_pinned_preallocated(NULL, l.batch * l.outputs);
+        cuda_free(l->output_gpu);
+        l->output_gpu =
+            cuda_make_array_pinned_preallocated(NULL, l->batch * l->outputs);
       }
-      if (l.activation_input_gpu)
+      if (l->activation_input_gpu)
       {
-        cuda_free(l.activation_input_gpu);
-        l.activation_input_gpu =
-            cuda_make_array_pinned_preallocated(NULL, l.batch * l.outputs);
+        cuda_free(l->activation_input_gpu);
+        l->activation_input_gpu =
+            cuda_make_array_pinned_preallocated(NULL, l->batch * l->outputs);
       }
-      if (l.x_gpu)
+      if (l->x_gpu)
       {
-        cuda_free(l.x_gpu);
-        l.x_gpu =
-            cuda_make_array_pinned_preallocated(NULL, l.batch * l.outputs);
+        cuda_free(l->x_gpu);
+        l->x_gpu =
+            cuda_make_array_pinned_preallocated(NULL, l->batch * l->outputs);
       }
 
       // maximum optimization
-      if (net->optimized_memory >= 3 && l.type != DROPOUT)
+      if (net->optimized_memory >= 3 && l->type != DROPOUT)
       {
-        if (l.delta_gpu)
+        if (l->delta_gpu)
         {
-          cuda_free(l.delta_gpu);
-          // l.delta_gpu = cuda_make_array_pinned_preallocated(NULL,
-          // l.batch*l.outputs); // l.steps printf("\n\n PINNED DELTA GPU = %d
-          // \n", l.batch*l.outputs);
+          cuda_free(l->delta_gpu);
+          // l->delta_gpu = cuda_make_array_pinned_preallocated(NULL,
+          // l->batch*l->outputs); // l->steps printf("\n\n PINNED DELTA GPU =
+          // %d \n", l->batch*l->outputs);
         }
       }
 
-      if (l.type == CONVOLUTIONAL)
+      if (l->type == CONVOLUTIONAL)
       {
         set_specified_workspace_limit(
-            &l, net->workspace_size_limit);  // workspace size limit 1 GB
+            l, net->workspace_size_limit);  // workspace size limit 1 GB
       }
     }
 #endif  // GPU
 
-    l.clip = FindOptionFloatQuiet(options, "clip", 0);
-    l.dynamic_minibatch = net->dynamic_minibatch;
-    l.onlyforward = FindOptionIntQuiet(options, "onlyforward", 0);
-    l.dont_update = FindOptionIntQuiet(options, "dont_update", 0);
-    l.burnin_update = FindOptionIntQuiet(options, "burnin_update", 0);
-    l.stopbackward = FindOptionIntQuiet(options, "stopbackward", 0);
-    l.train_only_bn = FindOptionIntQuiet(options, "train_only_bn", 0);
-    l.dontload = FindOptionIntQuiet(options, "dontload", 0);
-    l.dontloadscales = FindOptionIntQuiet(options, "dontloadscales", 0);
-    l.learning_rate_scale = FindOptionFloatQuiet(options, "learning_rate", 1);
+    l->clip = FindOptionFloatQuiet(options, "clip", 0);
+    l->dynamic_minibatch = net->dynamic_minibatch;
+    l->onlyforward = FindOptionIntQuiet(options, "onlyforward", 0);
+    l->dont_update = FindOptionIntQuiet(options, "dont_update", 0);
+    l->burnin_update = FindOptionIntQuiet(options, "burnin_update", 0);
+    l->stopbackward = FindOptionIntQuiet(options, "stopbackward", 0);
+    l->train_only_bn = FindOptionIntQuiet(options, "train_only_bn", 0);
+    l->dontload = FindOptionIntQuiet(options, "dontload", 0);
+    l->dontloadscales = FindOptionIntQuiet(options, "dontloadscales", 0);
+    l->learning_rate_scale = FindOptionFloatQuiet(options, "learning_rate", 1);
     UnusedOption(options);
 
-    net->layers[count] = l;
-    if (l.workspace_size > workspace_size)
-      workspace_size = l.workspace_size;
-    if (l.inputs > max_inputs)
-      max_inputs = l.inputs;
-    if (l.outputs > max_outputs)
-      max_outputs = l.outputs;
+    if (l->workspace_size > workspace_size)
+      workspace_size = l->workspace_size;
+    if (l->inputs > max_inputs)
+      max_inputs = l->inputs;
+    if (l->outputs > max_outputs)
+      max_outputs = l->outputs;
+
     FreeSection(s);
     n = n->next;
     ++count;
+
     if (n)
     {
-      if (l.antialiasing)
+      if (l->antialiasing)
       {
-        params.h = l.input_layer->out_h;
-        params.w = l.input_layer->out_w;
-        params.c = l.input_layer->out_c;
-        params.inputs = l.input_layer->outputs;
+        params.h = l->input_layer->out_h;
+        params.w = l->input_layer->out_w;
+        params.c = l->input_layer->out_c;
+        params.inputs = l->input_layer->outputs;
       }
       else
       {
-        params.h = l.out_h;
-        params.w = l.out_w;
-        params.c = l.out_c;
-        params.inputs = l.outputs;
+        params.h = l->out_h;
+        params.w = l->out_w;
+        params.c = l->out_c;
+        params.inputs = l->outputs;
       }
     }
-    if (l.bflops > 0)
-      bflops += l.bflops;
+    if (l->bflops > 0)
+      bflops += l->bflops;
 
-    if (l.w > 1 && l.h > 1)
+    if (l->w > 1 && l->h > 1)
     {
-      avg_outputs += l.outputs;
+      avg_outputs += l->outputs;
       avg_counter++;
     }
   }
@@ -1686,7 +1686,7 @@ void ParseNetworkCfgCustom(
   }
 #endif
 
-  SetTrainOnlyBn(net);  // set l.train_only_bn for all required layers
+  SetTrainOnlyBn(net);  // set l->train_only_bn for all required layers
 
   net->outputs = GetNetworkOutputSize(net);
   net->output = GetNetworkOutput(net);
@@ -1884,17 +1884,17 @@ void SaveWeights(Network net, char* filename)
   SaveWeightsUpto(net, filename, net.n);
 }
 
-void transpose_matrix(float* a, int rows, int cols)
+void TransposeMat(float* input, int rows, int cols)
 {
   float* transpose = (float*)xcalloc(rows * cols, sizeof(float));
   for (int x = 0; x < rows; ++x)
   {
     for (int y = 0; y < cols; ++y)
     {
-      transpose[y * rows + x] = a[x * cols + y];
+      transpose[y * rows + x] = input[x * cols + y];
     }
   }
-  memcpy(a, transpose, rows * cols * sizeof(float));
+  memcpy(input, transpose, rows * cols * sizeof(float));
   free(transpose);
 }
 
@@ -1903,7 +1903,7 @@ void LoadConnectedWeights(layer* l, FILE* fp, int transpose)
   fread(l->biases, sizeof(float), l->outputs, fp);
   fread(l->weights, sizeof(float), l->outputs * l->inputs, fp);
   if (transpose)
-    transpose_matrix(l->weights, l->inputs, l->outputs);
+    TransposeMat(l->weights, l->inputs, l->outputs);
 
   if (l->batch_normalize && (!l->dontloadscales))
   {
@@ -1990,7 +1990,7 @@ void LoadConvolutionalWeights(layer* l, FILE* fp)
         l->index);
 
   if (l->flipped)
-    transpose_matrix(l->weights, (l->c / l->groups) * l->size * l->size, l->n);
+    TransposeMat(l->weights, (l->c / l->groups) * l->size * l->size, l->n);
 
 #ifdef GPU
   if (gpu_index >= 0)

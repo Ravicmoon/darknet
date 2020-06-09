@@ -924,8 +924,7 @@ LIB_API Image crop_image(Image im, int dx, int dy, int w, int h);
 LIB_API Image resize_min(Image im, int min);
 
 // layer.h
-LIB_API void free_layer_custom(layer l, int keep_cudnn_desc);
-LIB_API void free_layer(layer l);
+LIB_API void free_layer(layer* l, bool keep_cudnn_desc = false);
 
 // data.c
 LIB_API void free_data(data d);

@@ -745,10 +745,9 @@ char* Detection2Json(Detection* dets, int nboxes, int classes, char** names,
 
 void FreeNetwork(Network* net)
 {
-  int i;
-  for (i = 0; i < net->n; ++i)
+  for (int i = 0; i < net->n; ++i)
   {
-    free_layer(net->layers[i]);
+    free_layer(&net->layers[i]);
   }
   free(net->layers);
 

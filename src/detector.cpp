@@ -49,7 +49,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 
     for (int k = 0; k < net_map.n - 1; ++k)
     {
-      free_layer_custom(net_map.layers[k], 1);
+      free_layer(&net_map.layers[k], true);
     }
 
     char* name_list = FindOptionStr(options, "names", "data/names.list");
