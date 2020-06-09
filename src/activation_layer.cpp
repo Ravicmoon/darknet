@@ -10,30 +10,28 @@
 #include "gemm.h"
 #include "utils.h"
 
-layer make_activation_layer(int batch, int inputs, ACTIVATION activation)
+void FillActivationLayer(layer* l, int batch, int inputs, ACTIVATION activation)
 {
-  layer l = {(LAYER_TYPE)0};
-  l.type = ACTIVE;
+  l->type = ACTIVE;
+  l->inputs = inputs;
+  l->outputs = inputs;
+  l->batch = batch;
 
-  l.inputs = inputs;
-  l.outputs = inputs;
-  l.batch = batch;
+  l->output = (float*)xcalloc(batch * inputs, sizeof(float));
+  l->delta = (float*)xcalloc(batch * inputs, sizeof(float));
 
-  l.output = (float*)xcalloc(batch * inputs, sizeof(float));
-  l.delta = (float*)xcalloc(batch * inputs, sizeof(float));
-
-  l.forward = ForwardActivationLayer;
-  l.backward = BackwardActivationLayer;
+  l->forward = ForwardActivationLayer;
+  l->backward = BackwardActivationLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardActivationLayerGpu;
-  l.backward_gpu = BackwardActivationLayerGpu;
+  l->forward_gpu = ForwardActivationLayerGpu;
+  l->backward_gpu = BackwardActivationLayerGpu;
 
-  l.output_gpu = cuda_make_array(l.output, inputs * batch);
-  l.delta_gpu = cuda_make_array(l.delta, inputs * batch);
+  l->output_gpu = cuda_make_array(l->output, inputs * batch);
+  l->delta_gpu = cuda_make_array(l->delta, inputs * batch);
 #endif
-  l.activation = activation;
-  fprintf(stderr, "Activation Layer: %d inputs\n", inputs);
-  return l;
+  l->activation = activation;
+
+  fprintf(stderr, "Activation layer: %d inputs\n", inputs);
 }
 
 void ForwardActivationLayer(layer* l, NetworkState state)

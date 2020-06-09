@@ -2,7 +2,7 @@
 
 #include "network.h"
 
-layer make_scale_channels_layer(int batch, int index, int w, int h, int c,
+void FillScaleChannelsLayer(layer* l, int batch, int index, int w, int h, int c,
     int w2, int h2, int c2, int scale_wh);
 void ResizeScaleChannelsLayer(layer* l, Network* net);
 void ForwardScaleChannelsLayer(layer* l, NetworkState state);

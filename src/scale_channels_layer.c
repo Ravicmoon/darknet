@@ -8,47 +8,46 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-layer make_scale_channels_layer(int batch, int index, int w, int h, int c,
+void FillScaleChannelsLayer(layer* l, int batch, int index, int w, int h, int c,
     int w2, int h2, int c2, int scale_wh)
 {
   fprintf(stderr, "scale Layer: %d\n", index);
-  layer l = {(LAYER_TYPE)0};
-  l.type = SCALE_CHANNELS;
-  l.batch = batch;
-  l.scale_wh = scale_wh;
-  l.w = w;
-  l.h = h;
-  l.c = c;
-  if (!l.scale_wh)
+
+  l->type = SCALE_CHANNELS;
+  l->batch = batch;
+  l->scale_wh = scale_wh;
+  l->w = w;
+  l->h = h;
+  l->c = c;
+  if (!l->scale_wh)
     assert(w == 1 && h == 1);
   else
     assert(c == 1);
 
-  l.out_w = w2;
-  l.out_h = h2;
-  l.out_c = c2;
-  if (!l.scale_wh)
-    assert(l.out_c == l.c);
+  l->out_w = w2;
+  l->out_h = h2;
+  l->out_c = c2;
+  if (!l->scale_wh)
+    assert(l->out_c == l->c);
   else
-    assert(l.out_w == l.w && l.out_h == l.h);
+    assert(l->out_w == l->w && l->out_h == l->h);
 
-  l.outputs = l.out_w * l.out_h * l.out_c;
-  l.inputs = l.outputs;
-  l.index = index;
+  l->outputs = l->out_w * l->out_h * l->out_c;
+  l->inputs = l->outputs;
+  l->index = index;
 
-  l.delta = (float*)xcalloc(l.outputs * batch, sizeof(float));
-  l.output = (float*)xcalloc(l.outputs * batch, sizeof(float));
+  l->delta = (float*)xcalloc(l->outputs * batch, sizeof(float));
+  l->output = (float*)xcalloc(l->outputs * batch, sizeof(float));
 
-  l.forward = ForwardScaleChannelsLayer;
-  l.backward = BackwardScaleChannelsLayer;
+  l->forward = ForwardScaleChannelsLayer;
+  l->backward = BackwardScaleChannelsLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardScaleChannelsLayerGpu;
-  l.backward_gpu = BackwardScaleChannelsLayerGpu;
+  l->forward_gpu = ForwardScaleChannelsLayerGpu;
+  l->backward_gpu = BackwardScaleChannelsLayerGpu;
 
-  l.delta_gpu = cuda_make_array(l.delta, l.outputs * batch);
-  l.output_gpu = cuda_make_array(l.output, l.outputs * batch);
+  l->delta_gpu = cuda_make_array(l->delta, l->outputs * batch);
+  l->output_gpu = cuda_make_array(l->output, l->outputs * batch);
 #endif
-  return l;
 }
 
 void ResizeScaleChannelsLayer(layer* l, Network* net)

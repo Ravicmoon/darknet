@@ -5,33 +5,32 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-layer make_avgpool_layer(int batch, int w, int h, int c)
+void FillAvgpoolLayer(layer* l, int batch, int w, int h, int c)
 {
   fprintf(stderr, "avg                          %4d x%4d x%4d ->   %4d\n", w, h,
       c, c);
-  layer l = {(LAYER_TYPE)0};
-  l.type = AVGPOOL;
-  l.batch = batch;
-  l.h = h;
-  l.w = w;
-  l.c = c;
-  l.out_w = 1;
-  l.out_h = 1;
-  l.out_c = c;
-  l.outputs = l.out_c;
-  l.inputs = h * w * c;
-  int output_size = l.outputs * batch;
-  l.output = (float*)xcalloc(output_size, sizeof(float));
-  l.delta = (float*)xcalloc(output_size, sizeof(float));
-  l.forward = ForwardAvgpoolLayer;
-  l.backward = BackwardAvgpoolLayer;
+
+  l->type = AVGPOOL;
+  l->batch = batch;
+  l->h = h;
+  l->w = w;
+  l->c = c;
+  l->out_w = 1;
+  l->out_h = 1;
+  l->out_c = c;
+  l->outputs = l->out_c;
+  l->inputs = h * w * c;
+  int output_size = l->outputs * batch;
+  l->output = (float*)xcalloc(output_size, sizeof(float));
+  l->delta = (float*)xcalloc(output_size, sizeof(float));
+  l->forward = ForwardAvgpoolLayer;
+  l->backward = BackwardAvgpoolLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardAvgpoolLayerGpu;
-  l.backward_gpu = BackwardAvgpoolLayerGpu;
-  l.output_gpu = cuda_make_array(l.output, output_size);
-  l.delta_gpu = cuda_make_array(l.delta, output_size);
+  l->forward_gpu = ForwardAvgpoolLayerGpu;
+  l->backward_gpu = BackwardAvgpoolLayerGpu;
+  l->output_gpu = cuda_make_array(l->output, output_size);
+  l->delta_gpu = cuda_make_array(l->delta, output_size);
 #endif
-  return l;
 }
 
 void ResizeAvgpoolLayer(layer* l, int w, int h)

@@ -6,48 +6,46 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-layer make_upsample_layer(int batch, int w, int h, int c, int stride)
+void FillUpsampleLayer(layer* l, int batch, int w, int h, int c, int stride)
 {
-  layer l = {(LAYER_TYPE)0};
-  l.type = UPSAMPLE;
-  l.batch = batch;
-  l.w = w;
-  l.h = h;
-  l.c = c;
-  l.out_w = w * stride;
-  l.out_h = h * stride;
-  l.out_c = c;
+  l->type = UPSAMPLE;
+  l->batch = batch;
+  l->w = w;
+  l->h = h;
+  l->c = c;
+  l->out_w = w * stride;
+  l->out_h = h * stride;
+  l->out_c = c;
   if (stride < 0)
   {
     stride = -stride;
-    l.reverse = 1;
-    l.out_w = w / stride;
-    l.out_h = h / stride;
+    l->reverse = 1;
+    l->out_w = w / stride;
+    l->out_h = h / stride;
   }
-  l.stride = stride;
-  l.outputs = l.out_w * l.out_h * l.out_c;
-  l.inputs = l.w * l.h * l.c;
-  l.delta = (float*)xcalloc(l.outputs * batch, sizeof(float));
-  l.output = (float*)xcalloc(l.outputs * batch, sizeof(float));
+  l->stride = stride;
+  l->outputs = l->out_w * l->out_h * l->out_c;
+  l->inputs = l->w * l->h * l->c;
+  l->delta = (float*)xcalloc(l->outputs * batch, sizeof(float));
+  l->output = (float*)xcalloc(l->outputs * batch, sizeof(float));
 
-  l.forward = ForwardUpsampleLayer;
-  l.backward = BackwardUpsampleLayer;
+  l->forward = ForwardUpsampleLayer;
+  l->backward = BackwardUpsampleLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardUpsampleLayerGpu;
-  l.backward_gpu = BackwardUpsampleLayerGpu;
+  l->forward_gpu = ForwardUpsampleLayerGpu;
+  l->backward_gpu = BackwardUpsampleLayerGpu;
 
-  l.delta_gpu = cuda_make_array(l.delta, l.outputs * batch);
-  l.output_gpu = cuda_make_array(l.output, l.outputs * batch);
+  l->delta_gpu = cuda_make_array(l->delta, l->outputs * batch);
+  l->output_gpu = cuda_make_array(l->output, l->outputs * batch);
 #endif
-  if (l.reverse)
+  if (l->reverse)
     fprintf(stderr,
         "downsample              %2dx  %4d x%4d x%4d -> %4d x%4d x%4d\n",
-        stride, w, h, c, l.out_w, l.out_h, l.out_c);
+        stride, w, h, c, l->out_w, l->out_h, l->out_c);
   else
     fprintf(stderr,
         "upsample                %2dx  %4d x%4d x%4d -> %4d x%4d x%4d\n",
-        stride, w, h, c, l.out_w, l.out_h, l.out_c);
-  return l;
+        stride, w, h, c, l->out_w, l->out_h, l->out_c);
 }
 
 void ResizeUpsampleLayer(layer* l, int w, int h)

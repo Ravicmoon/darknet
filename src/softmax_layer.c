@@ -30,42 +30,40 @@ void softmax_tree(float* input, int batch, int inputs, float temp,
   }
 }
 
-layer make_softmax_layer(int batch, int inputs, int groups)
+void FillSoftmaxLayer(layer* l, int batch, int inputs, int groups)
 {
   assert(inputs % groups == 0);
   fprintf(
       stderr, "softmax                                        %4d\n", inputs);
-  layer l = {(LAYER_TYPE)0};
-  l.type = SOFTMAX;
-  l.batch = batch;
-  l.groups = groups;
-  l.inputs = inputs;
-  l.outputs = inputs;
-  l.loss = (float*)xcalloc(inputs * batch, sizeof(float));
-  l.output = (float*)xcalloc(inputs * batch, sizeof(float));
-  l.delta = (float*)xcalloc(inputs * batch, sizeof(float));
-  l.cost = (float*)xcalloc(1, sizeof(float));
 
-  l.forward = ForwardSoftmaxLayer;
-  l.backward = BackwardSoftmaxLayer;
+  l->type = SOFTMAX;
+  l->batch = batch;
+  l->groups = groups;
+  l->inputs = inputs;
+  l->outputs = inputs;
+  l->loss = (float*)xcalloc(inputs * batch, sizeof(float));
+  l->output = (float*)xcalloc(inputs * batch, sizeof(float));
+  l->delta = (float*)xcalloc(inputs * batch, sizeof(float));
+  l->cost = (float*)xcalloc(1, sizeof(float));
+
+  l->forward = ForwardSoftmaxLayer;
+  l->backward = BackwardSoftmaxLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardSoftmaxLayerGpu;
-  l.backward_gpu = BackwardSoftmaxLayerGpu;
+  l->forward_gpu = ForwardSoftmaxLayerGpu;
+  l->backward_gpu = BackwardSoftmaxLayerGpu;
 
-  l.output_gpu = cuda_make_array(l.output, inputs * batch);
-  l.loss_gpu = cuda_make_array(l.loss, inputs * batch);
-  l.delta_gpu = cuda_make_array(l.delta, inputs * batch);
+  l->output_gpu = cuda_make_array(l->output, inputs * batch);
+  l->loss_gpu = cuda_make_array(l->loss, inputs * batch);
+  l->delta_gpu = cuda_make_array(l->delta, inputs * batch);
 #endif
-  return l;
 }
 
 void ForwardSoftmaxLayer(layer* l, NetworkState net)
 {
   if (l->softmax_tree)
   {
-    int i;
     int count = 0;
-    for (i = 0; i < l->softmax_tree->groups; ++i)
+    for (int i = 0; i < l->softmax_tree->groups; ++i)
     {
       int group_size = l->softmax_tree->group_size[i];
       softmax_cpu(net.input + count, group_size, l->batch, l->inputs, 1, 0, 1,

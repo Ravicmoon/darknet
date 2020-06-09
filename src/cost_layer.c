@@ -9,7 +9,7 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-COST_TYPE get_cost_type(char* s)
+COST_TYPE GetCostType(char* s)
 {
   if (strcmp(s, "sse") == 0)
     return SSE;
@@ -21,32 +21,30 @@ COST_TYPE get_cost_type(char* s)
   return SSE;
 }
 
-layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale)
+void FillCostLayer(layer* l, int batch, int inputs, char* type_str, float scale)
 {
   fprintf(
       stderr, "cost                                           %4d\n", inputs);
-  layer l = {(LAYER_TYPE)0};
-  l.type = COST;
 
-  l.scale = scale;
-  l.batch = batch;
-  l.inputs = inputs;
-  l.outputs = inputs;
-  l.cost_type = cost_type;
-  l.delta = (float*)xcalloc(inputs * batch, sizeof(float));
-  l.output = (float*)xcalloc(inputs * batch, sizeof(float));
-  l.cost = (float*)xcalloc(1, sizeof(float));
+  l->type = COST;
+  l->scale = scale;
+  l->batch = batch;
+  l->inputs = inputs;
+  l->outputs = inputs;
+  l->cost_type = GetCostType(type_str);
+  l->delta = (float*)xcalloc(inputs * batch, sizeof(float));
+  l->output = (float*)xcalloc(inputs * batch, sizeof(float));
+  l->cost = (float*)xcalloc(1, sizeof(float));
 
-  l.forward = ForwardCostLayer;
-  l.backward = BackwardCostLayer;
+  l->forward = ForwardCostLayer;
+  l->backward = BackwardCostLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardCostLayerGpu;
-  l.backward_gpu = BackwardCostLayerGpu;
+  l->forward_gpu = ForwardCostLayerGpu;
+  l->backward_gpu = BackwardCostLayerGpu;
 
-  l.delta_gpu = cuda_make_array(l.delta, inputs * batch);
-  l.output_gpu = cuda_make_array(l.output, inputs * batch);
+  l->delta_gpu = cuda_make_array(l->delta, inputs * batch);
+  l->output_gpu = cuda_make_array(l->output, inputs * batch);
 #endif
-  return l;
 }
 
 void ResizeCostLayer(layer* l, int inputs)

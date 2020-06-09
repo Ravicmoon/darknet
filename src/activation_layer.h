@@ -3,7 +3,8 @@
 #include "activations.h"
 #include "network.h"
 
-layer make_activation_layer(int batch, int inputs, ACTIVATION activation);
+void FillActivationLayer(
+    layer* l, int batch, int inputs, ACTIVATION activation);
 
 void ForwardActivationLayer(layer* l, NetworkState state);
 void BackwardActivationLayer(layer* l, NetworkState state);

@@ -12,41 +12,37 @@
 #include "softmax_layer.h"
 #include "utils.h"
 
-layer make_detection_layer(int batch, int inputs, int n, int side, int classes,
-    int coords, int rescore)
+void FillDetectionLayer(layer* l, int batch, int inputs, int n, int side,
+    int classes, int coords, int rescore)
 {
-  layer l = {(LAYER_TYPE)0};
-  l.type = DETECTION;
+  l->type = DETECTION;
+  l->n = n;
+  l->batch = batch;
+  l->inputs = inputs;
+  l->classes = classes;
+  l->coords = coords;
+  l->rescore = rescore;
+  l->side = side;
+  l->w = side;
+  l->h = side;
+  assert(side * side * ((1 + l->coords) * l->n + l->classes) == inputs);
+  l->cost = (float*)xcalloc(1, sizeof(float));
+  l->outputs = l->inputs;
+  l->truths = l->side * l->side * (1 + l->coords + l->classes);
+  l->output = (float*)xcalloc(batch * l->outputs, sizeof(float));
+  l->delta = (float*)xcalloc(batch * l->outputs, sizeof(float));
 
-  l.n = n;
-  l.batch = batch;
-  l.inputs = inputs;
-  l.classes = classes;
-  l.coords = coords;
-  l.rescore = rescore;
-  l.side = side;
-  l.w = side;
-  l.h = side;
-  assert(side * side * ((1 + l.coords) * l.n + l.classes) == inputs);
-  l.cost = (float*)xcalloc(1, sizeof(float));
-  l.outputs = l.inputs;
-  l.truths = l.side * l.side * (1 + l.coords + l.classes);
-  l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
-  l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
-
-  l.forward = ForwardDetectionLayer;
-  l.backward = BackwardDetectionLayer;
+  l->forward = ForwardDetectionLayer;
+  l->backward = BackwardDetectionLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardDetectionLayerGpu;
-  l.backward_gpu = BackwardDetectionLayerGpu;
-  l.output_gpu = cuda_make_array(l.output, batch * l.outputs);
-  l.delta_gpu = cuda_make_array(l.delta, batch * l.outputs);
+  l->forward_gpu = ForwardDetectionLayerGpu;
+  l->backward_gpu = BackwardDetectionLayerGpu;
+  l->output_gpu = cuda_make_array(l->output, batch * l->outputs);
+  l->delta_gpu = cuda_make_array(l->delta, batch * l->outputs);
 #endif
 
-  fprintf(stderr, "Detection Layer\n");
+  fprintf(stderr, "detection_layer\n");
   srand(time(0));
-
-  return l;
 }
 
 void ForwardDetectionLayer(layer* l, NetworkState state)

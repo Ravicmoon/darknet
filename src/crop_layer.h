@@ -2,7 +2,7 @@
 
 #include "network.h"
 
-layer make_crop_layer(int batch, int h, int w, int c, int crop_height,
+void FillCropLayer(layer* l, int batch, int h, int w, int c, int crop_height,
     int crop_width, int flip, float angle, float saturation, float exposure);
 void ForwardCropLayer(layer* l, NetworkState state);
 void ResizeCropLayer(layer* l, int w, int h);

@@ -9,108 +9,104 @@
 #include "gemm.h"
 #include "utils.h"
 
-layer make_shortcut_layer(int batch, int n, int* input_layers, int* input_sizes,
-    int w, int h, int c, float** layers_output, float** layers_delta,
-    float** layers_output_gpu, float** layers_delta_gpu,
+void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
+    int* input_sizes, int w, int h, int c, float** layers_output,
+    float** layers_delta, float** layers_output_gpu, float** layers_delta_gpu,
     WEIGHTS_TYPE_T weights_type, WEIGHTS_NORMALIZATION_T weights_normalization,
     ACTIVATION activation, int train)
 {
   fprintf(stderr, "Shortcut Layer: ");
-  int i;
-  for (i = 0; i < n; ++i) fprintf(stderr, "%d, ", input_layers[i]);
+  for (int i = 0; i < n; ++i)
+  {
+    fprintf(stderr, "%d, ", input_layers[i]);
+  }
 
-  layer l = {(LAYER_TYPE)0};
-  l.train = train;
-  l.type = SHORTCUT;
-  l.batch = batch;
-  l.activation = activation;
-  l.n = n;
-  l.input_layers = input_layers;
-  l.input_sizes = input_sizes;
-  l.layers_output = layers_output;
-  l.layers_delta = layers_delta;
-  l.weights_type = weights_type;
-  l.weights_normalization = weights_normalization;
-  l.learning_rate_scale = 1;  // not necessary
+  l->train = train;
+  l->type = SHORTCUT;
+  l->batch = batch;
+  l->activation = activation;
+  l->n = n;
+  l->input_layers = input_layers;
+  l->input_sizes = input_sizes;
+  l->layers_output = layers_output;
+  l->layers_delta = layers_delta;
+  l->weights_type = weights_type;
+  l->weights_normalization = weights_normalization;
+  l->learning_rate_scale = 1;  // not necessary
 
-  // l.w = w2;
-  // l.h = h2;
-  // l.c = c2;
-  l.w = l.out_w = w;
-  l.h = l.out_h = h;
-  l.c = l.out_c = c;
-  l.outputs = w * h * c;
-  l.inputs = l.outputs;
+  l->w = l->out_w = w;
+  l->h = l->out_h = h;
+  l->c = l->out_c = c;
+  l->outputs = w * h * c;
+  l->inputs = l->outputs;
 
-  // if(w != w2 || h != h2 || c != c2) fprintf(stderr, " w = %d, w2 = %d, h =
-  // %d, h2 = %d, c = %d, c2 = %d \n", w, w2, h, h2, c, c2);
-
-  l.index = l.input_layers[0];
+  l->index = l->input_layers[0];
 
   if (train)
-    l.delta = (float*)xcalloc(l.outputs * batch, sizeof(float));
-  l.output = (float*)xcalloc(l.outputs * batch, sizeof(float));
+    l->delta = (float*)xcalloc(l->outputs * batch, sizeof(float));
+  l->output = (float*)xcalloc(l->outputs * batch, sizeof(float));
 
-  l.nweights = 0;
-  if (l.weights_type == PER_FEATURE)
-    l.nweights = (l.n + 1);
-  else if (l.weights_type == PER_CHANNEL)
-    l.nweights = (l.n + 1) * l.c;
+  l->nweights = 0;
+  if (l->weights_type == PER_FEATURE)
+    l->nweights = (l->n + 1);
+  else if (l->weights_type == PER_CHANNEL)
+    l->nweights = (l->n + 1) * l->c;
 
-  if (l.nweights > 0)
+  if (l->nweights > 0)
   {
-    l.weights = (float*)calloc(l.nweights, sizeof(float));
-    for (i = 0; i < l.nweights; ++i)
+    l->weights = (float*)calloc(l->nweights, sizeof(float));
+    for (int i = 0; i < l->nweights; ++i)
     {
-      l.weights[i] = 1;
+      l->weights[i] = 1;
     }
 
     if (train)
-      l.weight_updates = (float*)calloc(l.nweights, sizeof(float));
-    l.update = UpdateShortcutLayer;
+      l->weight_updates = (float*)calloc(l->nweights, sizeof(float));
+    l->update = UpdateShortcutLayer;
   }
 
-  l.forward = ForwardShortcutLayer;
-  l.backward = BackwardShortcutLayer;
+  l->forward = ForwardShortcutLayer;
+  l->backward = BackwardShortcutLayer;
+
 #ifndef GPU
-  if (l.activation == SWISH || l.activation == MISH)
-    l.activation_input = (float*)calloc(l.batch * l.outputs, sizeof(float));
-#endif  // GPU
+  if (l->activation == SWISH || l->activation == MISH)
+    l->activation_input = (float*)calloc(l->batch * l->outputs, sizeof(float));
+#endif  // not GPU
 
 #ifdef GPU
-  if (l.activation == SWISH || l.activation == MISH)
-    l.activation_input_gpu =
-        cuda_make_array(l.activation_input, l.batch * l.outputs);
+  if (l->activation == SWISH || l->activation == MISH)
+    l->activation_input_gpu =
+        cuda_make_array(l->activation_input, l->batch * l->outputs);
 
-  l.forward_gpu = ForwardShortcutLayerGpu;
-  l.backward_gpu = BackwardShortcutLayerGpu;
+  l->forward_gpu = ForwardShortcutLayerGpu;
+  l->backward_gpu = BackwardShortcutLayerGpu;
 
-  if (l.nweights > 0)
+  if (l->nweights > 0)
   {
-    l.update_gpu = UpdateShortcutLayerGpu;
-    l.weights_gpu = cuda_make_array(l.weights, l.nweights);
+    l->update_gpu = UpdateShortcutLayerGpu;
+    l->weights_gpu = cuda_make_array(l->weights, l->nweights);
     if (train)
-      l.weight_updates_gpu = cuda_make_array(l.weight_updates, l.nweights);
+      l->weight_updates_gpu = cuda_make_array(l->weight_updates, l->nweights);
   }
 
   if (train)
-    l.delta_gpu = cuda_make_array(l.delta, l.outputs * batch);
-  l.output_gpu = cuda_make_array(l.output, l.outputs * batch);
+    l->delta_gpu = cuda_make_array(l->delta, l->outputs * batch);
+  l->output_gpu = cuda_make_array(l->output, l->outputs * batch);
 
-  l.input_sizes_gpu = cuda_make_int_array_new_api(input_sizes, l.n);
-  l.layers_output_gpu =
-      (float**)cuda_make_array_pointers((void**)layers_output_gpu, l.n);
-  l.layers_delta_gpu =
-      (float**)cuda_make_array_pointers((void**)layers_delta_gpu, l.n);
+  l->input_sizes_gpu = cuda_make_int_array_new_api(input_sizes, l->n);
+  l->layers_output_gpu =
+      (float**)cuda_make_array_pointers((void**)layers_output_gpu, l->n);
+  l->layers_delta_gpu =
+      (float**)cuda_make_array_pointers((void**)layers_delta_gpu, l->n);
 #endif  // GPU
 
-  l.bflops = l.out_w * l.out_h * l.out_c * l.n / 1000000000.;
-  if (l.weights_type)
-    l.bflops *= 2;
+  l->bflops = l->out_w * l->out_h * l->out_c * l->n / 1000000000.;
+  if (l->weights_type)
+    l->bflops *= 2;
+
   fprintf(stderr, " wt = %d, wn = %d, outputs:%4d x%4d x%4d %5.3f BF\n",
-      l.weights_type, l.weights_normalization, l.out_w, l.out_h, l.out_c,
-      l.bflops);
-  return l;
+      l->weights_type, l->weights_normalization, l->out_w, l->out_h, l->out_c,
+      l->bflops);
 }
 
 void ResizeShortcutLayer(layer* l, int w, int h, Network* net)

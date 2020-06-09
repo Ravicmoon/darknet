@@ -2,8 +2,8 @@
 
 #include "network.h"
 
-layer make_region_layer(
-    int batch, int w, int h, int n, int classes, int coords, int max_boxes);
+void FillRegionLayer(layer* l, int batch, int w, int h, int n, int classes,
+    int coords, int max_boxes);
 void ResizeRegionLayer(layer* l, int w, int h);
 void ForwardRegionLayer(layer* l, NetworkState state);
 void BackwardRegionLayer(layer* l, NetworkState state);

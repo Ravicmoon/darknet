@@ -38,11 +38,69 @@ typedef struct
 {
   char* type;
   list* options;
-} section;
+} Section;
 
-list* ReadCfg(char const* filename);
+void FreeSection(Section* s)
+{
+  free(s->type);
+  node* n = s->options->front;
+  while (n)
+  {
+    kvp* pair = (kvp*)n->val;
+    free(pair->key);
+    free(pair);
+    node* next = n->next;
+    free(n);
+    n = next;
+  }
+  free(s->options);
+  free(s);
+}
 
-LAYER_TYPE string_to_layer_type(char* type)
+list* ReadSections(char const* filename)
+{
+  FILE* file = fopen(filename, "r");
+  if (file == NULL)
+    FileError(filename);
+
+  char* line;
+  int line_num = 0;
+
+  list* sections = MakeList();
+  Section* current = 0;
+  while ((line = fgetl(file)) != 0)
+  {
+    ++line_num;
+    strip(line);
+    switch (line[0])
+    {
+      case '[':
+        current = (Section*)xmalloc(sizeof(Section));
+        InsertList(sections, current);
+        current->options = MakeList();
+        current->type = line;
+        break;
+      case '\0':
+      case '#':
+      case ';':
+        free(line);
+        break;
+      default:
+        if (!ReadOption(line, current->options))
+        {
+          fprintf(stderr, "Config file error line %d, could parse: %s\n",
+              line_num, line);
+          free(line);
+        }
+        break;
+    }
+  }
+  fclose(file);
+
+  return sections;
+}
+
+LAYER_TYPE StrToLayerType(char* type)
 {
   if (strcmp(type, "[shortcut]") == 0)
     return SHORTCUT;
@@ -93,44 +151,7 @@ LAYER_TYPE string_to_layer_type(char* type)
   return BLANK;
 }
 
-void free_section(section* s)
-{
-  free(s->type);
-  node* n = s->options->front;
-  while (n)
-  {
-    kvp* pair = (kvp*)n->val;
-    free(pair->key);
-    free(pair);
-    node* next = n->next;
-    free(n);
-    n = next;
-  }
-  free(s->options);
-  free(s);
-}
-
-void parse_data(char* data, float* a, int n)
-{
-  int i;
-  if (!data)
-    return;
-  char* curr = data;
-  char* next = data;
-  int done = 0;
-  for (i = 0; i < n && !done; ++i)
-  {
-    while (*++next != '\0' && *next != ',')
-      ;
-    if (*next == '\0')
-      done = 1;
-    *next = '\0';
-    sscanf(curr, "%g", &a[i]);
-    curr = next + 1;
-  }
-}
-
-typedef struct size_params
+typedef struct SizeParams
 {
   int batch;
   int inputs;
@@ -141,35 +162,32 @@ typedef struct size_params
   int time_steps;
   int train;
   Network* net;
-} size_params;
+} SizeParams;
 
-layer parse_local(list* options, size_params params)
+void ParseLocal(layer* l, list* options, SizeParams params)
 {
   int n = FindOptionInt(options, "filters", 1);
   int size = FindOptionInt(options, "size", 1);
   int stride = FindOptionInt(options, "stride", 1);
   int pad = FindOptionInt(options, "pad", 0);
-  char* activation_s = FindOptionStr(options, "activation", "logistic");
-  ACTIVATION activation = get_activation(activation_s);
+  char* activation_str = FindOptionStr(options, "activation", "logistic");
+  ACTIVATION activation = get_activation(activation_str);
 
-  int batch, h, w, c;
-  h = params.h;
-  w = params.w;
-  c = params.c;
-  batch = params.batch;
+  int h = params.h;
+  int w = params.w;
+  int c = params.c;
   if (!(h && w && c))
-    error("Layer before local layer must output image.");
+    error("Layer before local layer must output image");
 
-  return make_local_layer(batch, h, w, c, n, size, stride, pad, activation);
+  FillLocalLayer(l, params.batch, h, w, c, n, size, stride, pad, activation);
 }
 
-layer parse_convolutional(list* options, size_params params)
+void ParseConv(layer* l, list* options, SizeParams params)
 {
   int n = FindOptionInt(options, "filters", 1);
   int groups = FindOptionIntQuiet(options, "groups", 1);
   int size = FindOptionInt(options, "size", 1);
   int stride = -1;
-  // int stride = option_find_int(options, "stride",1);
   int stride_x = FindOptionIntQuiet(options, "stride_x", -1);
   int stride_y = FindOptionIntQuiet(options, "stride_y", -1);
   if (stride_x < 1 || stride_y < 1)
@@ -193,8 +211,8 @@ layer parse_convolutional(list* options, size_params params)
   if (pad)
     padding = size / 2;
 
-  char* activation_s = FindOptionStr(options, "activation", "logistic");
-  ACTIVATION activation = get_activation(activation_s);
+  char* activation_str = FindOptionStr(options, "activation", "logistic");
+  ACTIVATION activation = get_activation(activation_str);
 
   int assisted_excitation =
       FindOptionFloatQuiet(options, "assisted_excitation", 0);
@@ -206,13 +224,12 @@ layer parse_convolutional(list* options, size_params params)
   else if (share_index != -1000000000)
     share_layer = &params.net->layers[params.index + share_index];
 
-  int batch, h, w, c;
-  h = params.h;
-  w = params.w;
-  c = params.c;
-  batch = params.batch;
+  int h = params.h;
+  int w = params.w;
+  int c = params.c;
   if (!(h && w && c))
     error("Layer before convolutional layer must output image.");
+
   int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
   int cbn = FindOptionIntQuiet(options, "cbn", 0);
   if (cbn)
@@ -240,53 +257,53 @@ layer parse_convolutional(list* options, size_params params)
     exit(0);
   }
 
-  layer l = make_convolutional_layer(batch, 1, h, w, c, n, groups, size,
-      stride_x, stride_y, dilation, padding, activation, batch_normalize,
-      binary, xnor, params.net->adam, use_bin_output, params.index,
-      antialiasing, share_layer, assisted_excitation, deform, params.train);
-  l.flipped = FindOptionIntQuiet(options, "flipped", 0);
-  l.dot = FindOptionFloatQuiet(options, "dot", 0);
-  l.sway = sway;
-  l.rotate = rotate;
-  l.stretch = stretch;
-  l.stretch_sway = stretch_sway;
-  l.angle = FindOptionFloatQuiet(options, "angle", 15);
+  FillConvLayer(l, params.batch, 1, h, w, c, n, groups, size, stride_x,
+      stride_y, dilation, padding, activation, batch_normalize, binary, xnor,
+      params.net->adam, use_bin_output, params.index, antialiasing, share_layer,
+      assisted_excitation, deform, params.train);
+
+  l->flipped = FindOptionIntQuiet(options, "flipped", 0);
+  l->dot = FindOptionFloatQuiet(options, "dot", 0);
+  l->sway = sway;
+  l->rotate = rotate;
+  l->stretch = stretch;
+  l->stretch_sway = stretch_sway;
+  l->angle = FindOptionFloatQuiet(options, "angle", 15);
 
   if (params.net->adam)
   {
-    l.B1 = params.net->B1;
-    l.B2 = params.net->B2;
-    l.eps = params.net->eps;
+    l->B1 = params.net->B1;
+    l->B2 = params.net->B2;
+    l->eps = params.net->eps;
   }
-
-  return l;
 }
 
-layer parse_connected(list* options, size_params params)
+void ParseConnected(layer* l, list* options, SizeParams params)
 {
   int output = FindOptionInt(options, "output", 1);
-  char* activation_s = FindOptionStr(options, "activation", "logistic");
-  ACTIVATION activation = get_activation(activation_s);
+  char* activation_str = FindOptionStr(options, "activation", "logistic");
+  ACTIVATION activation = get_activation(activation_str);
   int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
 
-  return make_connected_layer(
-      params.batch, 1, params.inputs, output, activation, batch_normalize);
+  FillConnectedLayer(
+      l, params.batch, 1, params.inputs, output, activation, batch_normalize);
 }
 
-layer parse_softmax(list* options, size_params params)
+void ParseSoftmax(layer* l, list* options, SizeParams params)
 {
   int groups = FindOptionIntQuiet(options, "groups", 1);
-  layer l = make_softmax_layer(params.batch, params.inputs, groups);
-  l.temperature = FindOptionFloatQuiet(options, "temperature", 1);
+
+  FillSoftmaxLayer(l, params.batch, params.inputs, groups);
+
+  l->temperature = FindOptionFloatQuiet(options, "temperature", 1);
   char* tree_file = FindOptionStr(options, "tree", 0);
   if (tree_file)
-    l.softmax_tree = read_tree(tree_file);
-  l.w = params.w;
-  l.h = params.h;
-  l.c = params.c;
-  l.spatial = FindOptionFloatQuiet(options, "spatial", 0);
-  l.noloss = FindOptionIntQuiet(options, "noloss", 0);
-  return l;
+    l->softmax_tree = read_tree(tree_file);
+  l->w = params.w;
+  l->h = params.h;
+  l->c = params.c;
+  l->spatial = FindOptionFloatQuiet(options, "spatial", 0);
+  l->noloss = FindOptionIntQuiet(options, "noloss", 0);
 }
 
 int* parse_yolo_mask(char* a, int* num)
@@ -346,7 +363,7 @@ float* get_classes_multipliers(char* cpc, const int classes)
   return classes_multipliers;
 }
 
-layer parse_yolo(list* options, size_params params)
+void ParseYolo(layer* l, list* options, SizeParams params)
 {
   int classes = FindOptionInt(options, "classes", 20);
   int total = FindOptionInt(options, "num", 1);
@@ -354,106 +371,108 @@ layer parse_yolo(list* options, size_params params)
   char* a = FindOptionStr(options, "mask", 0);
   int* mask = parse_yolo_mask(a, &num);
   int max_boxes = FindOptionIntQuiet(options, "max", 90);
-  layer l = MakeYoloLayer(
-      params.batch, params.w, params.h, num, total, mask, classes, max_boxes);
-  if (l.outputs != params.inputs)
+
+  FillYoloLayer(l, params.batch, params.w, params.h, num, total, mask, classes,
+      max_boxes);
+
+  if (l->outputs != params.inputs)
   {
-    printf("Error: l.outputs == params.inputs \n");
+    printf("Error: l->outputs == params.inputs \n");
     printf(
         "filters= in the [convolutional]-layer doesn't correspond to classes= "
         "or mask= in [yolo]-layer \n");
     exit(EXIT_FAILURE);
   }
-  // assert(l.outputs == params.inputs);
 
   char* cpc = FindOptionStr(options, "counters_per_class", 0);
-  l.classes_multipliers = get_classes_multipliers(cpc, classes);
+  l->classes_multipliers = get_classes_multipliers(cpc, classes);
 
-  l.label_smooth_eps = FindOptionFloatQuiet(options, "label_smooth_eps", 0.0f);
-  l.scale_x_y = FindOptionFloatQuiet(options, "scale_x_y", 1);
-  l.max_delta = FindOptionFloatQuiet(options, "max_delta", FLT_MAX);  // set 10
-  l.iou_normalizer = FindOptionFloatQuiet(options, "iou_normalizer", 0.75);
-  l.cls_normalizer = FindOptionFloatQuiet(options, "cls_normalizer", 1);
+  l->label_smooth_eps = FindOptionFloatQuiet(options, "label_smooth_eps", 0.0f);
+  l->scale_x_y = FindOptionFloatQuiet(options, "scale_x_y", 1);
+  l->max_delta = FindOptionFloatQuiet(options, "max_delta", FLT_MAX);  // set 10
+  l->iou_normalizer = FindOptionFloatQuiet(options, "iou_normalizer", 0.75);
+  l->cls_normalizer = FindOptionFloatQuiet(options, "cls_normalizer", 1);
   char* iou_loss = FindOptionStrQuiet(options, "iou_loss", "mse");  //  "iou");
 
   if (strcmp(iou_loss, "mse") == 0)
-    l.iou_loss = MSE;
+    l->iou_loss = MSE;
   else if (strcmp(iou_loss, "giou") == 0)
-    l.iou_loss = GIOU;
+    l->iou_loss = GIOU;
   else if (strcmp(iou_loss, "diou") == 0)
-    l.iou_loss = DIOU;
+    l->iou_loss = DIOU;
   else if (strcmp(iou_loss, "ciou") == 0)
-    l.iou_loss = CIOU;
+    l->iou_loss = CIOU;
   else
-    l.iou_loss = IOU;
+    l->iou_loss = IOU;
   fprintf(stderr,
       "[yolo] params: iou loss: %s (%d), iou_norm: %2.2f, cls_norm: %2.2f, "
       "scale_x_y: %2.2f\n",
-      iou_loss, l.iou_loss, l.iou_normalizer, l.cls_normalizer, l.scale_x_y);
+      iou_loss, l->iou_loss, l->iou_normalizer, l->cls_normalizer,
+      l->scale_x_y);
 
   char* iou_thresh_kind_str =
       FindOptionStrQuiet(options, "iou_thresh_kind", "iou");
   if (strcmp(iou_thresh_kind_str, "iou") == 0)
-    l.iou_thresh_kind = IOU;
+    l->iou_thresh_kind = IOU;
   else if (strcmp(iou_thresh_kind_str, "giou") == 0)
-    l.iou_thresh_kind = GIOU;
+    l->iou_thresh_kind = GIOU;
   else if (strcmp(iou_thresh_kind_str, "diou") == 0)
-    l.iou_thresh_kind = DIOU;
+    l->iou_thresh_kind = DIOU;
   else if (strcmp(iou_thresh_kind_str, "ciou") == 0)
-    l.iou_thresh_kind = CIOU;
+    l->iou_thresh_kind = CIOU;
   else
   {
     fprintf(stderr, " Wrong iou_thresh_kind = %s \n", iou_thresh_kind_str);
-    l.iou_thresh_kind = IOU;
+    l->iou_thresh_kind = IOU;
   }
 
-  l.beta_nms = FindOptionFloatQuiet(options, "beta_nms", 0.6);
+  l->beta_nms = FindOptionFloatQuiet(options, "beta_nms", 0.6);
   char* nms_kind = FindOptionStrQuiet(options, "nms_kind", "default");
   if (strcmp(nms_kind, "default") == 0)
-    l.nms_kind = DEFAULT_NMS;
+  {
+    l->nms_kind = DEFAULT_NMS;
+  }
   else
   {
     if (strcmp(nms_kind, "greedynms") == 0)
-      l.nms_kind = GREEDY_NMS;
+      l->nms_kind = GREEDY_NMS;
     else if (strcmp(nms_kind, "diounms") == 0)
-      l.nms_kind = DIOU_NMS;
+      l->nms_kind = DIOU_NMS;
     else
-      l.nms_kind = DEFAULT_NMS;
-    printf("nms_kind: %s (%d), beta = %f \n", nms_kind, l.nms_kind, l.beta_nms);
+      l->nms_kind = DEFAULT_NMS;
   }
+  printf("nms_kind: %s (%d), beta = %f \n", nms_kind, l->nms_kind, l->beta_nms);
 
-  l.jitter = FindOptionFloat(options, "jitter", .2);
-  l.focal_loss = FindOptionIntQuiet(options, "focal_loss", 0);
+  l->jitter = FindOptionFloat(options, "jitter", .2);
+  l->focal_loss = FindOptionIntQuiet(options, "focal_loss", 0);
 
-  l.ignore_thresh = FindOptionFloat(options, "ignore_thresh", .5);
-  l.truth_thresh = FindOptionFloat(options, "truth_thresh", 1);
-  l.iou_thresh = FindOptionFloatQuiet(options, "iou_thresh",
+  l->ignore_thresh = FindOptionFloat(options, "ignore_thresh", .5);
+  l->truth_thresh = FindOptionFloat(options, "truth_thresh", 1);
+  l->iou_thresh = FindOptionFloatQuiet(options, "iou_thresh",
       1);  // recommended to use iou_thresh=0.213 in [yolo]
-  l.random = FindOptionFloatQuiet(options, "random", 0);
+  l->random = FindOptionFloatQuiet(options, "random", 0);
 
   char* map_file = FindOptionStr(options, "map", 0);
   if (map_file)
-    l.map = read_map(map_file);
+    l->map = read_map(map_file);
 
   a = FindOptionStr(options, "anchors", 0);
   if (a)
   {
     int len = strlen(a);
     int n = 1;
-    int i;
-    for (i = 0; i < len; ++i)
+    for (int i = 0; i < len; ++i)
     {
       if (a[i] == ',')
         ++n;
     }
-    for (i = 0; i < n && i < total * 2; ++i)
+    for (int i = 0; i < n && i < total * 2; ++i)
     {
       float bias = atof(a);
-      l.biases[i] = bias;
+      l->biases[i] = bias;
       a = strchr(a, ',') + 1;
     }
   }
-  return l;
 }
 
 int* parse_gaussian_yolo_mask(char* a, int* num)  // Gaussian_YOLOv3
@@ -481,7 +500,8 @@ int* parse_gaussian_yolo_mask(char* a, int* num)  // Gaussian_YOLOv3
   return mask;
 }
 
-layer parse_gaussian_yolo(list* options, size_params params)  // Gaussian_YOLOv3
+// Gaussian_YOLOv3
+void ParseGaussianYolo(layer* l, list* options, SizeParams params)
 {
   int classes = FindOptionInt(options, "classes", 20);
   int max_boxes = FindOptionIntQuiet(options, "max", 90);
@@ -490,223 +510,222 @@ layer parse_gaussian_yolo(list* options, size_params params)  // Gaussian_YOLOv3
 
   char* a = FindOptionStr(options, "mask", 0);
   int* mask = parse_gaussian_yolo_mask(a, &num);
-  layer l = make_gaussian_yolo_layer(
-      params.batch, params.w, params.h, num, total, mask, classes, max_boxes);
-  if (l.outputs != params.inputs)
+
+  FillGaussianYoloLayer(l, params.batch, params.w, params.h, num, total, mask,
+      classes, max_boxes);
+
+  if (l->outputs != params.inputs)
   {
-    printf("Error: l.outputs == params.inputs \n");
+    printf("Error: l->outputs == params.inputs \n");
     printf(
         "filters= in the [convolutional]-layer doesn't correspond to classes= "
         "or mask= in [Gaussian_yolo]-layer \n");
     exit(EXIT_FAILURE);
   }
-  // assert(l.outputs == params.inputs);
 
   char* cpc = FindOptionStr(options, "counters_per_class", 0);
-  l.classes_multipliers = get_classes_multipliers(cpc, classes);
+  l->classes_multipliers = get_classes_multipliers(cpc, classes);
 
-  l.label_smooth_eps = FindOptionFloatQuiet(options, "label_smooth_eps", 0.0f);
-  l.scale_x_y = FindOptionFloatQuiet(options, "scale_x_y", 1);
-  l.max_delta = FindOptionFloatQuiet(options, "max_delta", FLT_MAX);  // set 10
-  l.uc_normalizer = FindOptionFloatQuiet(options, "uc_normalizer", 1.0);
-  l.iou_normalizer = FindOptionFloatQuiet(options, "iou_normalizer", 0.75);
-  l.cls_normalizer = FindOptionFloatQuiet(options, "cls_normalizer", 1.0);
+  l->label_smooth_eps = FindOptionFloatQuiet(options, "label_smooth_eps", 0.0f);
+  l->scale_x_y = FindOptionFloatQuiet(options, "scale_x_y", 1);
+  l->max_delta = FindOptionFloatQuiet(options, "max_delta", FLT_MAX);  // set 10
+  l->uc_normalizer = FindOptionFloatQuiet(options, "uc_normalizer", 1.0);
+  l->iou_normalizer = FindOptionFloatQuiet(options, "iou_normalizer", 0.75);
+  l->cls_normalizer = FindOptionFloatQuiet(options, "cls_normalizer", 1.0);
   char* iou_loss = FindOptionStrQuiet(options, "iou_loss", "mse");  //  "iou");
 
   if (strcmp(iou_loss, "mse") == 0)
-    l.iou_loss = MSE;
+    l->iou_loss = MSE;
   else if (strcmp(iou_loss, "giou") == 0)
-    l.iou_loss = GIOU;
+    l->iou_loss = GIOU;
   else if (strcmp(iou_loss, "diou") == 0)
-    l.iou_loss = DIOU;
+    l->iou_loss = DIOU;
   else if (strcmp(iou_loss, "ciou") == 0)
-    l.iou_loss = CIOU;
+    l->iou_loss = CIOU;
   else
-    l.iou_loss = IOU;
+    l->iou_loss = IOU;
 
   char* iou_thresh_kind_str =
       FindOptionStrQuiet(options, "iou_thresh_kind", "iou");
   if (strcmp(iou_thresh_kind_str, "iou") == 0)
-    l.iou_thresh_kind = IOU;
+    l->iou_thresh_kind = IOU;
   else if (strcmp(iou_thresh_kind_str, "giou") == 0)
-    l.iou_thresh_kind = GIOU;
+    l->iou_thresh_kind = GIOU;
   else if (strcmp(iou_thresh_kind_str, "diou") == 0)
-    l.iou_thresh_kind = DIOU;
+    l->iou_thresh_kind = DIOU;
   else if (strcmp(iou_thresh_kind_str, "ciou") == 0)
-    l.iou_thresh_kind = CIOU;
+    l->iou_thresh_kind = CIOU;
   else
   {
     fprintf(stderr, " Wrong iou_thresh_kind = %s \n", iou_thresh_kind_str);
-    l.iou_thresh_kind = IOU;
+    l->iou_thresh_kind = IOU;
   }
 
-  l.beta_nms = FindOptionFloatQuiet(options, "beta_nms", 0.6);
+  l->beta_nms = FindOptionFloatQuiet(options, "beta_nms", 0.6);
   char* nms_kind = FindOptionStrQuiet(options, "nms_kind", "default");
   if (strcmp(nms_kind, "default") == 0)
-    l.nms_kind = DEFAULT_NMS;
+  {
+    l->nms_kind = DEFAULT_NMS;
+  }
   else
   {
     if (strcmp(nms_kind, "greedynms") == 0)
-      l.nms_kind = GREEDY_NMS;
+      l->nms_kind = GREEDY_NMS;
     else if (strcmp(nms_kind, "diounms") == 0)
-      l.nms_kind = DIOU_NMS;
+      l->nms_kind = DIOU_NMS;
     else if (strcmp(nms_kind, "cornersnms") == 0)
-      l.nms_kind = CORNERS_NMS;
+      l->nms_kind = CORNERS_NMS;
     else
-      l.nms_kind = DEFAULT_NMS;
-    printf("nms_kind: %s (%d), beta = %f \n", nms_kind, l.nms_kind, l.beta_nms);
+      l->nms_kind = DEFAULT_NMS;
   }
+  printf("nms_kind: %s (%d), beta = %f \n", nms_kind, l->nms_kind, l->beta_nms);
 
   char* yolo_point = FindOptionStrQuiet(options, "yolo_point", "center");
   if (strcmp(yolo_point, "left_top") == 0)
-    l.yolo_point = YOLO_LEFT_TOP;
+    l->yolo_point = YOLO_LEFT_TOP;
   else if (strcmp(yolo_point, "right_bottom") == 0)
-    l.yolo_point = YOLO_RIGHT_BOTTOM;
+    l->yolo_point = YOLO_RIGHT_BOTTOM;
   else
-    l.yolo_point = YOLO_CENTER;
+    l->yolo_point = YOLO_CENTER;
 
   fprintf(stderr,
       "[Gaussian_yolo] iou loss: %s (%d), iou_norm: %2.2f, cls_norm: "
       "%2.2f, scale: %2.2f, point: %d\n",
-      iou_loss, l.iou_loss, l.iou_normalizer, l.cls_normalizer, l.scale_x_y,
-      l.yolo_point);
+      iou_loss, l->iou_loss, l->iou_normalizer, l->cls_normalizer, l->scale_x_y,
+      l->yolo_point);
 
-  l.jitter = FindOptionFloat(options, "jitter", .2);
+  l->jitter = FindOptionFloat(options, "jitter", .2);
 
-  l.ignore_thresh = FindOptionFloat(options, "ignore_thresh", .5);
-  l.truth_thresh = FindOptionFloat(options, "truth_thresh", 1);
-  l.iou_thresh = FindOptionFloatQuiet(options, "iou_thresh",
+  l->ignore_thresh = FindOptionFloat(options, "ignore_thresh", .5);
+  l->truth_thresh = FindOptionFloat(options, "truth_thresh", 1);
+  l->iou_thresh = FindOptionFloatQuiet(options, "iou_thresh",
       1);  // recommended to use iou_thresh=0.213 in [yolo]
-  l.random = FindOptionFloatQuiet(options, "random", 0);
+  l->random = FindOptionFloatQuiet(options, "random", 0);
 
   char* map_file = FindOptionStr(options, "map", 0);
   if (map_file)
-    l.map = read_map(map_file);
+    l->map = read_map(map_file);
 
   a = FindOptionStr(options, "anchors", 0);
   if (a)
   {
     int len = strlen(a);
     int n = 1;
-    int i;
-    for (i = 0; i < len; ++i)
+    for (int i = 0; i < len; ++i)
     {
       if (a[i] == ',')
         ++n;
     }
-    for (i = 0; i < n; ++i)
+    for (int i = 0; i < n; ++i)
     {
       float bias = atof(a);
-      l.biases[i] = bias;
+      l->biases[i] = bias;
       a = strchr(a, ',') + 1;
     }
   }
-  return l;
 }
 
-layer parse_region(list* options, size_params params)
+void ParseRegion(layer* l, list* options, SizeParams params)
 {
   int coords = FindOptionInt(options, "coords", 4);
   int classes = FindOptionInt(options, "classes", 20);
   int num = FindOptionInt(options, "num", 1);
   int max_boxes = FindOptionIntQuiet(options, "max", 90);
 
-  layer l = make_region_layer(
-      params.batch, params.w, params.h, num, classes, coords, max_boxes);
-  if (l.outputs != params.inputs)
+  FillRegionLayer(
+      l, params.batch, params.w, params.h, num, classes, coords, max_boxes);
+
+  if (l->outputs != params.inputs)
   {
-    printf("Error: l.outputs == params.inputs \n");
+    printf("Error: l->outputs == params.inputs \n");
     printf(
         "filters= in the [convolutional]-layer doesn't correspond to classes= "
         "or num= in [region]-layer \n");
     exit(EXIT_FAILURE);
   }
-  // assert(l.outputs == params.inputs);
 
-  l.log = FindOptionIntQuiet(options, "log", 0);
-  l.sqrt = FindOptionIntQuiet(options, "sqrt", 0);
+  l->log = FindOptionIntQuiet(options, "log", 0);
+  l->sqrt = FindOptionIntQuiet(options, "sqrt", 0);
 
-  l.softmax = FindOptionInt(options, "softmax", 0);
-  l.focal_loss = FindOptionIntQuiet(options, "focal_loss", 0);
-  // l.max_boxes = option_find_int_quiet(options, "max",30);
-  l.jitter = FindOptionFloat(options, "jitter", .2);
-  l.rescore = FindOptionIntQuiet(options, "rescore", 0);
+  l->softmax = FindOptionInt(options, "softmax", 0);
+  l->focal_loss = FindOptionIntQuiet(options, "focal_loss", 0);
+  l->jitter = FindOptionFloat(options, "jitter", .2);
+  l->rescore = FindOptionIntQuiet(options, "rescore", 0);
 
-  l.thresh = FindOptionFloat(options, "thresh", .5);
-  l.classfix = FindOptionIntQuiet(options, "classfix", 0);
-  l.absolute = FindOptionIntQuiet(options, "absolute", 0);
-  l.random = FindOptionFloatQuiet(options, "random", 0);
+  l->thresh = FindOptionFloat(options, "thresh", .5);
+  l->classfix = FindOptionIntQuiet(options, "classfix", 0);
+  l->absolute = FindOptionIntQuiet(options, "absolute", 0);
+  l->random = FindOptionFloatQuiet(options, "random", 0);
 
-  l.coord_scale = FindOptionFloat(options, "coord_scale", 1);
-  l.object_scale = FindOptionFloat(options, "object_scale", 1);
-  l.noobject_scale = FindOptionFloat(options, "noobject_scale", 1);
-  l.mask_scale = FindOptionFloat(options, "mask_scale", 1);
-  l.class_scale = FindOptionFloat(options, "class_scale", 1);
-  l.bias_match = FindOptionIntQuiet(options, "bias_match", 0);
+  l->coord_scale = FindOptionFloat(options, "coord_scale", 1);
+  l->object_scale = FindOptionFloat(options, "object_scale", 1);
+  l->noobject_scale = FindOptionFloat(options, "noobject_scale", 1);
+  l->mask_scale = FindOptionFloat(options, "mask_scale", 1);
+  l->class_scale = FindOptionFloat(options, "class_scale", 1);
+  l->bias_match = FindOptionIntQuiet(options, "bias_match", 0);
 
   char* tree_file = FindOptionStr(options, "tree", 0);
   if (tree_file)
-    l.softmax_tree = read_tree(tree_file);
+    l->softmax_tree = read_tree(tree_file);
+
   char* map_file = FindOptionStr(options, "map", 0);
   if (map_file)
-    l.map = read_map(map_file);
+    l->map = read_map(map_file);
 
   char* a = FindOptionStr(options, "anchors", 0);
   if (a)
   {
     int len = strlen(a);
     int n = 1;
-    int i;
-    for (i = 0; i < len; ++i)
+    for (int i = 0; i < len; ++i)
     {
       if (a[i] == ',')
         ++n;
     }
-    for (i = 0; i < n && i < num * 2; ++i)
+    for (int i = 0; i < n && i < num * 2; ++i)
     {
       float bias = atof(a);
-      l.biases[i] = bias;
+      l->biases[i] = bias;
       a = strchr(a, ',') + 1;
     }
   }
-  return l;
 }
-layer parse_detection(list* options, size_params params)
+
+void ParseDetection(layer* l, list* options, SizeParams params)
 {
   int coords = FindOptionInt(options, "coords", 1);
   int classes = FindOptionInt(options, "classes", 1);
   int rescore = FindOptionInt(options, "rescore", 0);
   int num = FindOptionInt(options, "num", 1);
   int side = FindOptionInt(options, "side", 7);
-  layer l = make_detection_layer(
-      params.batch, params.inputs, num, side, classes, coords, rescore);
 
-  l.softmax = FindOptionInt(options, "softmax", 0);
-  l.sqrt = FindOptionInt(options, "sqrt", 0);
+  FillDetectionLayer(
+      l, params.batch, params.inputs, num, side, classes, coords, rescore);
 
-  l.max_boxes = FindOptionIntQuiet(options, "max", 30);
-  l.coord_scale = FindOptionFloat(options, "coord_scale", 1);
-  l.forced = FindOptionInt(options, "forced", 0);
-  l.object_scale = FindOptionFloat(options, "object_scale", 1);
-  l.noobject_scale = FindOptionFloat(options, "noobject_scale", 1);
-  l.class_scale = FindOptionFloat(options, "class_scale", 1);
-  l.jitter = FindOptionFloat(options, "jitter", .2);
-  l.random = FindOptionFloatQuiet(options, "random", 0);
-  l.reorg = FindOptionIntQuiet(options, "reorg", 0);
-  return l;
+  l->softmax = FindOptionInt(options, "softmax", 0);
+  l->sqrt = FindOptionInt(options, "sqrt", 0);
+
+  l->max_boxes = FindOptionIntQuiet(options, "max", 30);
+  l->coord_scale = FindOptionFloat(options, "coord_scale", 1);
+  l->forced = FindOptionInt(options, "forced", 0);
+  l->object_scale = FindOptionFloat(options, "object_scale", 1);
+  l->noobject_scale = FindOptionFloat(options, "noobject_scale", 1);
+  l->class_scale = FindOptionFloat(options, "class_scale", 1);
+  l->jitter = FindOptionFloat(options, "jitter", .2);
+  l->random = FindOptionFloatQuiet(options, "random", 0);
+  l->reorg = FindOptionIntQuiet(options, "reorg", 0);
 }
 
-layer parse_cost(list* options, size_params params)
+void ParseCost(layer* l, list* options, SizeParams params)
 {
-  char* type_s = FindOptionStr(options, "type", "sse");
-  COST_TYPE type = get_cost_type(type_s);
+  char* type_str = FindOptionStr(options, "type", "sse");
   float scale = FindOptionFloatQuiet(options, "scale", 1);
-  layer l = make_cost_layer(params.batch, params.inputs, type, scale);
-  l.ratio = FindOptionFloatQuiet(options, "ratio", 0);
-  return l;
+
+  FillCostLayer(l, params.batch, params.inputs, type_str, scale);
+  l->ratio = FindOptionFloatQuiet(options, "ratio", 0);
 }
 
-layer parse_crop(list* options, size_params params)
+void ParseCrop(layer* l, list* options, SizeParams params)
 {
   int crop_height = FindOptionInt(options, "crop_height", 1);
   int crop_width = FindOptionInt(options, "crop_width", 1);
@@ -715,59 +734,47 @@ layer parse_crop(list* options, size_params params)
   float saturation = FindOptionFloat(options, "saturation", 1);
   float exposure = FindOptionFloat(options, "exposure", 1);
 
-  int batch, h, w, c;
-  h = params.h;
-  w = params.w;
-  c = params.c;
-  batch = params.batch;
+  int h = params.h;
+  int w = params.w;
+  int c = params.c;
   if (!(h && w && c))
     error("Layer before crop layer must output image.");
 
-  int noadjust = FindOptionIntQuiet(options, "noadjust", 0);
-
-  layer l = make_crop_layer(batch, h, w, c, crop_height, crop_width, flip,
-      angle, saturation, exposure);
-  l.shift = FindOptionFloat(options, "shift", 0);
-  l.noadjust = noadjust;
-  return l;
+  FillCropLayer(l, params.batch, h, w, c, crop_height, crop_width, flip, angle,
+      saturation, exposure);
+  l->shift = FindOptionFloat(options, "shift", 0);
+  l->noadjust = FindOptionIntQuiet(options, "noadjust", 0);
 }
 
-layer parse_reorg(list* options, size_params params)
+void ParseReorg(layer* l, list* options, SizeParams params)
 {
   int stride = FindOptionInt(options, "stride", 1);
   int reverse = FindOptionIntQuiet(options, "reverse", 0);
 
-  int batch, h, w, c;
-  h = params.h;
-  w = params.w;
-  c = params.c;
-  batch = params.batch;
+  int h = params.h;
+  int w = params.w;
+  int c = params.c;
   if (!(h && w && c))
     error("Layer before reorg layer must output image.");
 
-  layer layer = make_reorg_layer(batch, w, h, c, stride, reverse);
-  return layer;
+  FillReorgLayer(l, params.batch, w, h, c, stride, reverse);
 }
 
-layer parse_reorg_old(list* options, size_params params)
+void ParseReorgOld(layer* l, list* options, SizeParams params)
 {
-  printf("\n reorg_old \n");
   int stride = FindOptionInt(options, "stride", 1);
   int reverse = FindOptionIntQuiet(options, "reverse", 0);
 
-  int batch, h, w, c;
-  h = params.h;
-  w = params.w;
-  c = params.c;
-  batch = params.batch;
+  int h = params.h;
+  int w = params.w;
+  int c = params.c;
   if (!(h && w && c))
     error("Layer before reorg layer must output image.");
 
-  layer layer = make_reorg_old_layer(batch, w, h, c, stride, reverse);
-  return layer;
+  FillReorgOldLayer(l, params.batch, w, h, c, stride, reverse);
 }
 
-layer parse_maxpool(list* options, size_params params)
+void ParseMaxpool(layer* l, list* options, SizeParams params)
 {
   int stride = FindOptionInt(options, "stride", 1);
   int stride_x = FindOptionIntQuiet(options, "stride_x", stride);
@@ -778,32 +785,28 @@ layer parse_maxpool(list* options, size_params params)
   int out_channels = FindOptionIntQuiet(options, "out_channels", 1);
   int antialiasing = FindOptionIntQuiet(options, "antialiasing", 0);
 
-  int batch, h, w, c;
-  h = params.h;
-  w = params.w;
-  c = params.c;
-  batch = params.batch;
+  int h = params.h;
+  int w = params.w;
+  int c = params.c;
   if (!(h && w && c))
     error("Layer before [maxpool] layer must output image.");
 
-  return make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding,
+  FillMaxpoolLayer(l, params.batch, h, w, c, size, stride_x, stride_y, padding,
       maxpool_depth, out_channels, antialiasing, params.train);
 }
 
-layer parse_avgpool(list* options, size_params params)
+void ParseAvgpool(layer* l, list* options, SizeParams params)
 {
-  int batch, w, h, c;
-  w = params.w;
-  h = params.h;
-  c = params.c;
-  batch = params.batch;
+  int w = params.w;
+  int h = params.h;
+  int c = params.c;
   if (!(h && w && c))
     error("Layer before avgpool layer must output image.");
 
-  return make_avgpool_layer(batch, w, h, c);
+  FillAvgpoolLayer(l, params.batch, w, h, c);
 }
 
-layer parse_dropout(list* options, size_params params)
+void ParseDropout(layer* l, list* options, SizeParams params)
 {
   float probability = FindOptionFloat(options, "probability", .2);
   int dropblock = FindOptionIntQuiet(options, "dropblock", 0);
@@ -811,6 +814,7 @@ layer parse_dropout(list* options, size_params params)
       FindOptionFloatQuiet(options, "dropblock_size_rel", 0);
   int dropblock_size_abs =
       FindOptionFloatQuiet(options, "dropblock_size_abs", 0);
+
   if (dropblock_size_abs > params.w || dropblock_size_abs > params.h)
   {
     printf(
@@ -819,6 +823,7 @@ layer parse_dropout(list* options, size_params params)
         dropblock_size_abs, params.w, params.h);
     dropblock_size_abs = min_val_cmp(params.w, params.h);
   }
+
   if (dropblock && !dropblock_size_rel && !dropblock_size_abs)
   {
     printf(
@@ -826,6 +831,7 @@ layer parse_dropout(list* options, size_params params)
         "dropblock_size_abs) are set, will be used: dropblock_size_abs = 7 \n");
     dropblock_size_abs = 7;
   }
+
   if (dropblock_size_rel && dropblock_size_abs)
   {
     printf(
@@ -834,26 +840,24 @@ layer parse_dropout(list* options, size_params params)
         dropblock_size_abs);
     dropblock_size_rel = 0;
   }
-  layer l =
-      make_dropout_layer(params.batch, params.inputs, probability, dropblock,
-          dropblock_size_rel, dropblock_size_abs, params.w, params.h, params.c);
-  l.out_w = params.w;
-  l.out_h = params.h;
-  l.out_c = params.c;
-  return l;
+
+  FillDropoutLayer(l, params.batch, params.inputs, probability, dropblock,
+      dropblock_size_rel, dropblock_size_abs, params.w, params.h, params.c);
+  l->out_w = params.w;
+  l->out_h = params.h;
+  l->out_c = params.c;
 }
 
-layer parse_batchnorm(list* options, size_params params)
+void ParseBatchnorm(layer* l, list* options, SizeParams params)
 {
-  layer l = make_batchnorm_layer(
-      params.batch, params.w, params.h, params.c, params.train);
-  return l;
+  FillBatchnormLayer(
+      l, params.batch, params.w, params.h, params.c, params.train);
 }
 
-layer ParseShortcut(list* options, size_params params, Network* net)
+void ParseShortcut(layer* l, list* options, SizeParams params, Network* net)
 {
-  char* activation_s = FindOptionStr(options, "activation", "linear");
-  ACTIVATION activation = get_activation(activation_s);
+  char* activation_str = FindOptionStr(options, "activation", "linear");
+  ACTIVATION activation = get_activation(activation_str);
 
   char* weights_type_str = FindOptionStrQuiet(options, "weights_type", "none");
   WEIGHTS_TYPE_T weights_type = NO_WEIGHTS;
@@ -891,15 +895,14 @@ layer ParseShortcut(list* options, size_params params, Network* net)
     exit(0);
   }
 
-  char* l = FindOption(options, "from");
-  int len = strlen(l);
-  if (!l)
+  char* from = FindOption(options, "from");
+  if (!from)
     error("Route Layer must specify input layers: from = ...");
+
   int n = 1;
-  int i;
-  for (i = 0; i < len; ++i)
+  for (int i = 0; i < strlen(from); ++i)
   {
-    if (l[i] == ',')
+    if (from[i] == ',')
       ++n;
   }
 
@@ -910,103 +913,97 @@ layer ParseShortcut(list* options, size_params params, Network* net)
   float** layers_output_gpu = (float**)calloc(n, sizeof(float*));
   float** layers_delta_gpu = (float**)calloc(n, sizeof(float*));
 
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
-    int index = atoi(l);
-    l = strchr(l, ',') + 1;
-    if (index < 0)
-      index = params.index + index;
-    layers[i] = index;
-    sizes[i] = params.net->layers[index].outputs;
-    layers_output[i] = params.net->layers[index].output;
-    layers_delta[i] = params.net->layers[index].delta;
+    int idx = atoi(from);
+    from = strchr(from, ',') + 1;
+    if (idx < 0)
+      idx = params.index + idx;
+    layers[i] = idx;
+    sizes[i] = params.net->layers[idx].outputs;
+    layers_output[i] = params.net->layers[idx].output;
+    layers_delta[i] = params.net->layers[idx].delta;
   }
 
 #ifdef GPU
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
     layers_output_gpu[i] = params.net->layers[layers[i]].output_gpu;
     layers_delta_gpu[i] = params.net->layers[layers[i]].delta_gpu;
   }
 #endif  // GPU
 
-  layer s = make_shortcut_layer(params.batch, n, layers, sizes, params.w,
-      params.h, params.c, layers_output, layers_delta, layers_output_gpu,
+  FillShortcutLayer(l, params.batch, n, layers, sizes, params.w, params.h,
+      params.c, layers_output, layers_delta, layers_output_gpu,
       layers_delta_gpu, weights_type, weights_normalization, activation,
       params.train);
 
   free(layers_output_gpu);
   free(layers_delta_gpu);
 
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
-    int index = layers[i];
-    assert(params.w == net->layers[index].out_w &&
-           params.h == net->layers[index].out_h);
+    int idx = layers[i];
+    assert(params.w == net->layers[idx].out_w &&
+           params.h == net->layers[idx].out_h);
 
-    if (params.w != net->layers[index].out_w ||
-        params.h != net->layers[index].out_h ||
-        params.c != net->layers[index].out_c)
+    if (params.w != net->layers[idx].out_w ||
+        params.h != net->layers[idx].out_h ||
+        params.c != net->layers[idx].out_c)
       fprintf(stderr, " (%4d x%4d x%4d) + (%4d x%4d x%4d) \n", params.w,
-          params.h, params.c, net->layers[index].out_w,
-          net->layers[index].out_h, params.net->layers[index].out_c);
+          params.h, params.c, net->layers[idx].out_w, net->layers[idx].out_h,
+          params.net->layers[idx].out_c);
   }
-
-  return s;
 }
 
-layer ParseScaleChannels(list* options, size_params params, Network* net)
+void ParseScaleChannels(
+    layer* l, list* options, SizeParams params, Network* net)
 {
-  char* l = FindOption(options, "from");
-  int index = atoi(l);
-  if (index < 0)
-    index = params.index + index;
+  char* from = FindOption(options, "from");
+  int idx = atoi(from);
+  if (idx < 0)
+    idx = params.index + idx;
   int scale_wh = FindOptionIntQuiet(options, "scale_wh", 0);
 
-  int batch = params.batch;
-  layer from = net->layers[index];
+  layer* from_l = &net->layers[idx];
+  FillScaleChannelsLayer(l, params.batch, idx, params.w, params.h, params.c,
+      from_l->out_w, from_l->out_h, from_l->out_c, scale_wh);
 
-  layer s = make_scale_channels_layer(batch, index, params.w, params.h,
-      params.c, from.out_w, from.out_h, from.out_c, scale_wh);
-
-  char* activation_s = FindOptionStrQuiet(options, "activation", "linear");
-  ACTIVATION activation = get_activation(activation_s);
-  s.activation = activation;
+  char* activation_str = FindOptionStrQuiet(options, "activation", "linear");
+  ACTIVATION activation = get_activation(activation_str);
+  l->activation = activation;
   if (activation == SWISH || activation == MISH)
   {
     printf(
         " [scale_channels] layer doesn't support SWISH or MISH activations \n");
   }
-  return s;
 }
 
-layer parse_activation(list* options, size_params params)
+void ParseActivation(layer* l, list* options, SizeParams params)
 {
-  char* activation_s = FindOptionStr(options, "activation", "linear");
-  ACTIVATION activation = get_activation(activation_s);
+  char* activation_str = FindOptionStr(options, "activation", "linear");
+  ACTIVATION activation = get_activation(activation_str);
 
-  layer l = make_activation_layer(params.batch, params.inputs, activation);
+  FillActivationLayer(l, params.batch, params.inputs, activation);
 
-  l.out_h = params.h;
-  l.out_w = params.w;
-  l.out_c = params.c;
-  l.h = params.h;
-  l.w = params.w;
-  l.c = params.c;
-
-  return l;
+  l->out_h = params.h;
+  l->out_w = params.w;
+  l->out_c = params.c;
+  l->h = params.h;
+  l->w = params.w;
+  l->c = params.c;
 }
 
-layer ParseUpsample(list* options, size_params params)
+void ParseUpsample(layer* l, list* options, SizeParams params)
 {
   int stride = FindOptionInt(options, "stride", 2);
-  layer l =
-      make_upsample_layer(params.batch, params.w, params.h, params.c, stride);
-  l.scale = FindOptionFloatQuiet(options, "scale", 1);
-  return l;
+
+  FillUpsampleLayer(l, params.batch, params.w, params.h, params.c, stride);
+
+  l->scale = FindOptionFloatQuiet(options, "scale", 1);
 }
 
-layer parse_route(list* options, size_params params)
+void ParseRoute(layer* l, list* options, SizeParams params)
 {
   char* input_layers = FindOption(options, "layers");
   if (!input_layers)
@@ -1030,37 +1027,36 @@ layer parse_route(list* options, size_params params)
     layers[i] = index;
     sizes[i] = params.net->layers[index].outputs;
   }
-  int batch = params.batch;
 
   int groups = FindOptionIntQuiet(options, "groups", 1);
   int group_id = FindOptionIntQuiet(options, "group_id", 0);
 
-  layer l = make_route_layer(batch, n, layers, sizes, groups, group_id);
+  FillRouteLayer(l, params.batch, n, layers, sizes, groups, group_id);
 
   layer first = params.net->layers[layers[0]];
-  l.out_w = first.out_w;
-  l.out_h = first.out_h;
-  l.out_c = first.out_c;
+  l->out_w = first.out_w;
+  l->out_h = first.out_h;
+  l->out_c = first.out_c;
   for (int i = 1; i < n; ++i)
   {
     int index = layers[i];
     layer next = params.net->layers[index];
     if (next.out_w == first.out_w && next.out_h == first.out_h)
     {
-      l.out_c += next.out_c;
+      l->out_c += next.out_c;
     }
     else
     {
       fprintf(stderr,
           " The width and height of the input layers are different. \n");
-      l.out_h = l.out_w = l.out_c = 0;
+      l->out_h = l->out_w = l->out_c = 0;
     }
   }
-  l.out_c = l.out_c / l.groups;
+  l->out_c = l->out_c / l->groups;
 
-  l.w = first.w;
-  l.h = first.h;
-  l.c = l.out_c;
+  l->w = first.w;
+  l->h = first.h;
+  l->c = l->out_c;
 
   if (n > 3)
     fprintf(stderr, " \t    ");
@@ -1070,13 +1066,11 @@ layer parse_route(list* options, size_params params)
     fprintf(stderr, " \t\t            ");
 
   fprintf(stderr, "           ");
-  if (l.groups > 1)
-    fprintf(stderr, "%d/%d", l.group_id, l.groups);
+  if (l->groups > 1)
+    fprintf(stderr, "%d/%d", l->group_id, l->groups);
   else
     fprintf(stderr, "   ");
-  fprintf(stderr, " -> %4d x%4d x%4d \n", l.out_w, l.out_h, l.out_c);
-
-  return l;
+  fprintf(stderr, " -> %4d x%4d x%4d \n", l->out_w, l->out_h, l->out_c);
 }
 
 LearningRatePolicy GetPolicy(char* s)
@@ -1266,7 +1260,7 @@ void ParseNetOptions(list* options, Network* net)
   }
 }
 
-int IsNetwork(section* s)
+int IsNetwork(Section* s)
 {
   return (strcmp(s->type, "[net]") == 0 || strcmp(s->type, "[network]") == 0);
 }
@@ -1277,7 +1271,7 @@ void SetTrainOnlyBn(Network* net)
   int i;
   for (i = net->n - 1; i >= 0; --i)
   {
-    // set l.train_only_bn for all previous layers
+    // set l->train_only_bn for all previous layers
     if (net->layers[i].train_only_bn)
       train_only_bn = net->layers[i].train_only_bn;
 
@@ -1294,7 +1288,7 @@ void ParseNetworkCfg(Network* net, char const* filename)
 void ParseNetworkCfgCustom(
     Network* net, char const* filename, int batch, int time_steps)
 {
-  list* sections = ReadCfg(filename);
+  list* sections = ReadSections(filename);
   node* n = sections->front;
   if (!n)
     error("Config file has no sections");
@@ -1302,25 +1296,25 @@ void ParseNetworkCfgCustom(
   AllocateNetwork(net, sections->size - 1);
   net->gpu_index = gpu_index;
 
-  size_params params;
+  SizeParams params;
   if (batch > 0)
     params.train = 0;  // allocates memory for Detection only
   else
     params.train = 1;  // allocates memory for Detection & Training
 
-  section* s = (section*)n->val;
-  list* options = s->options;
+  Section* s = (Section*)n->val;
   if (!IsNetwork(s))
     error("First section must be [net] or [network]");
+
+  list* options = s->options;
   ParseNetOptions(options, net);
 
 #ifdef GPU
   printf("net.optimized_memory = %d \n", net->optimized_memory);
   if (net->optimized_memory >= 2 && params.train)
   {
-    pre_allocate_pinned_memory(
-        (size_t)1024 * 1024 * 1024 *
-        8);  // pre-allocate 8 GB CPU-RAM for pinned memory
+    // pre-allocate 8 GB CPU-RAM for pinned memory
+    pre_allocate_pinned_memory((size_t)1024 * 1024 * 1024 * 8);
   }
 #endif  // GPU
 
@@ -1353,97 +1347,96 @@ void ParseNetworkCfgCustom(
   int max_outputs = 0;
   int receptive_w = 1, receptive_h = 1;
   int receptive_w_scale = 1, receptive_h_scale = 1;
-  const int show_receptive_field =
+  int const show_receptive_field =
       FindOptionFloatQuiet(options, "show_receptive_field", 0);
 
   n = n->next;
   int count = 0;
-  free_section(s);
+  FreeSection(s);
   fprintf(stderr,
       "   layer   filters  size/strd(dil)      input                output\n");
   while (n)
   {
     params.index = count;
     fprintf(stderr, "%4d ", count);
-    s = (section*)n->val;
+    s = (Section*)n->val;
     options = s->options;
     layer l = {(LAYER_TYPE)0};
-    LAYER_TYPE lt = string_to_layer_type(s->type);
+    LAYER_TYPE lt = StrToLayerType(s->type);
     if (lt == CONVOLUTIONAL)
     {
-      l = parse_convolutional(options, params);
+      ParseConv(&l, options, params);
     }
     else if (lt == LOCAL)
     {
-      l = parse_local(options, params);
+      ParseLocal(&l, options, params);
     }
     else if (lt == ACTIVE)
     {
-      l = parse_activation(options, params);
+      ParseActivation(&l, options, params);
     }
     else if (lt == CONNECTED)
     {
-      l = parse_connected(options, params);
+      ParseConnected(&l, options, params);
     }
     else if (lt == CROP)
     {
-      l = parse_crop(options, params);
+      ParseCrop(&l, options, params);
     }
     else if (lt == COST)
     {
-      l = parse_cost(options, params);
+      ParseCost(&l, options, params);
       l.keep_delta_gpu = 1;
     }
     else if (lt == REGION)
     {
-      l = parse_region(options, params);
+      ParseRegion(&l, options, params);
       l.keep_delta_gpu = 1;
     }
     else if (lt == YOLO)
     {
-      l = parse_yolo(options, params);
+      ParseYolo(&l, options, params);
       l.keep_delta_gpu = 1;
     }
     else if (lt == GAUSSIAN_YOLO)
     {
-      l = parse_gaussian_yolo(options, params);
+      ParseGaussianYolo(&l, options, params);
       l.keep_delta_gpu = 1;
     }
     else if (lt == DETECTION)
     {
-      l = parse_detection(options, params);
+      ParseDetection(&l, options, params);
     }
     else if (lt == SOFTMAX)
     {
-      l = parse_softmax(options, params);
+      ParseSoftmax(&l, options, params);
       net->hierarchy = l.softmax_tree;
       l.keep_delta_gpu = 1;
     }
     else if (lt == BATCHNORM)
     {
-      l = parse_batchnorm(options, params);
+      ParseBatchnorm(&l, options, params);
     }
     else if (lt == MAXPOOL)
     {
-      l = parse_maxpool(options, params);
+      ParseMaxpool(&l, options, params);
     }
     else if (lt == REORG)
     {
-      l = parse_reorg(options, params);
+      ParseReorg(&l, options, params);
     }
     else if (lt == REORG_OLD)
     {
-      l = parse_reorg_old(options, params);
+      ParseReorgOld(&l, options, params);
     }
     else if (lt == AVGPOOL)
     {
-      l = parse_avgpool(options, params);
+      ParseAvgpool(&l, options, params);
     }
     else if (lt == ROUTE)
     {
-      l = parse_route(options, params);
-      int k;
-      for (k = 0; k < l.n; ++k)
+      ParseRoute(&l, options, params);
+      for (int k = 0; k < l.n; ++k)
       {
         net->layers[l.input_layers[k]].use_bin_output = 0;
         net->layers[l.input_layers[k]].keep_delta_gpu = 1;
@@ -1451,25 +1444,25 @@ void ParseNetworkCfgCustom(
     }
     else if (lt == UPSAMPLE)
     {
-      l = ParseUpsample(options, params);
+      ParseUpsample(&l, options, params);
     }
     else if (lt == SHORTCUT)
     {
-      l = ParseShortcut(options, params, net);
+      ParseShortcut(&l, options, params, net);
       net->layers[count - 1].use_bin_output = 0;
       net->layers[l.index].use_bin_output = 0;
       net->layers[l.index].keep_delta_gpu = 1;
     }
     else if (lt == SCALE_CHANNELS)
     {
-      l = ParseScaleChannels(options, params, net);
+      ParseScaleChannels(&l, options, params, net);
       net->layers[count - 1].use_bin_output = 0;
       net->layers[l.index].use_bin_output = 0;
       net->layers[l.index].keep_delta_gpu = 1;
     }
     else if (lt == DROPOUT)
     {
-      l = parse_dropout(options, params);
+      ParseDropout(&l, options, params);
       l.output = net->layers[count - 1].output;
       l.delta = net->layers[count - 1].delta;
 #ifdef GPU
@@ -1494,7 +1487,7 @@ void ParseNetworkCfgCustom(
     }
     else
     {
-      fprintf(stderr, "Type not recognized: %s\n", s->type);
+      fprintf(stderr, "Type is not recognized: %s\n", s->type);
     }
 
     // calculate receptive field
@@ -1516,8 +1509,7 @@ void ParseNetworkCfgCustom(
         if (l.type == ROUTE)
         {
           receptive_w = receptive_h = receptive_w_scale = receptive_h_scale = 0;
-          int k;
-          for (k = 0; k < l.n; ++k)
+          for (int k = 0; k < l.n; ++k)
           {
             layer route_l = net->layers[l.input_layers[k]];
             receptive_w = max_val_cmp(receptive_w, route_l.receptive_w);
@@ -1563,23 +1555,20 @@ void ParseNetworkCfgCustom(
       if (l.output_gpu)
       {
         cuda_free(l.output_gpu);
-        // l.output_gpu = cuda_make_array_pinned(l.output, l.batch*l.outputs);
-        // // l.steps
-        l.output_gpu = cuda_make_array_pinned_preallocated(
-            NULL, l.batch * l.outputs);  // l.steps
+        l.output_gpu =
+            cuda_make_array_pinned_preallocated(NULL, l.batch * l.outputs);
       }
       if (l.activation_input_gpu)
       {
         cuda_free(l.activation_input_gpu);
-        l.activation_input_gpu = cuda_make_array_pinned_preallocated(
-            NULL, l.batch * l.outputs);  // l.steps
+        l.activation_input_gpu =
+            cuda_make_array_pinned_preallocated(NULL, l.batch * l.outputs);
       }
-
       if (l.x_gpu)
       {
         cuda_free(l.x_gpu);
-        l.x_gpu = cuda_make_array_pinned_preallocated(
-            NULL, l.batch * l.outputs);  // l.steps
+        l.x_gpu =
+            cuda_make_array_pinned_preallocated(NULL, l.batch * l.outputs);
       }
 
       // maximum optimization
@@ -1613,6 +1602,7 @@ void ParseNetworkCfgCustom(
     l.dontloadscales = FindOptionIntQuiet(options, "dontloadscales", 0);
     l.learning_rate_scale = FindOptionFloatQuiet(options, "learning_rate", 1);
     UnusedOption(options);
+
     net->layers[count] = l;
     if (l.workspace_size > workspace_size)
       workspace_size = l.workspace_size;
@@ -1620,7 +1610,7 @@ void ParseNetworkCfgCustom(
       max_inputs = l.inputs;
     if (l.outputs > max_outputs)
       max_outputs = l.outputs;
-    free_section(s);
+    FreeSection(s);
     n = n->next;
     ++count;
     if (n)
@@ -1654,14 +1644,13 @@ void ParseNetworkCfgCustom(
 #ifdef GPU
   if (net->optimized_memory && params.train)
   {
-    int k;
-    for (k = 0; k < net->n; ++k)
+    for (int k = 0; k < net->n; ++k)
     {
-      layer l = net->layers[k];
+      layer* l = &net->layers[k];
       // delta GPU-memory optimization: net.optimized_memory == 1
-      if (!l.keep_delta_gpu)
+      if (!l->keep_delta_gpu)
       {
-        const size_t delta_size = l.outputs * l.batch;  // l.steps
+        size_t const delta_size = l->batch * l->outputs;
         if (net->max_delta_gpu_size < delta_size)
         {
           net->max_delta_gpu_size = delta_size;
@@ -1675,30 +1664,24 @@ void ParseNetworkCfgCustom(
           net->state_delta_gpu =
               (float*)cuda_make_array(NULL, net->max_delta_gpu_size);
         }
-        if (l.delta_gpu)
+        if (l->delta_gpu)
         {
-          if (net->optimized_memory >= 3)
-          {
-          }
-          else
-            cuda_free(l.delta_gpu);
+          if (net->optimized_memory < 3)
+            cuda_free(l->delta_gpu);
         }
-        l.delta_gpu = net->global_delta_gpu;
+        l->delta_gpu = net->global_delta_gpu;
       }
 
       // maximum optimization
-      if (net->optimized_memory >= 3 && l.type != DROPOUT)
+      if (net->optimized_memory >= 3 && l->type != DROPOUT)
       {
-        if (l.delta_gpu && l.keep_delta_gpu)
+        if (l->delta_gpu && l->keep_delta_gpu)
         {
-          // cuda_free(l.delta_gpu);   // already called above
-          l.delta_gpu = cuda_make_array_pinned_preallocated(
-              NULL, l.batch * l.outputs);  // l.steps
-          // printf("\n\n PINNED DELTA GPU = %d \n", l.batch*l.outputs);
+          // cuda_free(l->delta_gpu);   // already called above
+          l->delta_gpu =
+              cuda_make_array_pinned_preallocated(NULL, l->batch * l->outputs);
         }
       }
-
-      net->layers[k] = l;
     }
   }
 #endif
@@ -1710,6 +1693,7 @@ void ParseNetworkCfgCustom(
   avg_outputs = avg_outputs / avg_counter;
   fprintf(stderr, "Total BFLOPS %5.3f \n", bflops);
   fprintf(stderr, "avg_outputs = %d \n", avg_outputs);
+
 #ifdef GPU
   get_cuda_stream();
   get_cuda_memcpy_stream();
@@ -1719,7 +1703,9 @@ void ParseNetworkCfgCustom(
     net->input_state_gpu = cuda_make_array(0, size);
     if (cudaSuccess == cudaHostAlloc(&net->input_pinned_cpu,
                            size * sizeof(float), cudaHostRegisterMapped))
+    {
       net->input_pinned_cpu_flag = 1;
+    }
     else
     {
       cudaGetLastError();  // reset CUDA-error
@@ -1736,6 +1722,7 @@ void ParseNetworkCfgCustom(
       CHECK_CUDA(cudaMalloc((void**)net->output16_gpu,
           *net->max_output16_size * sizeof(short)));  // sizeof(half)
     }
+
     if (workspace_size)
     {
       fprintf(stderr, " Allocate additional workspace_size = %1.2f MB \n",
@@ -1749,9 +1736,7 @@ void ParseNetworkCfgCustom(
   }
 #else
   if (workspace_size)
-  {
     net->workspace = (float*)xcalloc(1, workspace_size);
-  }
 #endif
 
   LAYER_TYPE lt = net->layers[net->n - 1].type;
@@ -1763,46 +1748,6 @@ void ParseNetworkCfgCustom(
         "32 for default networks Yolo v1/v2/v3!!! \n\n",
         net->w, net->h);
   }
-}
-
-list* ReadCfg(char const* filename)
-{
-  FILE* file = fopen(filename, "r");
-  if (file == 0)
-    FileError(filename);
-  char* line;
-  int nu = 0;
-  list* sections = MakeList();
-  section* current = 0;
-  while ((line = fgetl(file)) != 0)
-  {
-    ++nu;
-    strip(line);
-    switch (line[0])
-    {
-      case '[':
-        current = (section*)xmalloc(sizeof(section));
-        InsertList(sections, current);
-        current->options = MakeList();
-        current->type = line;
-        break;
-      case '\0':
-      case '#':
-      case ';':
-        free(line);
-        break;
-      default:
-        if (!ReadOption(line, current->options))
-        {
-          fprintf(
-              stderr, "Config file error line %d, could parse: %s\n", nu, line);
-          free(line);
-        }
-        break;
-    }
-  }
-  fclose(file);
-  return sections;
 }
 
 void SaveShortcutWeights(layer* l, FILE* fp)

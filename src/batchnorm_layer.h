@@ -2,7 +2,7 @@
 
 #include "network.h"
 
-layer make_batchnorm_layer(int batch, int w, int h, int c, int train);
+void FillBatchnormLayer(layer* l, int batch, int w, int h, int c, int train);
 void ResizeBatchnormLayer(layer* l, int w, int h);
 void ForwardBatchnormLayer(layer* l, NetworkState state);
 void BackwardBatchnormLayer(layer* l, NetworkState state);

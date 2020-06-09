@@ -8,38 +8,37 @@
 void BackwardCropLayer(layer* l, NetworkState state) {}
 void BackwardCropLayerGpu(layer* l, NetworkState state) {}
 
-layer make_crop_layer(int batch, int h, int w, int c, int crop_height,
+void FillCropLayer(layer* l, int batch, int h, int w, int c, int crop_height,
     int crop_width, int flip, float angle, float saturation, float exposure)
 {
-  fprintf(stderr, "Crop Layer: %d x %d -> %d x %d x %d image\n", h, w,
+  fprintf(stderr, "Crop layer: %d x %d -> %d x %d x %d image\n", h, w,
       crop_height, crop_width, c);
-  layer l = {(LAYER_TYPE)0};
-  l.type = CROP;
-  l.batch = batch;
-  l.h = h;
-  l.w = w;
-  l.c = c;
-  l.scale = (float)crop_height / h;
-  l.flip = flip;
-  l.angle = angle;
-  l.saturation = saturation;
-  l.exposure = exposure;
-  l.out_w = crop_width;
-  l.out_h = crop_height;
-  l.out_c = c;
-  l.inputs = l.w * l.h * l.c;
-  l.outputs = l.out_w * l.out_h * l.out_c;
-  l.output = (float*)xcalloc(l.outputs * batch, sizeof(float));
-  l.forward = ForwardCropLayer;
-  l.backward = BackwardCropLayer;
+
+  l->type = CROP;
+  l->batch = batch;
+  l->h = h;
+  l->w = w;
+  l->c = c;
+  l->scale = (float)crop_height / h;
+  l->flip = flip;
+  l->angle = angle;
+  l->saturation = saturation;
+  l->exposure = exposure;
+  l->out_w = crop_width;
+  l->out_h = crop_height;
+  l->out_c = c;
+  l->inputs = l->w * l->h * l->c;
+  l->outputs = l->out_w * l->out_h * l->out_c;
+  l->output = (float*)xcalloc(l->outputs * batch, sizeof(float));
+  l->forward = ForwardCropLayer;
+  l->backward = BackwardCropLayer;
 
 #ifdef GPU
-  l.forward_gpu = ForwardCropLayerGpu;
-  l.backward_gpu = BackwardCropLayerGpu;
-  l.output_gpu = cuda_make_array(l.output, l.outputs * batch);
-  l.rand_gpu = cuda_make_array(0, l.batch * 8);
+  l->forward_gpu = ForwardCropLayerGpu;
+  l->backward_gpu = BackwardCropLayerGpu;
+  l->output_gpu = cuda_make_array(l->output, l->outputs * batch);
+  l->rand_gpu = cuda_make_array(0, l->batch * 8);
 #endif
-  return l;
 }
 
 void ResizeCropLayer(layer* l, int w, int h)

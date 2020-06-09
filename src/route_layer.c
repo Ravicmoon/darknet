@@ -6,43 +6,38 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-layer make_route_layer(int batch, int n, int* input_layers, int* input_sizes,
-    int groups, int group_id)
+void FillRouteLayer(layer* l, int batch, int n, int* input_layers,
+    int* input_sizes, int groups, int group_id)
 {
-  fprintf(stderr, "route ");
-  layer l = {(LAYER_TYPE)0};
-  l.type = ROUTE;
-  l.batch = batch;
-  l.n = n;
-  l.input_layers = input_layers;
-  l.input_sizes = input_sizes;
-  l.groups = groups;
-  l.group_id = group_id;
-  int i;
+  l->type = ROUTE;
+  l->batch = batch;
+  l->n = n;
+  l->input_layers = input_layers;
+  l->input_sizes = input_sizes;
+  l->groups = groups;
+  l->group_id = group_id;
+
   int outputs = 0;
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
     fprintf(stderr, " %d", input_layers[i]);
     outputs += input_sizes[i];
   }
   outputs = outputs / groups;
-  l.outputs = outputs;
-  l.inputs = outputs;
-  // fprintf(stderr, " inputs = %d \t outputs = %d, groups = %d, group_id = %d
-  // \n", l.inputs, l.outputs, l.groups, l.group_id);
-  l.delta = (float*)xcalloc(outputs * batch, sizeof(float));
-  l.output = (float*)xcalloc(outputs * batch, sizeof(float));
+  l->outputs = outputs;
+  l->inputs = outputs;
+  l->delta = (float*)xcalloc(outputs * batch, sizeof(float));
+  l->output = (float*)xcalloc(outputs * batch, sizeof(float));
 
-  l.forward = ForwardRouteLayer;
-  l.backward = BackwardRouteLayer;
+  l->forward = ForwardRouteLayer;
+  l->backward = BackwardRouteLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardRouteLayerGpu;
-  l.backward_gpu = BackwardRouteLayerGpu;
+  l->forward_gpu = ForwardRouteLayerGpu;
+  l->backward_gpu = BackwardRouteLayerGpu;
 
-  l.delta_gpu = cuda_make_array(l.delta, outputs * batch);
-  l.output_gpu = cuda_make_array(l.output, outputs * batch);
+  l->delta_gpu = cuda_make_array(l->delta, outputs * batch);
+  l->output_gpu = cuda_make_array(l->output, outputs * batch);
 #endif
-  return l;
 }
 
 void ResizeRouteLayer(layer* l, Network* net)

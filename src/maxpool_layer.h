@@ -1,11 +1,10 @@
 #pragma once
 
-#include "dark_cuda.h"
 #include "network.h"
 
-layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x,
-    int stride_y, int padding, int maxpool_depth, int out_channels,
-    int antialiasing, int train);
+void FillMaxpoolLayer(layer* l, int batch, int h, int w, int c, int size,
+    int stride_x, int stride_y, int padding, int maxpool_depth,
+    int out_channels, int antialiasing, int train);
 void ResizeMaxpoolLayer(layer* l, int w, int h);
 void ForwardMaxpoolLayer(layer* l, NetworkState state);
 void BackwardMaxpoolLayer(layer* l, NetworkState state);

@@ -22,81 +22,80 @@
 #define M_PI 3.141592
 #endif
 
-layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total,
+void FillGaussianYoloLayer(layer* l, int batch, int w, int h, int n, int total,
     int* mask, int classes, int max_boxes)
 {
-  int i;
-  layer l = {(LAYER_TYPE)0};
-  l.type = GAUSSIAN_YOLO;
-
-  l.n = n;
-  l.total = total;
-  l.batch = batch;
-  l.h = h;
-  l.w = w;
-  l.c = n * (classes + 8 + 1);
-  l.out_w = l.w;
-  l.out_h = l.h;
-  l.out_c = l.c;
-  l.classes = classes;
-  l.cost = (float*)calloc(1, sizeof(float));
-  l.biases = (float*)calloc(total * 2, sizeof(float));
+  l->type = GAUSSIAN_YOLO;
+  l->n = n;
+  l->total = total;
+  l->batch = batch;
+  l->h = h;
+  l->w = w;
+  l->c = n * (classes + 8 + 1);
+  l->out_w = l->w;
+  l->out_h = l->h;
+  l->out_c = l->c;
+  l->classes = classes;
+  l->cost = (float*)calloc(1, sizeof(float));
+  l->biases = (float*)calloc(total * 2, sizeof(float));
   if (mask)
-    l.mask = mask;
+  {
+    l->mask = mask;
+  }
   else
   {
-    l.mask = (int*)calloc(n, sizeof(int));
-    for (i = 0; i < n; ++i)
+    l->mask = (int*)calloc(n, sizeof(int));
+    for (int i = 0; i < n; ++i)
     {
-      l.mask[i] = i;
+      l->mask[i] = i;
     }
   }
-  l.bias_updates = (float*)calloc(n * 2, sizeof(float));
-  l.outputs = h * w * n * (classes + 8 + 1);
-  l.inputs = l.outputs;
-  l.max_boxes = max_boxes;
-  l.truths = l.max_boxes * (4 + 1);
-  l.delta = (float*)calloc(batch * l.outputs, sizeof(float));
-  l.output = (float*)calloc(batch * l.outputs, sizeof(float));
-  for (i = 0; i < total * 2; ++i)
+  l->bias_updates = (float*)calloc(n * 2, sizeof(float));
+  l->outputs = h * w * n * (classes + 8 + 1);
+  l->inputs = l->outputs;
+  l->max_boxes = max_boxes;
+  l->truths = l->max_boxes * (4 + 1);
+  l->delta = (float*)calloc(batch * l->outputs, sizeof(float));
+  l->output = (float*)calloc(batch * l->outputs, sizeof(float));
+  for (int i = 0; i < total * 2; ++i)
   {
-    l.biases[i] = .5;
+    l->biases[i] = .5;
   }
 
-  l.forward = ForwardGaussianYoloLayer;
-  l.backward = BackwardGaussianYoloLayer;
+  l->forward = ForwardGaussianYoloLayer;
+  l->backward = BackwardGaussianYoloLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardGaussianYoloLayerGpu;
-  l.backward_gpu = BackwardGaussianYoloLayerGpu;
-  l.output_gpu = cuda_make_array(l.output, batch * l.outputs);
-  l.delta_gpu = cuda_make_array(l.delta, batch * l.outputs);
+  l->forward_gpu = ForwardGaussianYoloLayerGpu;
+  l->backward_gpu = BackwardGaussianYoloLayerGpu;
+  l->output_gpu = cuda_make_array(l->output, batch * l->outputs);
+  l->delta_gpu = cuda_make_array(l->delta, batch * l->outputs);
 
-  free(l.output);
-  if (cudaSuccess == cudaHostAlloc(&l.output, batch * l.outputs * sizeof(float),
+  free(l->output);
+  if (cudaSuccess == cudaHostAlloc(&l->output,
+                         batch * l->outputs * sizeof(float),
                          cudaHostRegisterMapped))
-    l.output_pinned = 1;
+    l->output_pinned = 1;
   else
   {
     cudaGetLastError();  // reset CUDA-error
-    l.output = (float*)calloc(batch * l.outputs, sizeof(float));
+    l->output = (float*)calloc(batch * l->outputs, sizeof(float));
   }
 
-  free(l.delta);
-  if (cudaSuccess == cudaHostAlloc(&l.delta, batch * l.outputs * sizeof(float),
+  free(l->delta);
+  if (cudaSuccess == cudaHostAlloc(&l->delta,
+                         batch * l->outputs * sizeof(float),
                          cudaHostRegisterMapped))
-    l.delta_pinned = 1;
+    l->delta_pinned = 1;
   else
   {
     cudaGetLastError();  // reset CUDA-error
-    l.delta = (float*)calloc(batch * l.outputs, sizeof(float));
+    l->delta = (float*)calloc(batch * l->outputs, sizeof(float));
   }
 
 #endif
 
-  // fprintf(stderr, "Gaussian_yolo\n");
+  fprintf(stderr, "gaussian_yolo\n");
   srand(time(0));
-
-  return l;
 }
 
 void ResizeGaussianYoloLayer(layer* l, int w, int h)

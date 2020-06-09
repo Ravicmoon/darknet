@@ -2,7 +2,8 @@
 
 #include "network.h"
 
-layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse);
+void FillReorgLayer(
+    layer* l, int batch, int w, int h, int c, int stride, int reverse);
 void resize_reorg_layer(layer* l, int w, int h);
 void ForwardReorgLayer(layer* l, NetworkState state);
 void BackwardReorgLayer(layer* l, NetworkState state);

@@ -6,48 +6,46 @@
 #include "dark_cuda.h"
 #include "utils.h"
 
-layer make_reorg_old_layer(
-    int batch, int w, int h, int c, int stride, int reverse)
+void FillReorgOldLayer(
+    layer* l, int batch, int w, int h, int c, int stride, int reverse)
 {
-  layer l = {(LAYER_TYPE)0};
-  l.type = REORG_OLD;
-  l.batch = batch;
-  l.stride = stride;
-  l.h = h;
-  l.w = w;
-  l.c = c;
+  l->type = REORG_OLD;
+  l->batch = batch;
+  l->stride = stride;
+  l->h = h;
+  l->w = w;
+  l->c = c;
   if (reverse)
   {
-    l.out_w = w * stride;
-    l.out_h = h * stride;
-    l.out_c = c / (stride * stride);
+    l->out_w = w * stride;
+    l->out_h = h * stride;
+    l->out_c = c / (stride * stride);
   }
   else
   {
-    l.out_w = w / stride;
-    l.out_h = h / stride;
-    l.out_c = c * (stride * stride);
+    l->out_w = w / stride;
+    l->out_h = h / stride;
+    l->out_c = c * (stride * stride);
   }
-  l.reverse = reverse;
+  l->reverse = reverse;
   fprintf(stderr,
       "reorg_old              /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n",
-      stride, w, h, c, l.out_w, l.out_h, l.out_c);
-  l.outputs = l.out_h * l.out_w * l.out_c;
-  l.inputs = h * w * c;
-  int output_size = l.out_h * l.out_w * l.out_c * batch;
-  l.output = (float*)xcalloc(output_size, sizeof(float));
-  l.delta = (float*)xcalloc(output_size, sizeof(float));
+      stride, w, h, c, l->out_w, l->out_h, l->out_c);
+  l->outputs = l->out_h * l->out_w * l->out_c;
+  l->inputs = h * w * c;
+  int output_size = l->out_h * l->out_w * l->out_c * batch;
+  l->output = (float*)xcalloc(output_size, sizeof(float));
+  l->delta = (float*)xcalloc(output_size, sizeof(float));
 
-  l.forward = ForwardReorgOldLayer;
-  l.backward = BackwardReorgOldLayer;
+  l->forward = ForwardReorgOldLayer;
+  l->backward = BackwardReorgOldLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardReorgOldLayerGpu;
-  l.backward_gpu = BackwardReorgOldLayerGpu;
+  l->forward_gpu = ForwardReorgOldLayerGpu;
+  l->backward_gpu = BackwardReorgOldLayerGpu;
 
-  l.output_gpu = cuda_make_array(l.output, output_size);
-  l.delta_gpu = cuda_make_array(l.delta, output_size);
+  l->output_gpu = cuda_make_array(l->output, output_size);
+  l->delta_gpu = cuda_make_array(l->delta, output_size);
 #endif
-  return l;
 }
 
 void ResizeReorgOldLayer(layer* l, int w, int h)

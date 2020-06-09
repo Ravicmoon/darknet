@@ -1,9 +1,8 @@
 #pragma once
 
 #include "network.h"
-#include "yolo_core.h"
 
-layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total,
+void FillGaussianYoloLayer(layer* l, int batch, int w, int h, int n, int total,
     int* mask, int classes, int max_boxes);
 void ForwardGaussianYoloLayer(layer* l, NetworkState state);
 void BackwardGaussianYoloLayer(layer* l, NetworkState state);

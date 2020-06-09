@@ -2,7 +2,7 @@
 
 #include "network.h"
 
-layer make_upsample_layer(int batch, int w, int h, int c, int stride);
+void FillUpsampleLayer(layer* l, int batch, int w, int h, int c, int stride);
 void ResizeUpsampleLayer(layer* l, int w, int h);
 void ForwardUpsampleLayer(layer* l, NetworkState state);
 void BackwardUpsampleLayer(layer* l, NetworkState state);

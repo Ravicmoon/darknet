@@ -3,7 +3,7 @@
 #include "activations.h"
 #include "network.h"
 
-layer make_local_layer(int batch, int h, int w, int c, int n, int size,
+void FillLocalLayer(layer* l, int batch, int h, int w, int c, int n, int size,
     int stride, int pad, ACTIVATION activation);
 
 void ForwardLocalLayer(layer* l, NetworkState state);

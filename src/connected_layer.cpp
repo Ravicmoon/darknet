@@ -12,127 +12,123 @@
 #include "gemm.h"
 #include "utils.h"
 
-size_t get_connected_workspace_size(layer l)
+size_t GetConnectedWorkspaceSize(layer* l)
 {
 #ifdef CUDNN
-  return get_convolutional_workspace_size(l);
+  return GetConvWorkspaceSize(l);
 #endif
   return 0;
 }
 
-layer make_connected_layer(int batch, int steps, int inputs, int outputs,
+void FillConnectedLayer(layer* l, int batch, int steps, int inputs, int outputs,
     ACTIVATION activation, int batch_normalize)
 {
   int total_batch = batch * steps;
-  int i;
-  layer l = {(LAYER_TYPE)0};
-  l.type = CONNECTED;
 
-  l.inputs = inputs;
-  l.outputs = outputs;
-  l.batch = batch;
-  l.batch_normalize = batch_normalize;
-  l.h = 1;
-  l.w = 1;
-  l.c = inputs;
-  l.out_h = 1;
-  l.out_w = 1;
-  l.out_c = outputs;
-  l.n = l.out_c;
-  l.size = 1;
-  l.stride = l.stride_x = l.stride_y = 1;
-  l.pad = 0;
-  l.activation = activation;
-  l.learning_rate_scale = 1;
-  l.groups = 1;
-  l.dilation = 1;
+  l->type = CONNECTED;
+  l->inputs = inputs;
+  l->outputs = outputs;
+  l->batch = batch;
+  l->batch_normalize = batch_normalize;
+  l->h = 1;
+  l->w = 1;
+  l->c = inputs;
+  l->out_h = 1;
+  l->out_w = 1;
+  l->out_c = outputs;
+  l->n = l->out_c;
+  l->size = 1;
+  l->stride = l->stride_x = l->stride_y = 1;
+  l->pad = 0;
+  l->activation = activation;
+  l->learning_rate_scale = 1;
+  l->groups = 1;
+  l->dilation = 1;
 
-  l.output = (float*)xcalloc(total_batch * outputs, sizeof(float));
-  l.delta = (float*)xcalloc(total_batch * outputs, sizeof(float));
+  l->output = (float*)xcalloc(total_batch * outputs, sizeof(float));
+  l->delta = (float*)xcalloc(total_batch * outputs, sizeof(float));
 
-  l.weight_updates = (float*)xcalloc(inputs * outputs, sizeof(float));
-  l.bias_updates = (float*)xcalloc(outputs, sizeof(float));
+  l->weight_updates = (float*)xcalloc(inputs * outputs, sizeof(float));
+  l->bias_updates = (float*)xcalloc(outputs, sizeof(float));
 
-  l.weights = (float*)xcalloc(outputs * inputs, sizeof(float));
-  l.biases = (float*)xcalloc(outputs, sizeof(float));
+  l->weights = (float*)xcalloc(outputs * inputs, sizeof(float));
+  l->biases = (float*)xcalloc(outputs, sizeof(float));
 
-  l.forward = ForwardConnectedLayer;
-  l.backward = BackwardConnectedLayer;
-  l.update = UpdateConnectedLayer;
+  l->forward = ForwardConnectedLayer;
+  l->backward = BackwardConnectedLayer;
+  l->update = UpdateConnectedLayer;
 
-  // float scale = 1./sqrt(inputs);
   float scale = sqrt(2.f / inputs);
-  for (i = 0; i < outputs * inputs; ++i)
+  for (int i = 0; i < outputs * inputs; ++i)
   {
-    l.weights[i] = scale * rand_uniform(-1, 1);
+    l->weights[i] = scale * rand_uniform(-1, 1);
   }
 
-  for (i = 0; i < outputs; ++i)
+  for (int i = 0; i < outputs; ++i)
   {
-    l.biases[i] = 0;
+    l->biases[i] = 0;
   }
 
   if (batch_normalize)
   {
-    l.scales = (float*)xcalloc(outputs, sizeof(float));
-    l.scale_updates = (float*)xcalloc(outputs, sizeof(float));
-    for (i = 0; i < outputs; ++i)
+    l->scales = (float*)xcalloc(outputs, sizeof(float));
+    l->scale_updates = (float*)xcalloc(outputs, sizeof(float));
+    for (int i = 0; i < outputs; ++i)
     {
-      l.scales[i] = 1;
+      l->scales[i] = 1;
     }
 
-    l.mean = (float*)xcalloc(outputs, sizeof(float));
-    l.mean_delta = (float*)xcalloc(outputs, sizeof(float));
-    l.variance = (float*)xcalloc(outputs, sizeof(float));
-    l.variance_delta = (float*)xcalloc(outputs, sizeof(float));
+    l->mean = (float*)xcalloc(outputs, sizeof(float));
+    l->mean_delta = (float*)xcalloc(outputs, sizeof(float));
+    l->variance = (float*)xcalloc(outputs, sizeof(float));
+    l->variance_delta = (float*)xcalloc(outputs, sizeof(float));
 
-    l.rolling_mean = (float*)xcalloc(outputs, sizeof(float));
-    l.rolling_variance = (float*)xcalloc(outputs, sizeof(float));
+    l->rolling_mean = (float*)xcalloc(outputs, sizeof(float));
+    l->rolling_variance = (float*)xcalloc(outputs, sizeof(float));
 
-    l.x = (float*)xcalloc(total_batch * outputs, sizeof(float));
-    l.x_norm = (float*)xcalloc(total_batch * outputs, sizeof(float));
+    l->x = (float*)xcalloc(total_batch * outputs, sizeof(float));
+    l->x_norm = (float*)xcalloc(total_batch * outputs, sizeof(float));
   }
 
 #ifdef GPU
-  l.forward_gpu = ForwardConnectedLayerGpu;
-  l.backward_gpu = BackwardConnectedLayerGpu;
-  l.update_gpu = UpdateConnectedLayerGpu;
+  l->forward_gpu = ForwardConnectedLayerGpu;
+  l->backward_gpu = BackwardConnectedLayerGpu;
+  l->update_gpu = UpdateConnectedLayerGpu;
 
-  l.weights_gpu = cuda_make_array(l.weights, outputs * inputs);
-  l.biases_gpu = cuda_make_array(l.biases, outputs);
+  l->weights_gpu = cuda_make_array(l->weights, outputs * inputs);
+  l->biases_gpu = cuda_make_array(l->biases, outputs);
 
-  l.weight_updates_gpu = cuda_make_array(l.weight_updates, outputs * inputs);
-  l.bias_updates_gpu = cuda_make_array(l.bias_updates, outputs);
+  l->weight_updates_gpu = cuda_make_array(l->weight_updates, outputs * inputs);
+  l->bias_updates_gpu = cuda_make_array(l->bias_updates, outputs);
 
-  l.output_gpu = cuda_make_array(l.output, outputs * total_batch);
-  l.delta_gpu = cuda_make_array(l.delta, outputs * total_batch);
+  l->output_gpu = cuda_make_array(l->output, outputs * total_batch);
+  l->delta_gpu = cuda_make_array(l->delta, outputs * total_batch);
   if (batch_normalize)
   {
-    l.scales_gpu = cuda_make_array(l.scales, outputs);
-    l.scale_updates_gpu = cuda_make_array(l.scale_updates, outputs);
+    l->scales_gpu = cuda_make_array(l->scales, outputs);
+    l->scale_updates_gpu = cuda_make_array(l->scale_updates, outputs);
 
-    l.mean_gpu = cuda_make_array(l.mean, outputs);
-    l.variance_gpu = cuda_make_array(l.variance, outputs);
+    l->mean_gpu = cuda_make_array(l->mean, outputs);
+    l->variance_gpu = cuda_make_array(l->variance, outputs);
 
-    l.rolling_mean_gpu = cuda_make_array(l.mean, outputs);
-    l.rolling_variance_gpu = cuda_make_array(l.variance, outputs);
+    l->rolling_mean_gpu = cuda_make_array(l->mean, outputs);
+    l->rolling_variance_gpu = cuda_make_array(l->variance, outputs);
 
-    l.mean_delta_gpu = cuda_make_array(l.mean, outputs);
-    l.variance_delta_gpu = cuda_make_array(l.variance, outputs);
+    l->mean_delta_gpu = cuda_make_array(l->mean, outputs);
+    l->variance_delta_gpu = cuda_make_array(l->variance, outputs);
 
-    l.x_gpu = cuda_make_array(l.output, total_batch * outputs);
-    l.x_norm_gpu = cuda_make_array(l.output, total_batch * outputs);
+    l->x_gpu = cuda_make_array(l->output, total_batch * outputs);
+    l->x_norm_gpu = cuda_make_array(l->output, total_batch * outputs);
   }
 #ifdef CUDNN
-  create_convolutional_cudnn_tensors(&l);
-  cudnn_convolutional_setup(
-      &l, cudnn_fastest, 0);  // cudnn_fastest, cudnn_smallest
-  l.workspace_size = get_connected_workspace_size(l);
+  create_convolutional_cudnn_tensors(l);
+  cudnn_convolutional_setup(l, cudnn_fastest, 0);
+  l->workspace_size = GetConnectedWorkspaceSize(l);
 #endif  // CUDNN
 #endif  // GPU
+
   fprintf(stderr, "connected                            %4d  ->  %4d\n", inputs,
       outputs);
-  return l;
 }
 
 void UpdateConnectedLayer(

@@ -13,54 +13,45 @@
 
 #define DOABS 1
 
-layer make_region_layer(
-    int batch, int w, int h, int n, int classes, int coords, int max_boxes)
+void FillRegionLayer(layer* l, int batch, int w, int h, int n, int classes,
+    int coords, int max_boxes)
 {
-  layer l = {(LAYER_TYPE)0};
-  l.type = REGION;
-
-  l.n = n;
-  l.batch = batch;
-  l.h = h;
-  l.w = w;
-  l.classes = classes;
-  l.coords = coords;
-  l.cost = (float*)xcalloc(1, sizeof(float));
-  l.biases = (float*)xcalloc(n * 2, sizeof(float));
-  l.bias_updates = (float*)xcalloc(n * 2, sizeof(float));
-  l.outputs = h * w * n * (classes + coords + 1);
-  l.inputs = l.outputs;
-  l.max_boxes = max_boxes;
-  l.truths = max_boxes * (5);
-  l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
-  l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
-  int i;
-  for (i = 0; i < n * 2; ++i)
+  l->type = REGION;
+  l->n = n;
+  l->batch = batch;
+  l->h = h;
+  l->w = w;
+  l->classes = classes;
+  l->coords = coords;
+  l->cost = (float*)xcalloc(1, sizeof(float));
+  l->biases = (float*)xcalloc(n * 2, sizeof(float));
+  l->bias_updates = (float*)xcalloc(n * 2, sizeof(float));
+  l->outputs = h * w * n * (classes + coords + 1);
+  l->inputs = l->outputs;
+  l->max_boxes = max_boxes;
+  l->truths = max_boxes * (5);
+  l->delta = (float*)xcalloc(batch * l->outputs, sizeof(float));
+  l->output = (float*)xcalloc(batch * l->outputs, sizeof(float));
+  for (int i = 0; i < n * 2; ++i)
   {
-    l.biases[i] = .5;
+    l->biases[i] = .5;
   }
 
-  l.forward = ForwardRegionLayer;
-  l.backward = BackwardRegionLayer;
+  l->forward = ForwardRegionLayer;
+  l->backward = BackwardRegionLayer;
 #ifdef GPU
-  l.forward_gpu = ForwardRegionLayerGpu;
-  l.backward_gpu = BackwardRegionLayerGpu;
-  l.output_gpu = cuda_make_array(l.output, batch * l.outputs);
-  l.delta_gpu = cuda_make_array(l.delta, batch * l.outputs);
+  l->forward_gpu = ForwardRegionLayerGpu;
+  l->backward_gpu = BackwardRegionLayerGpu;
+  l->output_gpu = cuda_make_array(l->output, batch * l->outputs);
+  l->delta_gpu = cuda_make_array(l->delta, batch * l->outputs);
 #endif
 
   fprintf(stderr, "detection\n");
   srand(time(0));
-
-  return l;
 }
 
 void ResizeRegionLayer(layer* l, int w, int h)
 {
-#ifdef GPU
-  int old_w = l->w;
-  int old_h = l->h;
-#endif
   l->w = w;
   l->h = h;
 
@@ -72,14 +63,11 @@ void ResizeRegionLayer(layer* l, int w, int h)
   l->delta = (float*)xrealloc(l->delta, l->batch * l->outputs * sizeof(float));
 
 #ifdef GPU
-  // if (old_w < w || old_h < h)
-  {
-    cuda_free(l->delta_gpu);
-    cuda_free(l->output_gpu);
+  cuda_free(l->delta_gpu);
+  cuda_free(l->output_gpu);
 
-    l->delta_gpu = cuda_make_array(l->delta, l->batch * l->outputs);
-    l->output_gpu = cuda_make_array(l->output, l->batch * l->outputs);
-  }
+  l->delta_gpu = cuda_make_array(l->delta, l->batch * l->outputs);
+  l->output_gpu = cuda_make_array(l->output, l->batch * l->outputs);
 #endif
 }
 
@@ -193,14 +181,6 @@ void delta_region_class(float* output, float* delta, int index, int class_id,
 float logit(float x) { return log(x / (1. - x)); }
 
 float tisnan(float x) { return (x != x); }
-
-static int EntryIndex(layer l, int batch, int location, int entry)
-{
-  int n = location / (l.w * l.h);
-  int loc = location % (l.w * l.h);
-  return batch * l.outputs + n * l.w * l.h * (l.coords + l.classes + 1) +
-         entry * l.w * l.h + loc;
-}
 
 void softmax_tree(float* input, int batch, int inputs, float temp,
     tree* hierarchy, float* output);

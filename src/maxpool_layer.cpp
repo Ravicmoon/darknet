@@ -7,7 +7,7 @@
 #include "gemm.h"
 #include "utils.h"
 
-void create_maxpool_cudnn_tensors(layer* l)
+void CreateMaxpoolCudnnTensors(layer* l)
 {
 #ifdef CUDNN
   CHECK_CUDNN(cudnnCreatePoolingDescriptor(&l->poolingDesc));
@@ -30,150 +30,149 @@ void CudnnMaxpoolSetup(layer* l)
 #endif  // CUDNN
 }
 
-layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x,
-    int stride_y, int padding, int maxpool_depth, int out_channels,
-    int antialiasing, int train)
+void FillMaxpoolLayer(layer* l, int batch, int h, int w, int c, int size,
+    int stride_x, int stride_y, int padding, int maxpool_depth,
+    int out_channels, int antialiasing, int train)
 {
-  layer l = {(LAYER_TYPE)0};
-  l.type = MAXPOOL;
-  l.train = train;
+  l->type = MAXPOOL;
+  l->train = train;
 
-  const int blur_stride_x = stride_x;
-  const int blur_stride_y = stride_y;
-  l.antialiasing = antialiasing;
+  int const blur_stride_x = stride_x;
+  int const blur_stride_y = stride_y;
+  l->antialiasing = antialiasing;
   if (antialiasing)
-  {
-    stride_x = stride_y = l.stride = l.stride_x = l.stride_y =
-        1;  // use stride=1 in host-layer
-  }
+    stride_x = stride_y = l->stride = l->stride_x = l->stride_y = 1;
 
-  l.batch = batch;
-  l.h = h;
-  l.w = w;
-  l.c = c;
-  l.pad = padding;
-  l.maxpool_depth = maxpool_depth;
-  l.out_channels = out_channels;
+  l->batch = batch;
+  l->h = h;
+  l->w = w;
+  l->c = c;
+  l->pad = padding;
+  l->maxpool_depth = maxpool_depth;
+  l->out_channels = out_channels;
   if (maxpool_depth)
   {
-    l.out_c = out_channels;
-    l.out_w = l.w;
-    l.out_h = l.h;
+    l->out_c = out_channels;
+    l->out_w = l->w;
+    l->out_h = l->h;
   }
   else
   {
-    l.out_w = (w + padding - size) / stride_x + 1;
-    l.out_h = (h + padding - size) / stride_y + 1;
-    l.out_c = c;
+    l->out_w = (w + padding - size) / stride_x + 1;
+    l->out_h = (h + padding - size) / stride_y + 1;
+    l->out_c = c;
   }
-  l.outputs = l.out_h * l.out_w * l.out_c;
-  l.inputs = h * w * c;
-  l.size = size;
-  l.stride = stride_x;
-  l.stride_x = stride_x;
-  l.stride_y = stride_y;
-  int output_size = l.out_h * l.out_w * l.out_c * batch;
+  l->outputs = l->out_h * l->out_w * l->out_c;
+  l->inputs = h * w * c;
+  l->size = size;
+  l->stride = stride_x;
+  l->stride_x = stride_x;
+  l->stride_y = stride_y;
+  int output_size = l->out_h * l->out_w * l->out_c * batch;
 
   if (train)
   {
-    l.indexes = (int*)xcalloc(output_size, sizeof(int));
-    l.delta = (float*)xcalloc(output_size, sizeof(float));
+    l->indexes = (int*)xcalloc(output_size, sizeof(int));
+    l->delta = (float*)xcalloc(output_size, sizeof(float));
   }
-  l.output = (float*)xcalloc(output_size, sizeof(float));
+  l->output = (float*)xcalloc(output_size, sizeof(float));
 
-  l.forward = ForwardMaxpoolLayer;
-  l.backward = BackwardMaxpoolLayer;
+  l->forward = ForwardMaxpoolLayer;
+  l->backward = BackwardMaxpoolLayer;
 
 #ifdef GPU
-  l.forward_gpu = ForwardMaxpoolLayerGpu;
-  l.backward_gpu = BackwardMaxpoolLayerGpu;
+  l->forward_gpu = ForwardMaxpoolLayerGpu;
+  l->backward_gpu = BackwardMaxpoolLayerGpu;
 
   if (train)
   {
-    l.indexes_gpu = cuda_make_int_array(output_size);
-    l.delta_gpu = cuda_make_array(l.delta, output_size);
+    l->indexes_gpu = cuda_make_int_array(output_size);
+    l->delta_gpu = cuda_make_array(l->delta, output_size);
   }
-  l.output_gpu = cuda_make_array(l.output, output_size);
-  create_maxpool_cudnn_tensors(&l);
-  CudnnMaxpoolSetup(&l);
+  l->output_gpu = cuda_make_array(l->output, output_size);
+  CreateMaxpoolCudnnTensors(l);
+  CudnnMaxpoolSetup(l);
 
 #endif  // GPU
-  l.bflops = (l.size * l.size * l.c * l.out_h * l.out_w) / 1000000000.;
+  l->bflops = (l->size * l->size * l->c * l->out_h * l->out_w) / 1000000000.;
 
   if (maxpool_depth)
     fprintf(stderr,
         "max-depth         %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
         "%5.3f BF\n",
-        size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
+        size, size, stride_x, w, h, c, l->out_w, l->out_h, l->out_c, l->bflops);
   else if (stride_x == stride_y)
     fprintf(stderr,
         "max               %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
         "%5.3f BF\n",
-        size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
+        size, size, stride_x, w, h, c, l->out_w, l->out_h, l->out_c, l->bflops);
   else
     fprintf(stderr,
         "max              %2dx%2d/%2dx%2d %4d x%4d x%4d -> %4d x%4d x%4d "
         "%5.3f BF\n",
-        size, size, stride_x, stride_y, w, h, c, l.out_w, l.out_h, l.out_c,
-        l.bflops);
+        size, size, stride_x, stride_y, w, h, c, l->out_w, l->out_h, l->out_c,
+        l->bflops);
 
-  if (l.antialiasing)
+  if (l->antialiasing)
   {
     printf("AA:  ");
-    l.input_layer = (layer*)calloc(1, sizeof(layer));
+
     int blur_size = 3;
     int blur_pad = blur_size / 2;
-    if (l.antialiasing == 2)
+    if (l->antialiasing == 2)
     {
       blur_size = 2;
       blur_pad = 0;
     }
-    *(l.input_layer) = make_convolutional_layer(batch, 1, l.out_h, l.out_w,
-        l.out_c, l.out_c, l.out_c, blur_size, blur_stride_x, blur_stride_y, 1,
+
+    l->input_layer = (layer*)calloc(1, sizeof(layer));
+    FillConvLayer(l->input_layer, batch, 1, l->out_h, l->out_w, l->out_c,
+        l->out_c, l->out_c, blur_size, blur_stride_x, blur_stride_y, 1,
         blur_pad, LINEAR, 0, 0, 0, 0, 0, 1, 0, NULL, 0, 0, train);
-    const int blur_nweights =
-        l.out_c * blur_size *
-        blur_size;  // (n / n) * n * blur_size * blur_size;
-    int i;
+
+    int const blur_nweights = l->out_c * blur_size * blur_size;
     if (blur_size == 2)
     {
-      for (i = 0; i < blur_nweights; i += (blur_size * blur_size))
+      for (int i = 0; i < blur_nweights; i += (blur_size * blur_size))
       {
-        l.input_layer->weights[i + 0] = 1 / 4.f;
-        l.input_layer->weights[i + 1] = 1 / 4.f;
-        l.input_layer->weights[i + 2] = 1 / 4.f;
-        l.input_layer->weights[i + 3] = 1 / 4.f;
+        l->input_layer->weights[i + 0] = 1 / 4.f;
+        l->input_layer->weights[i + 1] = 1 / 4.f;
+        l->input_layer->weights[i + 2] = 1 / 4.f;
+        l->input_layer->weights[i + 3] = 1 / 4.f;
       }
     }
     else
     {
-      for (i = 0; i < blur_nweights; i += (blur_size * blur_size))
+      for (int i = 0; i < blur_nweights; i += (blur_size * blur_size))
       {
-        l.input_layer->weights[i + 0] = 1 / 16.f;
-        l.input_layer->weights[i + 1] = 2 / 16.f;
-        l.input_layer->weights[i + 2] = 1 / 16.f;
+        l->input_layer->weights[i + 0] = 1 / 16.f;
+        l->input_layer->weights[i + 1] = 2 / 16.f;
+        l->input_layer->weights[i + 2] = 1 / 16.f;
 
-        l.input_layer->weights[i + 3] = 2 / 16.f;
-        l.input_layer->weights[i + 4] = 4 / 16.f;
-        l.input_layer->weights[i + 5] = 2 / 16.f;
+        l->input_layer->weights[i + 3] = 2 / 16.f;
+        l->input_layer->weights[i + 4] = 4 / 16.f;
+        l->input_layer->weights[i + 5] = 2 / 16.f;
 
-        l.input_layer->weights[i + 6] = 1 / 16.f;
-        l.input_layer->weights[i + 7] = 2 / 16.f;
-        l.input_layer->weights[i + 8] = 1 / 16.f;
+        l->input_layer->weights[i + 6] = 1 / 16.f;
+        l->input_layer->weights[i + 7] = 2 / 16.f;
+        l->input_layer->weights[i + 8] = 1 / 16.f;
       }
     }
-    for (i = 0; i < l.out_c; ++i) l.input_layer->biases[i] = 0;
+
+    for (int i = 0; i < l->out_c; ++i)
+    {
+      l->input_layer->biases[i] = 0;
+    }
 #ifdef GPU
     if (gpu_index >= 0)
     {
-      if (l.antialiasing)
-        l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch * l.outputs);
-      PushConvolutionalLayer(l.input_layer);
+      if (l->antialiasing)
+        l->input_antialiasing_gpu =
+            cuda_make_array(NULL, l->batch * l->outputs);
+      PushConvolutionalLayer(l->input_layer);
     }
 #endif  // GPU
   }
-
-  return l;
 }
 
 void ResizeMaxpoolLayer(layer* l, int w, int h)
