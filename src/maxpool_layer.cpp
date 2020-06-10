@@ -128,7 +128,7 @@ void FillMaxpoolLayer(layer* l, int batch, int h, int w, int c, int size,
     l->input_layer = (layer*)calloc(1, sizeof(layer));
     FillConvLayer(l->input_layer, batch, 1, l->out_h, l->out_w, l->out_c,
         l->out_c, l->out_c, blur_size, blur_stride_x, blur_stride_y, 1,
-        blur_pad, LINEAR, 0, 0, 0, 0, 0, 1, 0, NULL, 0, 0, train);
+        blur_pad, LINEAR, 0, 0, 0, 0, 0, 1, 0, NULL, train);
 
     int const blur_nweights = l->out_c * blur_size * blur_size;
     if (blur_size == 2)

@@ -212,7 +212,6 @@ struct layer
   int batch;
   int dynamic_minibatch;
   int forced;
-  int flipped;
   int inputs;
   int outputs;
   int nweights;
@@ -247,12 +246,6 @@ struct layer
   int keep_delta_gpu;
   int optimized_memory;
   int steps;
-
-  int deform;
-  int sway;
-  int rotate;
-  int stretch;
-  int stretch_sway;
 
   float angle;
   float jitter;
@@ -306,7 +299,6 @@ struct layer
   float focus;
   int classfix;
   int absolute;
-  int assisted_excitation;
 
   int onlyforward;
   int stopbackward;
@@ -448,7 +440,6 @@ struct layer
   float* x_norm_gpu;
   float* weights_gpu;
   float* weight_updates_gpu;
-  float* weight_deform_gpu;
   float* weight_change_gpu;
 
   float* weights_gpu16;
@@ -472,9 +463,6 @@ struct layer
   float* drop_blocks_scale_gpu;
   float* squared_gpu;
   float* norms_gpu;
-
-  float* gt_gpu;
-  float* a_avg_gpu;
 
   int* input_sizes_gpu;
   float** layers_output_gpu;

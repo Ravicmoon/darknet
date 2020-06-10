@@ -153,12 +153,6 @@ void free_layer(layer* l, bool keep_cudnn_desc)
   if (l->x_norm_gpu)
     cuda_free(l->x_norm_gpu);
 
-  // assisted excitation
-  if (l->gt_gpu)
-    cuda_free(l->gt_gpu);
-  if (l->a_avg_gpu)
-    cuda_free(l->a_avg_gpu);
-
   if (l->align_bit_weights_gpu)
     cuda_free((float*)l->align_bit_weights_gpu);
   if (l->mean_arr_gpu)
@@ -172,8 +166,6 @@ void free_layer(layer* l, bool keep_cudnn_desc)
     cuda_free(l->weights_gpu), l->weights_gpu = NULL;
   if (l->weight_updates_gpu)
     cuda_free(l->weight_updates_gpu), l->weight_updates_gpu = NULL;
-  if (l->weight_deform_gpu)
-    cuda_free(l->weight_deform_gpu), l->weight_deform_gpu = NULL;
   if (l->weights_gpu16)
     cuda_free(l->weights_gpu16), l->weights_gpu16 = NULL;
   if (l->weight_updates_gpu16)

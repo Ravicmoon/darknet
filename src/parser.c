@@ -214,9 +214,6 @@ void ParseConv(layer* l, list* options, SizeParams params)
   char* activation_str = FindOptionStr(options, "activation", "logistic");
   ACTIVATION activation = get_activation(activation_str);
 
-  int assisted_excitation =
-      FindOptionFloatQuiet(options, "assisted_excitation", 0);
-
   int share_index = FindOptionIntQuiet(options, "share_index", -1000000000);
   layer* share_layer = NULL;
   if (share_index >= 0)
@@ -231,42 +228,15 @@ void ParseConv(layer* l, list* options, SizeParams params)
     error("Layer before convolutional layer must output image.");
 
   int batch_normalize = FindOptionIntQuiet(options, "batch_normalize", 0);
-  int cbn = FindOptionIntQuiet(options, "cbn", 0);
-  if (cbn)
-    batch_normalize = 2;
   int binary = FindOptionIntQuiet(options, "binary", 0);
   int xnor = FindOptionIntQuiet(options, "xnor", 0);
   int use_bin_output = FindOptionIntQuiet(options, "bin_output", 0);
-  int sway = FindOptionIntQuiet(options, "sway", 0);
-  int rotate = FindOptionIntQuiet(options, "rotate", 0);
-  int stretch = FindOptionIntQuiet(options, "stretch", 0);
-  int stretch_sway = FindOptionIntQuiet(options, "stretch_sway", 0);
-  if ((sway + rotate + stretch + stretch_sway) > 1)
-  {
-    printf(
-        " Error: should be used only 1 param: sway=1, rotate=1 or stretch=1 in "
-        "the [convolutional] layer \n");
-    exit(0);
-  }
-  int deform = sway || rotate || stretch || stretch_sway;
-  if (deform && size == 1)
-  {
-    printf(
-        " Error: params (sway=1, rotate=1 or stretch=1) should be used only "
-        "with size >=3 in the [convolutional] layer \n");
-    exit(0);
-  }
 
   FillConvLayer(l, params.batch, 1, h, w, c, n, groups, size, stride_x,
       stride_y, dilation, padding, activation, batch_normalize, binary, xnor,
       params.net->adam, use_bin_output, params.index, antialiasing, share_layer,
-      assisted_excitation, deform, params.train);
+      params.train);
 
-  l->flipped = FindOptionIntQuiet(options, "flipped", 0);
-  l->sway = sway;
-  l->rotate = rotate;
-  l->stretch = stretch;
-  l->stretch_sway = stretch_sway;
   l->angle = FindOptionFloatQuiet(options, "angle", 15);
 
   if (params.net->adam)
@@ -1987,9 +1957,6 @@ void LoadConvolutionalWeights(layer* l, FILE* fp)
         "\n Warning: Unexpected end of wights-file! l->weights - l->index = %d "
         "\n",
         l->index);
-
-  if (l->flipped)
-    TransposeMat(l->weights, (l->c / l->groups) * l->size * l->size, l->n);
 
 #ifdef GPU
   if (gpu_index >= 0)

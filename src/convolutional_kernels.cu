@@ -547,9 +547,6 @@ void ForwardConvolutionalLayerGpu(layer* l, NetworkState state)
     fix_nan_and_inf(l->output_gpu, l->outputs * l->batch);
   }
 
-  if (l->assisted_excitation && state.train)
-    AssistedExcitationForwardGpu(l, state);
-
   if (l->antialiasing)
   {
     NetworkState s = {0};
@@ -845,203 +842,6 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
   }
 }
 
-__global__ void calc_avg_activation_kernel(
-    float* src, float* dst, int size, int channels, int batches)
-{
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  int xy = i % size;
-  int b = i / size;
-
-  if (i < size * batches)
-  {
-    dst[i] = 0;
-    for (int c = 0; c < channels; ++c)
-    {
-      dst[i] += src[xy + size * (c + channels * b)];
-    }
-    dst[i] = dst[i] / channels;
-  }
-}
-
-void calc_avg_activation_gpu(
-    float* src, float* dst, int size, int channels, int batches)
-{
-  const int num_blocks = get_number_of_blocks(size * batches, BLOCK);
-
-  calc_avg_activation_kernel<<<num_blocks, BLOCK, 0, get_cuda_stream()>>>(
-      src, dst, size, channels, batches);
-}
-
-__global__ void assisted_activation_kernel(float alpha, float* output,
-    float* gt_gpu, float* a_avg_gpu, int size, int channels, int batches)
-{
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  int xy = i % size;
-  int b = i / size;
-
-  if (b < batches)
-  {
-    for (int c = 0; c < channels; ++c)
-    {
-      output[xy + size * (c + channels * b)] +=
-          alpha * gt_gpu[i] * a_avg_gpu[i];
-      // output[xy + size*(c + channels*b)] += gt_gpu[i] * a_avg_gpu[i];
-      // output[xy + size*(c + channels*b)] += gt_gpu[i] * output[xy + size*(c +
-      // channels*b)]; output[xy + size*(c + channels*b)] = a_avg_gpu[i];
-    }
-  }
-}
-
-void assisted_activation_gpu(float alpha, float* output, float* gt_gpu,
-    float* a_avg_gpu, int size, int channels, int batches)
-{
-  const int num_blocks = get_number_of_blocks(size * batches, BLOCK);
-
-  assisted_activation_kernel<<<num_blocks, BLOCK, 0, get_cuda_stream()>>>(
-      alpha, output, gt_gpu, a_avg_gpu, size, channels, batches);
-}
-
-__global__ void assisted_activation2_kernel(float alpha, float* output,
-    float* gt_gpu, float* a_avg_gpu, int size, int channels, int batches)
-{
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  int xy = i % size;
-  int b = i / size;
-  float beta = 1 - alpha;
-
-  if (b < batches)
-  {
-    for (int c = 0; c < channels; ++c)
-    {
-      if (gt_gpu[i] == 0)
-        output[xy + size * (c + channels * b)] *= beta;
-    }
-  }
-}
-
-void assisted_activation2_gpu(float alpha, float* output, float* gt_gpu,
-    float* a_avg_gpu, int size, int channels, int batches)
-{
-  const int num_blocks = get_number_of_blocks(size * batches, BLOCK);
-
-  assisted_activation2_kernel<<<num_blocks, BLOCK, 0, get_cuda_stream()>>>(
-      alpha, output, gt_gpu, a_avg_gpu, size, channels, batches);
-}
-
-void AssistedExcitationForwardGpu(layer* l, NetworkState state)
-{
-  const int iteration_num = GetCurrentIteration(state.net);
-  float alpha =
-      (1 + cos(3.141592 * iteration_num / state.net->max_batches)) / 2;
-
-  if (l->assisted_excitation == 1)
-  {
-    if (iteration_num > state.net->max_batches / 2)
-      return;
-  }
-  else
-  {
-    if (iteration_num < state.net->burn_in)
-      return;
-    else if (iteration_num > l->assisted_excitation)
-      return;
-    else
-      alpha = (1 + cos(3.141592 * iteration_num /
-                       (state.net->burn_in + l->assisted_excitation))) /
-              2;
-  }
-
-  float* a_avg = (float*)calloc(l->out_w * l->out_h * l->batch, sizeof(float));
-  float* gt = (float*)calloc(l->out_w * l->out_h * l->batch, sizeof(float));
-
-  int b;
-  int w, h;
-
-  l->max_boxes = state.net->num_boxes;
-  l->truths = l->max_boxes * (4 + 1);
-
-  int num_truth = l->batch * l->truths;
-  float* truth_cpu = (float*)calloc(num_truth, sizeof(float));
-  cuda_pull_array(state.truth, truth_cpu, num_truth);
-
-  for (b = 0; b < l->batch; ++b)
-  {
-    // calculate G
-    int t;
-    for (t = 0; t < state.net->num_boxes; ++t)
-    {
-      Box truth(truth_cpu + t * (4 + 1) + b * l->truths);
-      if (!truth.x)
-        break;
-      float beta = 0;
-      float dw = (1 - truth.w) * beta;
-      float dh = (1 - truth.h) * beta;
-
-      int left = floor((truth.x - (dw + truth.w) / 2) * l->out_w);
-      int right = ceil((truth.x + (dw + truth.w) / 2) * l->out_w);
-      int top = floor((truth.y - (dh + truth.h) / 2) * l->out_h);
-      int bottom = ceil((truth.y + (dh + truth.h) / 2) * l->out_h);
-      if (left < 0)
-        left = 0;
-      if (top < 0)
-        top = 0;
-      if (right > l->out_w)
-        right = l->out_w;
-      if (bottom > l->out_h)
-        bottom = l->out_h;
-
-      for (w = left; w <= right; w++)
-      {
-        for (h = top; h < bottom; h++)
-        {
-          gt[w + l->out_w * h + l->out_w * l->out_h * b] = 1;
-        }
-      }
-    }
-  }
-
-  cuda_push_array(l->gt_gpu, gt, l->out_w * l->out_h * l->batch);
-
-  // calc avg_output on GPU - for whole batch
-  calc_avg_activation_gpu(
-      l->output_gpu, l->a_avg_gpu, l->out_w * l->out_h, l->out_c, l->batch);
-
-  assisted_activation_gpu(alpha, l->output_gpu, l->gt_gpu, l->a_avg_gpu,
-      l->out_w * l->out_h, l->out_c, l->batch);
-
-  if (0)  // visualize ground truth
-  {
-#ifdef OPENCV
-    cuda_pull_array(l->output_gpu, l->output, l->outputs * l->batch);
-    cudaStreamSynchronize(get_cuda_stream());
-    CHECK_CUDA(cudaPeekAtLastError());
-
-    for (b = 0; b < l->batch; ++b)
-    {
-      printf(" Assisted Excitation alpha = %f \n", alpha);
-      Image img =
-          float_to_image(l->out_w, l->out_h, 1, &gt[l->out_w * l->out_h * b]);
-      char buff[100];
-      sprintf(buff, "a_excitation_gt_%d", b);
-      show_image_cv(img, buff);
-
-      Image img2 = float_to_image_scaled(l->out_w, l->out_h, 1,
-          &l->output[l->out_w * l->out_h * l->out_c * b]);
-      char buff2[100];
-      sprintf(buff2, "a_excitation_output_%d", b);
-      show_image_cv(img2, buff2);
-
-      wait_key_cv(5);
-    }
-    wait_until_press_key_cv();
-#endif  // OPENCV
-  }
-
-  free(truth_cpu);
-  free(gt);
-  free(a_avg);
-}
-
 void PullConvolutionalLayer(layer* l)
 {
   cuda_pull_array_async(l->weights_gpu, l->weights, l->nweights);
@@ -1093,25 +893,6 @@ void PushConvolutionalLayer(layer* l)
 void UpdateConvolutionalLayerGpu(layer* l, int batch, float learning_rate_init,
     float momentum, float decay, float loss_scale)
 {
-  if (l->deform)
-  {
-    if (l->rotate)
-      rotate_weights_gpu(l->weight_updates_gpu, l->weight_deform_gpu,
-          l->nweights, l->n, l->size, 1);
-    else if (l->sway)
-      sway_and_flip_weights_gpu(l->weight_updates_gpu, l->weight_deform_gpu,
-          l->nweights, l->n, l->size, l->angle, 1);
-    else if (l->stretch)
-      stretch_weights_gpu(l->weight_updates_gpu, l->weight_deform_gpu,
-          l->nweights, l->n, l->size, 0, 1);
-    else if (l->stretch_sway)
-      stretch_sway_flip_weights_gpu(l->weight_updates_gpu, l->weight_deform_gpu,
-          l->nweights, l->n, l->size, l->angle, 1);
-
-    reduce_and_expand_array_gpu(
-        l->weight_deform_gpu, l->weight_updates_gpu, l->nweights, 4);
-  }
-
   float learning_rate = learning_rate_init * l->learning_rate_scale;
 
   // Loss scale for Mixed-Precision on Tensor-Cores
@@ -1163,26 +944,6 @@ void UpdateConvolutionalLayerGpu(layer* l, int batch, float learning_rate_init,
     }
   }
 
-  if (l->deform)
-  {
-    expand_array_gpu(l->weights_gpu, l->weight_deform_gpu, l->nweights, 4);
-
-    if (l->rotate)
-      rotate_weights_gpu(
-          l->weight_deform_gpu, l->weights_gpu, l->nweights, l->n, l->size, 0);
-    else if (l->sway)
-      sway_and_flip_weights_gpu(l->weight_deform_gpu, l->weights_gpu,
-          l->nweights, l->n, l->size, l->angle, 0);
-    else if (l->stretch)
-      stretch_weights_gpu(l->weight_deform_gpu, l->weights_gpu, l->nweights,
-          l->n, l->size, 0, 0);
-    else if (l->stretch_sway)
-      stretch_sway_flip_weights_gpu(l->weight_deform_gpu, l->weights_gpu,
-          l->nweights, l->n, l->size, l->angle, 0);
-  }
-
   if (l->clip)
-  {
     constrain_ongpu(l->nweights, l->clip, l->weights_gpu, 1);
-  }
 }

@@ -258,10 +258,10 @@ void UpdateNetworkGpu(Network* net)
   {
     layer* l = &net->layers[i];
     l->t = GetCurrentBatch(net);
-    if (iteration_num > (net->max_batches * 1 / 2))
-      l->deform = 0;
+
     if (l->burnin_update && (l->burnin_update * net->burn_in > iteration_num))
       continue;
+
     if (l->train_only_bn)
       continue;
 

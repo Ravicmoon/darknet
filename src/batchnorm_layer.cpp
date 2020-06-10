@@ -285,82 +285,51 @@ void ForwardBatchnormLayerGpu(layer* l, NetworkState state)
   {
     simple_copy_ongpu(l->outputs * l->batch, l->output_gpu, l->x_gpu);
 
-    if (l->batch_normalize == 2)
-    {
-      fast_mean_gpu(
-          l->output_gpu, l->batch, l->out_c, l->out_h * l->out_w, l->mean_gpu);
-
-      int const minibatch_index = state.net->current_subdivision + 1;
-      int const max_minibatch_index = state.net->subdivisions;
-      float const alpha = 0.01;
-
-      int inverse_variance = 0;
 #ifdef CUDNN
-      inverse_variance = 1;
-#endif  // CUDNN
+    float one = 1;
+    float zero = 0;
+    cudnnBatchNormalizationForwardTraining(cudnn_handle(),
+        CUDNN_BATCHNORM_SPATIAL, &one, &zero, l->normDstTensorDesc,
+        l->x_gpu,  // input
+        l->normDstTensorDesc,
+        l->output_gpu,  // output
+        l->normTensorDesc, l->scales_gpu, l->biases_gpu, .01,
+        l->rolling_mean_gpu,      // output (should be FP32)
+        l->rolling_variance_gpu,  // output (should be FP32)
+        .00001,
+        l->mean_gpu,       // output (should be FP32)
+        l->variance_gpu);  // output (should be FP32)
 
-      fast_v_cbn_gpu(l->output_gpu, l->mean_gpu, l->batch, l->out_c,
-          l->out_h * l->out_w, minibatch_index, max_minibatch_index,
-          l->m_cbn_avg_gpu, l->v_cbn_avg_gpu, l->variance_gpu, alpha,
-          l->rolling_mean_gpu, l->rolling_variance_gpu, inverse_variance,
-          .00001);
-
-      normalize_scale_bias_gpu(l->output_gpu, l->mean_gpu, l->variance_gpu,
-          l->scales_gpu, l->biases_gpu, l->batch, l->out_c, l->out_h * l->out_w,
-          inverse_variance, .00001f);
-
-#ifndef CUDNN
-      simple_copy_ongpu(l->outputs * l->batch, l->output_gpu, l->x_norm_gpu);
-#endif  // CUDNN
+    if (state.net->try_fix_nan)
+    {
+      fix_nan_and_inf(l->scales_gpu, l->n);
+      fix_nan_and_inf(l->biases_gpu, l->n);
+      fix_nan_and_inf(l->mean_gpu, l->n);
+      fix_nan_and_inf(l->variance_gpu, l->n);
+      fix_nan_and_inf(l->rolling_mean_gpu, l->n);
+      fix_nan_and_inf(l->rolling_variance_gpu, l->n);
     }
-    else
-    {
-#ifdef CUDNN
-      float one = 1;
-      float zero = 0;
-      cudnnBatchNormalizationForwardTraining(cudnn_handle(),
-          CUDNN_BATCHNORM_SPATIAL, &one, &zero, l->normDstTensorDesc,
-          l->x_gpu,  // input
-          l->normDstTensorDesc,
-          l->output_gpu,  // output
-          l->normTensorDesc, l->scales_gpu, l->biases_gpu, .01,
-          l->rolling_mean_gpu,      // output (should be FP32)
-          l->rolling_variance_gpu,  // output (should be FP32)
-          .00001,
-          l->mean_gpu,       // output (should be FP32)
-          l->variance_gpu);  // output (should be FP32)
-
-      if (state.net->try_fix_nan)
-      {
-        fix_nan_and_inf(l->scales_gpu, l->n);
-        fix_nan_and_inf(l->biases_gpu, l->n);
-        fix_nan_and_inf(l->mean_gpu, l->n);
-        fix_nan_and_inf(l->variance_gpu, l->n);
-        fix_nan_and_inf(l->rolling_mean_gpu, l->n);
-        fix_nan_and_inf(l->rolling_variance_gpu, l->n);
-      }
 #else   // CUDNN
-      fast_mean_gpu(
-          l->output_gpu, l->batch, l->out_c, l->out_h * l->out_w, l->mean_gpu);
-      fast_variance_gpu(l->output_gpu, l->mean_gpu, l->batch, l->out_c,
-          l->out_h * l->out_w, l->variance_gpu);
+    fast_mean_gpu(
+        l->output_gpu, l->batch, l->out_c, l->out_h * l->out_w, l->mean_gpu);
+    fast_variance_gpu(l->output_gpu, l->mean_gpu, l->batch, l->out_c,
+        l->out_h * l->out_w, l->variance_gpu);
 
-      scal_ongpu(l->out_c, .99, l->rolling_mean_gpu, 1);
-      axpy_ongpu(l->out_c, .01, l->mean_gpu, 1, l->rolling_mean_gpu, 1);
-      scal_ongpu(l->out_c, .99, l->rolling_variance_gpu, 1);
-      axpy_ongpu(l->out_c, .01, l->variance_gpu, 1, l->rolling_variance_gpu, 1);
+    scal_ongpu(l->out_c, .99, l->rolling_mean_gpu, 1);
+    axpy_ongpu(l->out_c, .01, l->mean_gpu, 1, l->rolling_mean_gpu, 1);
+    scal_ongpu(l->out_c, .99, l->rolling_variance_gpu, 1);
+    axpy_ongpu(l->out_c, .01, l->variance_gpu, 1, l->rolling_variance_gpu, 1);
 
-      copy_ongpu(l->outputs * l->batch, l->output_gpu, 1, l->x_gpu, 1);
-      normalize_gpu(l->output_gpu, l->mean_gpu, l->variance_gpu, l->batch,
-          l->out_c, l->out_h * l->out_w);
-      copy_ongpu(l->outputs * l->batch, l->output_gpu, 1, l->x_norm_gpu, 1);
+    copy_ongpu(l->outputs * l->batch, l->output_gpu, 1, l->x_gpu, 1);
+    normalize_gpu(l->output_gpu, l->mean_gpu, l->variance_gpu, l->batch,
+        l->out_c, l->out_h * l->out_w);
+    copy_ongpu(l->outputs * l->batch, l->output_gpu, 1, l->x_norm_gpu, 1);
 
-      scale_bias_gpu(l->output_gpu, l->scales_gpu, l->batch, l->out_c,
-          l->out_h * l->out_w);
-      add_bias_gpu(l->output_gpu, l->biases_gpu, l->batch, l->out_c,
-          l->out_w * l->out_h);
+    scale_bias_gpu(
+        l->output_gpu, l->scales_gpu, l->batch, l->out_c, l->out_h * l->out_w);
+    add_bias_gpu(
+        l->output_gpu, l->biases_gpu, l->batch, l->out_c, l->out_w * l->out_h);
 #endif  // CUDNN
-    }
   }
   else
   {

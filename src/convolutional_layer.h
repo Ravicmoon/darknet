@@ -30,7 +30,7 @@ void FillConvLayer(layer* l, int batch, int steps, int h, int w, int c, int n,
     int groups, int size, int stride_x, int stride_y, int dilation, int padding,
     ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam,
     int use_bin_output, int index, int antialiasing, layer* share_layer,
-    int assisted_excitation, int deform, int train);
+    int train);
 void set_specified_workspace_limit(layer* l, size_t workspace_size_limit);
 void resize_convolutional_layer(layer* layer, int w, int h);
 void ForwardConvolutionalLayer(layer* l, NetworkState state);
@@ -53,5 +53,3 @@ Image get_convolutional_weight(layer layer, int i);
 
 int ConvOutHeight(layer* l);
 int ConvOutWidth(layer* l);
-void AssistedExcitationForward(layer* l, NetworkState state);
-void AssistedExcitationForwardGpu(layer* l, NetworkState state);
