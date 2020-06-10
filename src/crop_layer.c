@@ -62,8 +62,6 @@ void ResizeCropLayer(layer* l, int w, int h)
 
 void ForwardCropLayer(layer* l, NetworkState state)
 {
-  int i, j, c, b, row, col;
-  int index;
   int count = 0;
   int flip = (l->flip && rand() % 2);
   int dh = rand() % (l->h - l->out_h + 1);
@@ -81,25 +79,22 @@ void ForwardCropLayer(layer* l, NetworkState state)
     dh = (l->h - l->out_h) / 2;
     dw = (l->w - l->out_w) / 2;
   }
-  for (b = 0; b < l->batch; ++b)
+  for (int b = 0; b < l->batch; ++b)
   {
-    for (c = 0; c < l->c; ++c)
+    for (int c = 0; c < l->c; ++c)
     {
-      for (i = 0; i < l->out_h; ++i)
+      for (int i = 0; i < l->out_h; ++i)
       {
-        for (j = 0; j < l->out_w; ++j)
+        for (int j = 0; j < l->out_w; ++j)
         {
+          int col = j + dw;
           if (flip)
-          {
             col = l->w - dw - j - 1;
-          }
-          else
-          {
-            col = j + dw;
-          }
-          row = i + dh;
-          index = col + l->w * (row + l->h * (c + l->c * b));
-          l->output[count++] = state.input[index] * scale + trans;
+
+          int row = i + dh;
+          int idx = col + l->w * (row + l->h * (c + l->c * b));
+
+          l->output[count++] = state.input[idx] * scale + trans;
         }
       }
     }

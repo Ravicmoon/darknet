@@ -263,7 +263,6 @@ void ParseConv(layer* l, list* options, SizeParams params)
       assisted_excitation, deform, params.train);
 
   l->flipped = FindOptionIntQuiet(options, "flipped", 0);
-  l->dot = FindOptionFloatQuiet(options, "dot", 0);
   l->sway = sway;
   l->rotate = rotate;
   l->stretch = stretch;

@@ -514,7 +514,6 @@ void FillConvLayer(layer* l, int batch, int steps, int h, int w, int c, int n,
   if (binary)
   {
     l->binary_weights = (float*)xcalloc(l->nweights, sizeof(float));
-    l->cweights = (char*)xcalloc(l->nweights, sizeof(char));
     l->scales = (float*)xcalloc(n, sizeof(float));
   }
   if (xnor)

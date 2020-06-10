@@ -217,7 +217,6 @@ struct layer
   int outputs;
   int nweights;
   int nbiases;
-  int extra;
   int truths;
   int h, w, c;
   int out_h, out_w, out_c;
@@ -244,21 +243,17 @@ struct layer
   int scale_wh;
   int binary;
   int xnor;
-  int peephole;
   int use_bin_output;
   int keep_delta_gpu;
   int optimized_memory;
   int steps;
-  int state_constrain;
-  int hidden;
-  int truth;
-  float smooth;
-  float dot;
+
   int deform;
   int sway;
   int rotate;
   int stretch;
   int stretch_sway;
+
   float angle;
   float jitter;
   float saturation;
@@ -274,7 +269,6 @@ struct layer
   int softmax;
   int classes;
   int coords;
-  int background;
   int rescore;
   int objectness;
   int does_cost;
@@ -320,9 +314,7 @@ struct layer
   int dont_update;
   int burnin_update;
   int dontload;
-  int dontsave;
   int dontloadscales;
-  int numload;
 
   float temperature;
   float probability;
@@ -336,7 +328,6 @@ struct layer
   int receptive_w_scale;
   int receptive_h_scale;
 
-  char* cweights;
   int* indexes;
   int* input_layers;
   int* input_sizes;
@@ -349,16 +340,6 @@ struct layer
   float** sums;
   float* rand;
   float* cost;
-  float* state;
-  float* prev_state;
-  float* forgot_state;
-  float* forgot_delta;
-  float* state_delta;
-  float* combine_cpu;
-  float* combine_delta_cpu;
-
-  float* concat;
-  float* concat_delta;
 
   float* binary_weights;
 
@@ -405,7 +386,6 @@ struct layer
   float* squared;
   float* norms;
 
-  float* spatial_mean;
   float* mean;
   float* variance;
 
@@ -426,103 +406,17 @@ struct layer
   float* scale_m;
   float* scale_v;
 
-  float* z_cpu;
-  float* r_cpu;
-  float* h_cpu;
-  float* stored_h_cpu;
-  float* prev_state_cpu;
-
-  float* temp_cpu;
-  float* temp2_cpu;
-  float* temp3_cpu;
-
-  float* dh_cpu;
-  float* hh_cpu;
-  float* prev_cell_cpu;
-  float* cell_cpu;
-  float* f_cpu;
-  float* i_cpu;
-  float* g_cpu;
-  float* o_cpu;
-  float* c_cpu;
-  float* stored_c_cpu;
-  float* dc_cpu;
-
   float* binary_input;
   uint32_t* bin_re_packed_input;
   char* t_bit_input;
 
   struct layer* input_layer;
-  struct layer* self_layer;
-  struct layer* output_layer;
-
-  struct layer* reset_layer;
-  struct layer* update_layer;
-  struct layer* state_layer;
-
-  struct layer* input_gate_layer;
-  struct layer* state_gate_layer;
-  struct layer* input_save_layer;
-  struct layer* state_save_layer;
-  struct layer* input_state_layer;
-  struct layer* state_state_layer;
-
-  struct layer* input_z_layer;
-  struct layer* state_z_layer;
-
-  struct layer* input_r_layer;
-  struct layer* state_r_layer;
-
-  struct layer* input_h_layer;
-  struct layer* state_h_layer;
-
-  struct layer* wz;
-  struct layer* uz;
-  struct layer* wr;
-  struct layer* ur;
-  struct layer* wh;
-  struct layer* uh;
-  struct layer* uo;
-  struct layer* wo;
-  struct layer* vo;
-  struct layer* uf;
-  struct layer* wf;
-  struct layer* vf;
-  struct layer* ui;
-  struct layer* wi;
-  struct layer* vi;
-  struct layer* ug;
-  struct layer* wg;
 
   tree* softmax_tree;
 
   size_t workspace_size;
 
   int* indexes_gpu;
-
-  float* z_gpu;
-  float* r_gpu;
-  float* h_gpu;
-  float* stored_h_gpu;
-
-  float* temp_gpu;
-  float* temp2_gpu;
-  float* temp3_gpu;
-
-  float* dh_gpu;
-  float* hh_gpu;
-  float* prev_cell_gpu;
-  float* prev_state_gpu;
-  float* last_prev_state_gpu;
-  float* last_prev_cell_gpu;
-  float* cell_gpu;
-  float* f_gpu;
-  float* i_gpu;
-  float* g_gpu;
-  float* o_gpu;
-  float* c_gpu;
-  float* stored_c_gpu;
-  float* dc_gpu;
 
   // adam
   float* m_gpu;
@@ -531,20 +425,6 @@ struct layer
   float* scale_m_gpu;
   float* bias_v_gpu;
   float* scale_v_gpu;
-
-  float* combine_gpu;
-  float* combine_delta_gpu;
-
-  float* forgot_state_gpu;
-  float* forgot_delta_gpu;
-  float* state_gpu;
-  float* state_delta_gpu;
-  float* gate_gpu;
-  float* gate_delta_gpu;
-  float* save_gpu;
-  float* save_delta_gpu;
-  float* concat_gpu;
-  float* concat_delta_gpu;
 
   float* binary_input_gpu;
   float* binary_weights_gpu;
@@ -729,7 +609,6 @@ typedef struct Network
   int train;
   int index;
   float* cost;
-  float clip;
 
   float* delta_gpu;
   float* output_gpu;
@@ -843,7 +722,6 @@ typedef struct load_args
   int num_boxes;
   int min, max, size;
   int classes;
-  int background;
   int scale;
   int center;
   int coords;
