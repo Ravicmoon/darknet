@@ -18,13 +18,13 @@ typedef __compar_fn_t comparison_fn_t;
 #endif
 
 void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, char const* chart_path, int* gpus, int ngpus,
+    char const* weights_file, char const* chart_path, int* gpus, int num_gpus,
     int clear, int show_imgs, int dont_show, int calc_map, int benchmark_layers)
 {
   list* options = ReadDataCfg(data_file);
   char* train_images = FindOptionStr(options, "train", "data/train.txt");
   char* valid_images = FindOptionStr(options, "valid", train_images);
-  char* backup_directory = FindOptionStr(options, "backup", "/backup/");
+  char* backup_dir = FindOptionStr(options, "backup", "/backup/");
 
   Network net_map;
   if (calc_map)
@@ -73,11 +73,11 @@ void TrainDetector(char const* data_file, char const* model_file,
   char* base = BaseCfg(model_file);
   printf("%s\n", base);
   float avg_loss = -1;
-  Network* nets = (Network*)xcalloc(ngpus, sizeof(Network));
+  Network* nets = (Network*)xcalloc(num_gpus, sizeof(Network));
 
   srand(time(0));
   int seed = rand();
-  for (int k = 0; k < ngpus; ++k)
+  for (int k = 0; k < num_gpus; ++k)
   {
     srand(seed);
 #ifdef GPU
@@ -94,7 +94,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       *nets[k].seen = 0;
       *nets[k].cur_iteration = 0;
     }
-    nets[k].learning_rate *= ngpus;
+    nets[k].learning_rate *= num_gpus;
   }
   srand(time(0));
   Network net = nets[0];
@@ -115,7 +115,7 @@ void TrainDetector(char const* data_file, char const* model_file,
         actual_batch_size);
   }
 
-  int imgs = net.batch * net.subdivisions * ngpus;
+  int imgs = net.batch * net.subdivisions * num_gpus;
   printf("Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate,
       net.momentum, net.decay);
   data train, buffer;
@@ -135,8 +135,8 @@ void TrainDetector(char const* data_file, char const* model_file,
   int iter_save = GetCurrentIteration(&net);
   int iter_save_last = GetCurrentIteration(&net);
   int iter_map = GetCurrentIteration(&net);
-  float mean_average_precision = -1;
-  float best_map = mean_average_precision;
+  float map = -FLT_MAX;
+  float best_map = map;
 
   load_args args = {0};
   args.w = net.w;
@@ -168,8 +168,8 @@ void TrainDetector(char const* data_file, char const* model_file,
   args.show_imgs = show_imgs;
 
 #ifdef OPENCV
-  args.threads = 6 * ngpus;  // 3 for - Amazon EC2 Tesla V100: p3.2xlarge (8
-                             // logical cores) - p3.16xlarge
+  args.threads = 6 * num_gpus;  // 3 for - Amazon EC2 Tesla V100: p3.2xlarge (8
+                                // logical cores) - p3.16xlarge
   // args.threads = 12 * ngpus;    // Ryzen 7 2700X (16 logical cores)
   mat_cv* img = NULL;
   float max_img_loss = 5;
@@ -186,9 +186,9 @@ void TrainDetector(char const* data_file, char const* model_file,
     args.track = net.track;
     args.augment_speed = net.augment_speed;
     if (net.sequential_subdivisions)
-      args.threads = net.sequential_subdivisions * ngpus;
+      args.threads = net.sequential_subdivisions * num_gpus;
     else
-      args.threads = net.subdivisions * ngpus;
+      args.threads = net.subdivisions * num_gpus;
     args.mini_batch = net.batch / net.time_steps;
     printf(
         "\n Tracking! batch = %d, subdiv = %d, time_steps = %d, mini_batch = "
@@ -244,7 +244,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 
       if (net.dynamic_minibatch)
       {
-        for (int k = 0; k < ngpus; ++k)
+        for (int k = 0; k < num_gpus; ++k)
         {
           (*nets[k].seen) =
               init_b * net.subdivisions *
@@ -259,7 +259,7 @@ void TrainDetector(char const* data_file, char const* model_file,
           }
         }
         net.batch = dim_b;
-        imgs = net.batch * net.subdivisions * ngpus;
+        imgs = net.batch * net.subdivisions * num_gpus;
         args.n = imgs;
         printf("\n %d x %d  (batch = %d) \n", dim_w, dim_h, net.batch);
       }
@@ -271,7 +271,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       free_data(train);
       load_thread = load_data(args);
 
-      for (int k = 0; k < ngpus; ++k)
+      for (int k = 0; k < num_gpus; ++k)
       {
         ResizeNetwork(nets + k, dim_w, dim_h);
       }
@@ -283,7 +283,7 @@ void TrainDetector(char const* data_file, char const* model_file,
     if (net.track)
     {
       net.sequential_subdivisions = GetCurrentSeqSubdivisions(&net);
-      args.threads = net.sequential_subdivisions * ngpus;
+      args.threads = net.sequential_subdivisions * num_gpus;
       printf(" sequential_subdivisions = %d, sequence = %d \n",
           net.sequential_subdivisions, GetSequenceValue(&net));
     }
@@ -298,14 +298,14 @@ void TrainDetector(char const* data_file, char const* model_file,
     time = what_time_is_it_now();
     float loss = 0;
 #ifdef GPU
-    if (ngpus == 1)
+    if (num_gpus == 1)
     {
       int wait_key = (dont_show) ? 0 : 1;
       loss = TrainNetworkWaitKey(&net, train, wait_key);
     }
     else
     {
-      loss = TrainNetworks(nets, ngpus, train, 4);
+      loss = TrainNetworks(nets, num_gpus, train, 4);
     }
 #else
     loss = TrainNetwork(&net, train);
@@ -326,9 +326,9 @@ void TrainDetector(char const* data_file, char const* model_file,
     if (calc_map)
     {
       printf("\n (next mAP calculation at %d iterations) ", next_map_calc);
-      if (mean_average_precision > 0)
+      if (map > 0)
         printf("\n Last accuracy mAP@0.5 = %2.2f %%, best = %2.2f %% ",
-            mean_average_precision * 100, best_map * 100);
+            map * 100, best_map * 100);
     }
 
     if (net.cudnn_half)
@@ -359,9 +359,9 @@ void TrainDetector(char const* data_file, char const* model_file,
         int k;
         if (net.dynamic_minibatch)
         {
-          for (k = 0; k < ngpus; ++k)
+          for (k = 0; k < num_gpus; ++k)
           {
-            for (k = 0; k < ngpus; ++k)
+            for (k = 0; k < num_gpus; ++k)
             {
               nets[k].batch = init_b;
               int j;
@@ -369,7 +369,7 @@ void TrainDetector(char const* data_file, char const* model_file,
             }
           }
           net.batch = init_b;
-          imgs = init_b * net.subdivisions * ngpus;
+          imgs = init_b * net.subdivisions * num_gpus;
           args.n = imgs;
           printf("\n %d x %d  (batch = %d) \n", init_w, init_h, init_b);
         }
@@ -377,7 +377,7 @@ void TrainDetector(char const* data_file, char const* model_file,
         free_data(train);
         train = buffer;
         load_thread = load_data(args);
-        for (k = 0; k < ngpus; ++k)
+        for (k = 0; k < num_gpus; ++k)
         {
           ResizeNetwork(nets + k, init_w, init_h);
         }
@@ -387,23 +387,21 @@ void TrainDetector(char const* data_file, char const* model_file,
       copy_weights_net(net, &net_map);
 
       iter_map = iteration;
-      mean_average_precision =
-          ValidateDetector(data_file, model_file, weights_file, 0.25, 0.5, 0,
-              net.letter_box, &net_map);  // &net_combined);
-      printf("\n mean_average_precision (mAP@0.5) = %f \n",
-          mean_average_precision);
-      if (mean_average_precision > best_map)
+      map = ValidateDetector(data_file, model_file, weights_file, 0.25, 0.5, 0,
+          net.letter_box, &net_map);
+      printf("\n mean_average_precision (mAP@0.5) = %f \n", map);
+      if (map > best_map)
       {
-        best_map = mean_average_precision;
+        best_map = map;
         printf("New best mAP!\n");
         char buff[256];
-        sprintf(buff, "%s/%s_best.weights", backup_directory, base);
+        sprintf(buff, "%s/%s_best.weights", backup_dir, base);
         SaveWeights(net, buff);
       }
 
       draw_precision = 1;
     }
-    time_remaining = ((net.max_batches - iteration) / ngpus) *
+    time_remaining = ((net.max_batches - iteration) / num_gpus) *
                      (what_time_is_it_now() - time + load_time) / 60 / 60;
     // set initial value, even if resume training from 10000 iteration
     if (avg_time < 0)
@@ -412,8 +410,8 @@ void TrainDetector(char const* data_file, char const* model_file,
       avg_time = alpha_time * time_remaining + (1 - alpha_time) * avg_time;
 #ifdef OPENCV
     draw_train_loss(windows_name, img, img_size, avg_loss, max_img_loss,
-        iteration, net.max_batches, mean_average_precision, draw_precision,
-        "mAP%", dont_show, avg_time);
+        iteration, net.max_batches, map, draw_precision, "mAP%", dont_show,
+        avg_time);
 #endif  // OPENCV
 
     // if (i % 1000 == 0 || (i < 1000 && i % 100 == 0)) {
@@ -422,11 +420,11 @@ void TrainDetector(char const* data_file, char const* model_file,
     {
       iter_save = iteration;
 #ifdef GPU
-      if (ngpus != 1)
-        SyncNetworks(nets, ngpus, 0);
+      if (num_gpus != 1)
+        SyncNetworks(nets, num_gpus, 0);
 #endif
       char buff[256];
-      sprintf(buff, "%s/%s_%d.weights", backup_directory, base, iteration);
+      sprintf(buff, "%s/%s_%d.weights", backup_dir, base, iteration);
       SaveWeights(net, buff);
     }
 
@@ -435,21 +433,21 @@ void TrainDetector(char const* data_file, char const* model_file,
     {
       iter_save_last = iteration;
 #ifdef GPU
-      if (ngpus != 1)
-        SyncNetworks(nets, ngpus, 0);
+      if (num_gpus != 1)
+        SyncNetworks(nets, num_gpus, 0);
 #endif
       char buff[256];
-      sprintf(buff, "%s/%s_last.weights", backup_directory, base);
+      sprintf(buff, "%s/%s_last.weights", backup_dir, base);
       SaveWeights(net, buff);
     }
     free_data(train);
   }
 #ifdef GPU
-  if (ngpus != 1)
-    SyncNetworks(nets, ngpus, 0);
+  if (num_gpus != 1)
+    SyncNetworks(nets, num_gpus, 0);
 #endif
   char buff[256];
-  sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+  sprintf(buff, "%s/%s_final.weights", backup_dir, base);
   SaveWeights(net, buff);
 
 #ifdef OPENCV
@@ -471,7 +469,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   FreeListContentsKvp(options);
   FreeList(options);
 
-  for (int k = 0; k < ngpus; ++k)
+  for (int k = 0; k < num_gpus; ++k)
   {
     FreeNetwork(&nets[k]);
   }
