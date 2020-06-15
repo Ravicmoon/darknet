@@ -59,7 +59,7 @@ void* xrealloc(void* ptr, size_t size)
   return ptr;
 }
 
-double what_time_is_it_now()
+double GetCurrTime()
 {
   struct timeval time;
   if (gettimeofday(&time, NULL))
@@ -947,7 +947,7 @@ float rand_uniform(float min, float max)
   // return (random_float() * (max - min)) + min;
 }
 
-float rand_scale(float s)
+float RandScale(float s)
 {
   float scale = rand_uniform_strong(1, s);
   if (random_gen() % 2)

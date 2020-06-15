@@ -1081,19 +1081,18 @@ void ParseNetOptions(list* options, Network* net)
   net->time_steps = FindOptionIntQuiet(options, "time_steps", 1);
   net->track = FindOptionIntQuiet(options, "track", 0);
   net->augment_speed = FindOptionIntQuiet(options, "augment_speed", 2);
-  net->init_sequential_subdivisions = net->sequential_subdivisions =
+  net->init_seq_subdiv = net->seq_subdiv =
       FindOptionIntQuiet(options, "sequential_subdivisions", subdivs);
-  if (net->sequential_subdivisions > subdivs)
-    net->init_sequential_subdivisions = net->sequential_subdivisions = subdivs;
+  if (net->seq_subdiv > subdivs)
+    net->init_seq_subdiv = net->seq_subdiv = subdivs;
   net->try_fix_nan = FindOptionIntQuiet(options, "try_fix_nan", 0);
   net->batch /= subdivs;
   net->batch *= net->time_steps;
-  net->subdivisions = subdivs;
+  net->subdiv = subdivs;
 
   *net->seen = 0;
   *net->cur_iteration = 0;
   net->loss_scale = FindOptionFloatQuiet(options, "loss_scale", 1);
-  net->dynamic_minibatch = FindOptionIntQuiet(options, "dynamic_minibatch", 0);
   net->optimized_memory = FindOptionIntQuiet(options, "optimized_memory", 0);
   net->workspace_size_limit =
       (size_t)1024 * 1024 *
@@ -1278,7 +1277,7 @@ void ParseNetworkCfgCustom(
   ParseNetOptions(options, net);
 
 #ifdef GPU
-  printf("net.optimized_memory = %d \n", net->optimized_memory);
+  printf("net->optimized_memory = %d \n", net->optimized_memory);
   if (net->optimized_memory >= 2 && params.train)
   {
     // pre-allocate 8 GB CPU-RAM for pinned memory
@@ -1304,8 +1303,7 @@ void ParseNetworkCfgCustom(
   params.time_steps = net->time_steps;
   params.net = net;
   printf("mini_batch = %d, batch = %d, time_steps = %d, train = %d \n",
-      net->batch, net->batch * net->subdivisions, net->time_steps,
-      params.train);
+      net->batch, net->batch * net->subdiv, net->time_steps, params.train);
 
   int avg_outputs = 0;
   int avg_counter = 0;
@@ -1516,7 +1514,7 @@ void ParseNetworkCfgCustom(
     }
 
 #ifdef GPU
-    // futher GPU-memory optimization: net.optimized_memory == 2
+    // futher GPU-memory optimization: net->optimized_memory == 2
     if (net->optimized_memory >= 2 && params.train && l->type != DROPOUT)
     {
       l->optimized_memory = net->optimized_memory;
@@ -1560,7 +1558,6 @@ void ParseNetworkCfgCustom(
 #endif  // GPU
 
     l->clip = FindOptionFloatQuiet(options, "clip", 0);
-    l->dynamic_minibatch = net->dynamic_minibatch;
     l->onlyforward = FindOptionIntQuiet(options, "onlyforward", 0);
     l->dont_update = FindOptionIntQuiet(options, "dont_update", 0);
     l->burnin_update = FindOptionIntQuiet(options, "burnin_update", 0);
@@ -1616,7 +1613,7 @@ void ParseNetworkCfgCustom(
     for (int k = 0; k < net->n; ++k)
     {
       layer* l = &net->layers[k];
-      // delta GPU-memory optimization: net.optimized_memory == 1
+      // delta GPU-memory optimization: net->optimized_memory == 1
       if (!l->keep_delta_gpu)
       {
         size_t const delta_size = l->batch * l->outputs;
@@ -1790,12 +1787,12 @@ void SaveConnectedWeights(layer* l, FILE* fp)
   }
 }
 
-void SaveWeightsUpto(Network net, char* filename, int cutoff)
+void SaveWeightsUpto(Network* net, char* filename, int cutoff)
 {
 #ifdef GPU
-  if (net.gpu_index >= 0)
+  if (net->gpu_index >= 0)
   {
-    cuda_set_device(net.gpu_index);
+    cuda_set_device(net->gpu_index);
   }
 #endif
   fprintf(stderr, "Saving weights to %s\n", filename);
@@ -1809,14 +1806,14 @@ void SaveWeightsUpto(Network net, char* filename, int cutoff)
   fwrite(&major, sizeof(int), 1, fp);
   fwrite(&minor, sizeof(int), 1, fp);
   fwrite(&revision, sizeof(int), 1, fp);
-  (*net.seen) = GetCurrentIteration(&net) * net.batch *
-                net.subdivisions;  // remove this line, when you will save to
-                                   // weights-file both: seen & cur_iteration
-  fwrite(net.seen, sizeof(uint64_t), 1, fp);
+  (*net->seen) = GetCurrentIteration(net) * net->batch *
+                 net->subdiv;  // remove this line, when you will save to
+                               // weights-file both: seen & cur_iteration
+  fwrite(net->seen, sizeof(uint64_t), 1, fp);
 
-  for (int i = 0; i < net.n && i < cutoff; ++i)
+  for (int i = 0; i < net->n && i < cutoff; ++i)
   {
-    layer* l = &net.layers[i];
+    layer* l = &net->layers[i];
     if (l->type == CONVOLUTIONAL && l->share_layer == NULL)
     {
       SaveConvolutionalWeights(l, fp);
@@ -1848,9 +1845,9 @@ void SaveWeightsUpto(Network net, char* filename, int cutoff)
   fclose(fp);
 }
 
-void SaveWeights(Network net, char* filename)
+void SaveWeights(Network* net, char* filename)
 {
-  SaveWeightsUpto(net, filename, net.n);
+  SaveWeightsUpto(net, filename, net->n);
 }
 
 void TransposeMat(float* input, int rows, int cols)

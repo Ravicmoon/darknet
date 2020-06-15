@@ -921,7 +921,7 @@ Image random_crop_image(Image im, int w, int h)
 Image random_augment_image(
     Image im, float angle, float aspect, int low, int high, int size)
 {
-  aspect = rand_scale(aspect);
+  aspect = RandScale(aspect);
   int r = rand_int(low, high);
   int min = (im.h < im.w * aspect) ? im.h : im.w * aspect;
   float scale = (float)r / min;
@@ -1222,8 +1222,8 @@ void distort_image(Image im, float hue, float sat, float val)
 void random_distort_image(Image im, float hue, float saturation, float exposure)
 {
   float dhue = rand_uniform_strong(-hue, hue);
-  float dsat = rand_scale(saturation);
-  float dexp = rand_scale(exposure);
+  float dsat = RandScale(saturation);
+  float dexp = RandScale(exposure);
   distort_image(im, dhue, dsat, dexp);
 }
 
@@ -1416,8 +1416,8 @@ void test_resize(char* filename)
 
     Image c = copy_image(im);
 
-    float dexp = rand_scale(exposure);
-    float dsat = rand_scale(saturation);
+    float dexp = RandScale(exposure);
+    float dsat = RandScale(saturation);
     float dhue = rand_uniform(-hue, hue);
 
     distort_image(c, dhue, dsat, dexp);

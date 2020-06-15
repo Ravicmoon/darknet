@@ -251,8 +251,8 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
 void UpdateNetworkGpu(Network* net)
 {
   cuda_set_device(net->gpu_index);
-  const int iteration_num = (*net->seen) / (net->batch * net->subdivisions);
-  int update_batch = net->batch * net->subdivisions * GetSequenceValue(net);
+  const int iteration_num = (*net->seen) / (net->batch * net->subdiv);
+  int update_batch = net->batch * net->subdiv * GetSequenceValue(net);
   float rate = GetCurrentRate(net);
   for (int i = 0; i < net->n; ++i)
   {
@@ -506,7 +506,7 @@ void SyncNetworks(Network* nets, int n, int interval)
   int layers = nets[0].n;
   pthread_t* threads = (pthread_t*)calloc(layers, sizeof(pthread_t));
 
-  *nets[0].seen += interval * (n - 1) * nets[0].batch * nets[0].subdivisions;
+  *nets[0].seen += interval * (n - 1) * nets[0].batch * nets[0].subdiv;
   for (int j = 0; j < n; ++j)
   {
     *nets[j].seen = *nets[0].seen;
@@ -524,22 +524,21 @@ void SyncNetworks(Network* nets, int n, int interval)
 
 float TrainNetworks(Network* nets, int n, data d, int interval)
 {
-  int i;
 #ifdef _DEBUG
   int batch = nets[0].batch;
-  int subdivisions = nets[0].subdivisions;
+  int subdivisions = nets[0].subdiv;
   assert(batch * subdivisions * n == d.X.rows);
 #endif
+
   pthread_t* threads = (pthread_t*)calloc(n, sizeof(pthread_t));
   float* errors = (float*)calloc(n, sizeof(float));
-
   float sum = 0;
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
     data p = get_data_part(d, i, n);
     threads[i] = train_network_in_thread(nets[i], p, errors + i);
   }
-  for (i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i)
   {
     pthread_join(threads[i], 0);
     // printf("%f\n", errors[i]);
@@ -548,7 +547,7 @@ float TrainNetworks(Network* nets, int n, data d, int interval)
   // cudaDeviceSynchronize();
   *nets[0].cur_iteration += (n - 1);
   *nets[0].seen =
-      nets[0].batch * nets[0].subdivisions *
+      nets[0].batch * nets[0].subdiv *
       GetCurrentIteration(&nets[0]);  // remove this line, when you will save to
                                       // weights-file both: seen & cur_iteration
   if (GetCurrentIteration(&nets[0]) % interval == 0)
@@ -561,7 +560,8 @@ float TrainNetworks(Network* nets, int n, data d, int interval)
   // cudaDeviceSynchronize();
   free(threads);
   free(errors);
-  return (float)sum / (n);
+
+  return (float)sum / n;
 }
 
 float* GetNetworkOutputLayerGpu(Network* net, int i)

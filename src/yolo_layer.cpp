@@ -778,9 +778,10 @@ void ForwardYoloLayer(layer* l, NetworkState state)
   iou_loss /= l->batch;
 
   fprintf(stderr,
-      "v3 (%s loss, Normalizer: (iou: %.2f, cls: %.2f) Region %d Avg (IOU: "
-      "%f, GIOU: %f), Class: %f, Obj: %f, No Obj: %f, .5R: %f, .75R: %f, "
-      "count: %d, class_loss = %f, iou_loss = %f, total_loss = %f \n",
+      "%s loss, normalizer: (iou: %.2f, cls: %.2f) region %d avg (IOU: %.2f, "
+      "GIOU: %.2f), class: %.2f, obj: %.2f, no-obj: %.2f, .5R: %.2f, .75R: "
+      "%.2f, count: %d, class_loss = %.2f, iou_loss = %.2f, total_loss = "
+      "%.2f\n",
       (l->iou_loss == MSE ? "mse" : (l->iou_loss == GIOU ? "giou" : "iou")),
       l->iou_normalizer, l->cls_normalizer, state.index, tot_iou / count,
       tot_giou / count, avg_cat / class_count, avg_obj / count,

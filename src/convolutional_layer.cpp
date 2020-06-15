@@ -843,7 +843,7 @@ void resize_convolutional_layer(layer* l, int w, int h)
     l->activation_input = (float*)realloc(
         l->activation_input, total_batch * l->outputs * sizeof(float));
 #ifdef GPU
-  if (old_w < w || old_h < h || l->dynamic_minibatch)
+  if (old_w < w || old_h < h)
   {
     if (l->train)
     {

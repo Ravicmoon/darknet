@@ -1,12 +1,7 @@
-#ifndef IMAGE_OPENCV_H
-#define IMAGE_OPENCV_H
+#pragma once
 
 #include "image.h"
 #include "matrix.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef OPENCV
 
@@ -91,11 +86,10 @@ void save_cv_jpg(mat_cv* img, const char* name);
 
 // Draw Loss & Accuracy chart
 mat_cv* draw_train_chart(char* windows_name, float max_img_loss,
-    int max_batches, int number_of_lines, int img_size, int dont_show,
-    char const* chart_path);
+    int max_batches, int number_of_lines, int img_size, char const* chart_path);
 void draw_train_loss(char* windows_name, mat_cv* img, int img_size,
     float avg_loss, float max_img_loss, int current_batch, int max_batches,
-    float precision, int draw_precision, char* accuracy_name, int dont_show,
+    float precision, int draw_precision, char* accuracy_name,
     double time_remaining);
 
 // Data augmentation
@@ -124,9 +118,3 @@ int wait_until_press_key_cv();
 void destroy_all_windows_cv();
 
 #endif  // OPENCV
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif  // IMAGE_OPENCV_H

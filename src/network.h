@@ -29,9 +29,6 @@ void BackwardNetwork(Network* net, NetworkState state);
 void UpdateNetwork(Network* net);
 
 float TrainNetwork(Network* net, data d);
-float TrainNetworkWaitKey(Network* net, data d, int wait_key);
-float TrainNetworkBatch(Network* net, data d, int n);
-float TrainNetworkSgd(Network* net, data d, int n);
 float TrainNetworkDatum(Network* net, float* x, float* y);
 
 float* GetNetworkOutput(Network* net);
@@ -40,4 +37,4 @@ int ResizeNetwork(Network* net, int w, int h);
 int GetNetworkInputSize(Network* net);
 float GetNetworkCost(Network* net);
 
-void copy_weights_net(Network net_train, Network* net_map);
+void CopyNetWeights(Network* net_train, Network* net_map);

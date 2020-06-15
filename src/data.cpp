@@ -28,23 +28,6 @@ list* get_paths(char* filename)
   return lines;
 }
 
-/*
-char **get_random_paths_indexes(char **paths, int n, int m, int *indexes)
-{
-    char **random_paths = calloc(n, sizeof(char*));
-    int i;
-    pthread_mutex_lock(&mutex);
-    for(i = 0; i < n; ++i){
-        int index = random_gen()%m;
-        indexes[i] = index;
-        random_paths[i] = paths[index];
-        if(i == 0) printf("%s\n", paths[index]);
-    }
-    pthread_mutex_unlock(&mutex);
-    return random_paths;
-}
-*/
-
 char** get_sequential_paths(
     char** paths, int n, int m, int mini_batch, int augment_speed)
 {
@@ -104,41 +87,6 @@ char** get_random_paths(char** paths, int n, int m)
   }
   pthread_mutex_unlock(&mutex);
   return random_paths;
-}
-
-char** find_replace_paths(char** paths, int n, char* find, char* replace)
-{
-  char** replace_paths = (char**)xcalloc(n, sizeof(char*));
-  int i;
-  for (i = 0; i < n; ++i)
-  {
-    char replaced[4096];
-    find_replace(paths[i], find, replace, replaced);
-    replace_paths[i] = copy_string(replaced);
-  }
-  return replace_paths;
-}
-
-matrix load_image_paths_gray(char** paths, int n, int w, int h)
-{
-  int i;
-  matrix X;
-  X.rows = n;
-  X.vals = (float**)xcalloc(X.rows, sizeof(float*));
-  X.cols = 0;
-
-  for (i = 0; i < n; ++i)
-  {
-    Image im = load_image(paths[i], w, h, 3);
-
-    Image gray = grayscale_image(im);
-    free_image(im);
-    im = gray;
-
-    X.vals[i] = im.data;
-    X.cols = im.h * im.w * im.c;
-  }
-  return X;
 }
 
 matrix load_image_paths(char** paths, int n, int w, int h)
@@ -302,92 +250,6 @@ void correct_boxes(
     boxes[i].w = constrain(0, 1, boxes[i].w);
     boxes[i].h = constrain(0, 1, boxes[i].h);
   }
-}
-
-void fill_truth_swag(char* path, float* truth, int classes, int flip, float dx,
-    float dy, float sx, float sy)
-{
-  char labelpath[4096];
-  ReplaceImage2Label(path, labelpath);
-
-  int count = 0;
-  box_label* boxes = read_boxes(labelpath, &count);
-  randomize_boxes(boxes, count);
-  correct_boxes(boxes, count, dx, dy, sx, sy, flip);
-  float x, y, w, h;
-  int id;
-  int i;
-
-  for (i = 0; i < count && i < 30; ++i)
-  {
-    x = boxes[i].x;
-    y = boxes[i].y;
-    w = boxes[i].w;
-    h = boxes[i].h;
-    id = boxes[i].id;
-
-    if (w < .0 || h < .0)
-      continue;
-
-    int index = (4 + classes) * i;
-
-    truth[index++] = x;
-    truth[index++] = y;
-    truth[index++] = w;
-    truth[index++] = h;
-
-    if (id < classes)
-      truth[index + id] = 1;
-  }
-  free(boxes);
-}
-
-void fill_truth_region(char* path, float* truth, int classes, int num_boxes,
-    int flip, float dx, float dy, float sx, float sy)
-{
-  char labelpath[4096];
-  ReplaceImage2Label(path, labelpath);
-
-  int count = 0;
-  box_label* boxes = read_boxes(labelpath, &count);
-  randomize_boxes(boxes, count);
-  correct_boxes(boxes, count, dx, dy, sx, sy, flip);
-  float x, y, w, h;
-  int id;
-  int i;
-
-  for (i = 0; i < count; ++i)
-  {
-    x = boxes[i].x;
-    y = boxes[i].y;
-    w = boxes[i].w;
-    h = boxes[i].h;
-    id = boxes[i].id;
-
-    if (w < .001 || h < .001)
-      continue;
-
-    int col = (int)(x * num_boxes);
-    int row = (int)(y * num_boxes);
-
-    x = x * num_boxes - col;
-    y = y * num_boxes - row;
-
-    int index = (col + row * num_boxes) * (5 + classes);
-    if (truth[index])
-      continue;
-    truth[index++] = 1;
-
-    if (id < classes)
-      truth[index + id] = 1;
-    index += classes;
-
-    truth[index++] = x;
-    truth[index++] = y;
-    truth[index++] = w;
-    truth[index++] = h;
-  }
-  free(boxes);
 }
 
 int fill_truth_detection(const char* path, int num_boxes, float* truth,
@@ -621,50 +483,15 @@ matrix load_labels_paths(char** paths, int n, char** labels, int k,
   return y;
 }
 
-matrix load_tags_paths(char** paths, int n, int k)
+char** GetLabels(char* filename, int* size)
 {
-  matrix y = make_matrix(n, k);
-  int i;
-  int count = 0;
-  for (i = 0; i < n; ++i)
-  {
-    char label[4096];
-    find_replace(paths[i], "imgs", "labels", label);
-    find_replace(label, "_iconl.jpeg", ".txt", label);
-    FILE* file = fopen(label, "r");
-    if (!file)
-    {
-      find_replace(label, "labels", "labels2", label);
-      file = fopen(label, "r");
-      if (!file)
-        continue;
-    }
-    ++count;
-    int tag;
-    while (fscanf(file, "%d", &tag) == 1)
-    {
-      if (tag < k)
-      {
-        y.vals[i][tag] = 1;
-      }
-    }
-    fclose(file);
-  }
-  printf("%d/%d\n", count, n);
-  return y;
-}
-
-char** GetLabelsCustom(char* filename, int* size)
-{
-  list* plist = get_paths(filename);
+  list* list = get_paths(filename);
   if (size)
-    *size = plist->size;
-  char** labels = (char**)ListToArray(plist);
-  FreeList(plist);
+    *size = list->size;
+  char** labels = (char**)ListToArray(list);
+  FreeList(list);
   return labels;
 }
-
-char** GetLabels(char* filename) { return GetLabelsCustom(filename, NULL); }
 
 void free_data(data d)
 {
@@ -814,8 +641,6 @@ void blend_truth_mosaic(float* new_truth, int boxes, float* old_truth, int w,
   // printf("\n was %d bboxes, now %d bboxes \n", count_new_truth, t);
 }
 
-#ifdef OPENCV
-
 data load_data_detection(int n, char** paths, int m, int w, int h, int c,
     int boxes, int classes, int use_flip, int use_gaussian_noise, int use_blur,
     int use_mixup, float jitter, float hue, float saturation, float exposure,
@@ -885,12 +710,9 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
       const char* filename = random_paths[i];
 
       int flag = (c >= 3);
-      mat_cv* src;
-      src = load_image_mat_cv(filename, flag);
+      mat_cv* src = load_image_mat_cv(filename, flag);
       if (src == NULL)
-      {
         continue;
-      }
 
       int oh = get_height_mat(src);
       int ow = get_width_mat(src);
@@ -907,8 +729,8 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
         r4 = random_float();
 
         dhue = rand_uniform_strong(-hue, hue);
-        dsat = rand_scale(saturation);
-        dexp = rand_scale(exposure);
+        dsat = RandScale(saturation);
+        dexp = RandScale(exposure);
 
         flip = use_flip ? random_gen() % 2 : 0;
 
@@ -1124,212 +946,6 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
 
   return d;
 }
-#else  // OPENCV
-void blend_images(image new_img, float alpha, image old_img, float beta)
-{
-  int data_size = new_img.w * new_img.h * new_img.c;
-  int i;
-#pragma omp parallel for
-  for (i = 0; i < data_size; ++i)
-    new_img.data[i] = new_img.data[i] * alpha + old_img.data[i] * beta;
-}
-
-data load_data_detection(int n, char** paths, int m, int w, int h, int c,
-    int boxes, int classes, int use_flip, int gaussian_noise, int use_blur,
-    int use_mixup, float jitter, float hue, float saturation, float exposure,
-    int mini_batch, int track, int augment_speed, int letter_box, int show_imgs)
-{
-  const int random_index = random_gen();
-  c = c ? c : 3;
-  char** random_paths;
-  char** mixup_random_paths = NULL;
-  if (track)
-    random_paths = get_sequential_paths(paths, n, m, mini_batch, augment_speed);
-  else
-    random_paths = get_random_paths(paths, n, m);
-
-  // assert(use_mixup < 2);
-  if (use_mixup == 2)
-  {
-    printf("\n cutmix=1 - isn't supported for Detector \n");
-    exit(0);
-  }
-  if (use_mixup == 3)
-  {
-    printf("\n mosaic=1 - compile Darknet with OpenCV for using mosaic=1 \n");
-    exit(0);
-  }
-  int mixup = use_mixup ? random_gen() % 2 : 0;
-  // printf("\n mixup = %d \n", mixup);
-  if (mixup)
-  {
-    if (track)
-      mixup_random_paths =
-          get_sequential_paths(paths, n, m, mini_batch, augment_speed);
-    else
-      mixup_random_paths = get_random_paths(paths, n, m);
-  }
-
-  int i;
-  data d = {0};
-  d.shallow = 0;
-
-  d.X.rows = n;
-  d.X.vals = (float**)xcalloc(d.X.rows, sizeof(float*));
-  d.X.cols = h * w * c;
-
-  float r1 = 0, r2 = 0, r3 = 0, r4 = 0, r_scale;
-  float dhue = 0, dsat = 0, dexp = 0, flip = 0;
-  int augmentation_calculated = 0;
-
-  d.y = make_matrix(n, 5 * boxes);
-  int i_mixup = 0;
-  for (i_mixup = 0; i_mixup <= mixup; i_mixup++)
-  {
-    if (i_mixup)
-      augmentation_calculated = 0;
-    for (i = 0; i < n; ++i)
-    {
-      float* truth = (float*)xcalloc(5 * boxes, sizeof(float));
-      char* filename = (i_mixup) ? mixup_random_paths[i] : random_paths[i];
-
-      image orig = load_image(filename, 0, 0, c);
-
-      int oh = orig.h;
-      int ow = orig.w;
-
-      int dw = (ow * jitter);
-      int dh = (oh * jitter);
-
-      if (!augmentation_calculated || !track)
-      {
-        augmentation_calculated = 1;
-        r1 = random_float();
-        r2 = random_float();
-        r3 = random_float();
-        r4 = random_float();
-
-        r_scale = random_float();
-
-        dhue = rand_uniform_strong(-hue, hue);
-        dsat = rand_scale(saturation);
-        dexp = rand_scale(exposure);
-
-        flip = use_flip ? random_gen() % 2 : 0;
-      }
-
-      int pleft = rand_precalc_random(-dw, dw, r1);
-      int pright = rand_precalc_random(-dw, dw, r2);
-      int ptop = rand_precalc_random(-dh, dh, r3);
-      int pbot = rand_precalc_random(-dh, dh, r4);
-
-      float scale = rand_precalc_random(.25, 2, r_scale);  // unused currently
-
-      if (letter_box)
-      {
-        float img_ar = (float)ow / (float)oh;
-        float net_ar = (float)w / (float)h;
-        float result_ar = img_ar / net_ar;
-        // printf(" ow = %d, oh = %d, w = %d, h = %d, img_ar = %f, net_ar = %f,
-        // result_ar = %f \n", ow, oh, w, h, img_ar, net_ar, result_ar);
-        if (result_ar > 1)  // sheight - should be increased
-        {
-          float oh_tmp = ow / net_ar;
-          float delta_h = (oh_tmp - oh) / 2;
-          ptop = ptop - delta_h;
-          pbot = pbot - delta_h;
-          // printf(" result_ar = %f, oh_tmp = %f, delta_h = %d, ptop = %f, pbot
-          // = %f \n", result_ar, oh_tmp, delta_h, ptop, pbot);
-        }
-        else  // swidth - should be increased
-        {
-          float ow_tmp = oh * net_ar;
-          float delta_w = (ow_tmp - ow) / 2;
-          pleft = pleft - delta_w;
-          pright = pright - delta_w;
-          // printf(" result_ar = %f, ow_tmp = %f, delta_w = %d, pleft = %f,
-          // pright = %f \n", result_ar, ow_tmp, delta_w, pleft, pright);
-        }
-      }
-
-      int swidth = ow - pleft - pright;
-      int sheight = oh - ptop - pbot;
-
-      float sx = (float)swidth / ow;
-      float sy = (float)sheight / oh;
-
-      image cropped = crop_image(orig, pleft, ptop, swidth, sheight);
-
-      float dx = ((float)pleft / ow) / sx;
-      float dy = ((float)ptop / oh) / sy;
-
-      image sized = resize_image(cropped, w, h);
-      if (flip)
-        flip_image(sized);
-      distort_image(sized, dhue, dsat, dexp);
-      // random_distort_image(sized, hue, saturation, exposure);
-
-      fill_truth_detection(filename, boxes, truth, classes, flip, dx, dy,
-          1. / sx, 1. / sy, w, h);
-
-      if (i_mixup)
-      {
-        image old_img = sized;
-        old_img.data = d.X.vals[i];
-        // show_image(sized, "new");
-        // show_image(old_img, "old");
-        // wait_until_press_key_cv();
-        blend_images(sized, 0.5, old_img, 0.5);
-        blend_truth(truth, boxes, d.y.vals[i]);
-        free_image(old_img);
-      }
-
-      d.X.vals[i] = sized.data;
-      memcpy(d.y.vals[i], truth, 5 * boxes * sizeof(float));
-
-      if (show_imgs)  // && i_mixup)
-      {
-        char buff[1000];
-        sprintf(buff, "aug_%d_%d_%s_%d", random_index, i, BaseCfg(filename),
-            random_gen());
-
-        int t;
-        for (t = 0; t < boxes; ++t)
-        {
-          Box b(d.y.vals[i] + t * (4 + 1));
-          if (!b.x)
-            break;
-          int left = (b.x - b.w / 2.) * sized.w;
-          int right = (b.x + b.w / 2.) * sized.w;
-          int top = (b.y - b.h / 2.) * sized.h;
-          int bot = (b.y + b.h / 2.) * sized.h;
-          draw_box_width(sized, left, top, right, bot, 1, 150, 100,
-              50);  // 3 channels RGB
-        }
-
-        save_image(sized, buff);
-        if (show_imgs == 1)
-        {
-          show_image(sized, buff);
-          wait_until_press_key_cv();
-        }
-        printf(
-            "\nYou use flag -show_imgs, so will be saved aug_...jpg images. "
-            "Press Enter: \n");
-        // getchar();
-      }
-
-      free_image(orig);
-      free_image(cropped);
-      free(truth);
-    }
-  }
-  free(random_paths);
-  if (mixup_random_paths)
-    free(mixup_random_paths);
-  return d;
-}
-#endif  // OPENCV
 
 void* load_thread(void* ptr)
 {

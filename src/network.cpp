@@ -32,12 +32,12 @@ int64_t GetCurrentIteration(Network* net) { return *net->cur_iteration; }
 
 int GetCurrentBatch(Network* net)
 {
-  return (*net->seen) / (net->batch * net->subdivisions);
+  return (*net->seen) / (net->batch * net->subdiv);
 }
 
 float GetCurrentSeqSubdivisions(Network* net)
 {
-  int sequence_subdivisions = net->init_sequential_subdivisions;
+  int sequence_subdivisions = net->init_seq_subdiv;
 
   if (net->num_steps > 0)
   {
@@ -54,8 +54,8 @@ float GetCurrentSeqSubdivisions(Network* net)
   if (sequence_subdivisions < 1)
     sequence_subdivisions = 1;
 
-  if (sequence_subdivisions > net->subdivisions)
-    sequence_subdivisions = net->subdivisions;
+  if (sequence_subdivisions > net->subdiv)
+    sequence_subdivisions = net->subdiv;
 
   return sequence_subdivisions;
 }
@@ -63,8 +63,8 @@ float GetCurrentSeqSubdivisions(Network* net)
 int GetSequenceValue(Network* net)
 {
   int sequence = 1;
-  if (net->sequential_subdivisions != 0)
-    sequence = net->subdivisions / net->sequential_subdivisions;
+  if (net->seq_subdiv != 0)
+    sequence = net->subdiv / net->seq_subdiv;
 
   if (sequence < 1)
     sequence = 1;
@@ -160,7 +160,7 @@ void ForwardNetwork(Network* net, NetworkState state)
 
 void UpdateNetwork(Network* net)
 {
-  int update_batch = net->batch * net->subdivisions;
+  int update_batch = net->batch * net->subdiv;
   float rate = GetCurrentRate(net);
   for (int i = 0; i < net->n; ++i)
   {
@@ -252,34 +252,10 @@ float TrainNetworkDatum(Network* net, float* x, float* y)
   return GetNetworkCost(net);
 }
 
-float TrainNetworkSgd(Network* net, data d, int n)
-{
-  int batch = net->batch;
-  float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
-  float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
-
-  float sum = 0;
-  for (int i = 0; i < n; ++i)
-  {
-    get_random_batch(d, batch, X, y);
-    net->current_subdivision = i;
-    float err = TrainNetworkDatum(net, X, y);
-    sum += err;
-  }
-  free(X);
-  free(y);
-
-  return (float)sum / (n * batch);
-}
-
 float TrainNetwork(Network* net, data d)
 {
-  return TrainNetworkWaitKey(net, d, 0);
-}
-
-float TrainNetworkWaitKey(Network* net, data d, int wait_key)
-{
   assert(d.X.rows % net->batch == 0);
+
   int batch = net->batch;
   int n = d.X.rows / batch;
   float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
@@ -289,11 +265,8 @@ float TrainNetworkWaitKey(Network* net, data d, int wait_key)
   for (int i = 0; i < n; ++i)
   {
     get_next_batch(d, batch, i * batch, X, y);
-    net->current_subdivision = i;
-    float err = TrainNetworkDatum(net, X, y);
-    sum += err;
-    if (wait_key)
-      wait_key_cv(5);
+    net->curr_subdiv = i;
+    sum += TrainNetworkDatum(net, X, y);
   }
   (*net->cur_iteration) += 1;
 
@@ -306,31 +279,6 @@ float TrainNetworkWaitKey(Network* net, data d, int wait_key)
   free(X);
   free(y);
 
-  return (float)sum / (n * batch);
-}
-
-float TrainNetworkBatch(Network* net, data d, int n)
-{
-  NetworkState state = {0};
-  state.index = 0;
-  state.net = net;
-  state.train = 1;
-  state.delta = 0;
-  float sum = 0;
-  int batch = 2;
-  for (int i = 0; i < n; ++i)
-  {
-    for (int j = 0; j < batch; ++j)
-    {
-      int index = random_gen() % d.X.rows;
-      state.input = d.X.vals[index];
-      state.truth = d.y.vals[index];
-      ForwardNetwork(net, state);
-      BackwardNetwork(net, state);
-      sum += GetNetworkCost(net);
-    }
-    UpdateNetwork(net);
-  }
   return (float)sum / (n * batch);
 }
 
@@ -972,22 +920,21 @@ void copy_cudnn_descriptors(layer src, layer* dst)
 #endif  // CUDNN
 }
 
-void copy_weights_net(Network net_train, Network* net_map)
+void CopyNetWeights(Network* net_train, Network* net_map)
 {
-  int k;
-  for (k = 0; k < net_train.n; ++k)
+  for (int k = 0; k < net_train->n; ++k)
   {
-    layer* l = &(net_train.layers[k]);
+    layer* l = &net_train->layers[k];
     layer tmp_layer;
     copy_cudnn_descriptors(net_map->layers[k], &tmp_layer);
-    net_map->layers[k] = net_train.layers[k];
+    net_map->layers[k] = net_train->layers[k];
     copy_cudnn_descriptors(tmp_layer, &net_map->layers[k]);
 
     if (l->input_layer)  // for AntiAliasing
     {
       layer tmp_input_layer;
       copy_cudnn_descriptors(*net_map->layers[k].input_layer, &tmp_input_layer);
-      net_map->layers[k].input_layer = net_train.layers[k].input_layer;
+      net_map->layers[k].input_layer = net_train->layers[k].input_layer;
       copy_cudnn_descriptors(tmp_input_layer, net_map->layers[k].input_layer);
     }
 

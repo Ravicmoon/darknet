@@ -1,7 +1,6 @@
 #pragma once
 #include <pthread.h>
 
-#include "image.h"
 #include "list.h"
 #include "matrix.h"
 #include "tree.h"
@@ -84,8 +83,7 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
 box_label* read_boxes(char* filename, int* n);
 
 list* get_paths(char* filename);
-char** GetLabels(char* filename);
-char** GetLabelsCustom(char* filename, int* size);
+char** GetLabels(char* filename, int* size = nullptr);
 void get_random_batch(data d, int n, float* X, float* y);
 data get_data_part(data d, int part, int total);
 void get_next_batch(data d, int n, int offset, float* X, float* y);

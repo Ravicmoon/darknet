@@ -9,6 +9,8 @@
 void FillRouteLayer(layer* l, int batch, int n, int* input_layers,
     int* input_sizes, int groups, int group_id)
 {
+  fprintf(stderr, "route ");
+
   l->type = ROUTE;
   l->batch = batch;
   l->n = n;

@@ -216,8 +216,8 @@ int main(int argc, char** argv)
 #endif  // GPU
 
   int gpu = FLAGS_gpu_idx;
-  int* gpus = &gpu;
-  int ngpus = 1;
+  int gpus[] = {0, 1};
+  int ngpus = 2;
 
   if (FLAGS_mode == "train")
     TrainDetector(FLAGS_data_file.c_str(), FLAGS_model_file.c_str(),

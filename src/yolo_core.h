@@ -210,7 +210,6 @@ struct layer
   int batch_normalize;
   int shortcut;
   int batch;
-  int dynamic_minibatch;
   int forced;
   int inputs;
   int outputs;
@@ -520,7 +519,7 @@ typedef struct Network
   float loss_scale;
   int* t;
   float epoch;
-  int subdivisions;
+  int subdiv;
   layer* layers;
   float* output;
   LearningRatePolicy policy;
@@ -582,9 +581,9 @@ typedef struct Network
   int random;
   int track;
   int augment_speed;
-  int sequential_subdivisions;
-  int init_sequential_subdivisions;
-  int current_subdivision;
+  int seq_subdiv;
+  int init_seq_subdiv;
+  int curr_subdiv;
   int try_fix_nan;
 
   int gpu_index;
@@ -618,7 +617,6 @@ typedef struct Network
   size_t max_delta_gpu_size;
 
   int optimized_memory;
-  int dynamic_minibatch;
   size_t workspace_size_limit;
 } Network;
 
