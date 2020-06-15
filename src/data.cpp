@@ -1304,7 +1304,6 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
     }
   }
 
-#ifdef OPENCV
   if (use_blur)
   {
     int i;
@@ -1328,7 +1327,6 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
       }
     }
   }
-#endif  // OPENCV
 
   if (show_imgs)
   {

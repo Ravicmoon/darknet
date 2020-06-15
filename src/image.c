@@ -508,15 +508,7 @@ void rgbgr_image(Image im)
   }
 }
 
-void show_image(Image p, const char* name)
-{
-#ifdef OPENCV
-  show_image_cv(p, name);
-#else
-  fprintf(stderr, "Not compiled with OpenCV, saving to %s.png instead\n", name);
-  save_image(p, name);
-#endif  // OPENCV
-}
+void show_image(Image p, const char* name) { show_image_cv(p, name); }
 
 void save_image_png(Image im, const char* name)
 {
@@ -780,45 +772,6 @@ int best_3d_shift(Image a, Image b, int min, int max)
     free_image(c);
   }
   return best;
-}
-
-void composite_3d(char* f1, char* f2, char* out, int delta)
-{
-  if (!out)
-    out = "out";
-  Image a = load_image(f1, 0, 0, 0);
-  Image b = load_image(f2, 0, 0, 0);
-  int shift = best_3d_shift_r(a, b, -a.h / 100, a.h / 100);
-
-  Image c1 = crop_image(b, 10, shift, b.w, b.h);
-  float d1 = dist_array(c1.data, a.data, a.w * a.h * a.c, 100);
-  Image c2 = crop_image(b, -10, shift, b.w, b.h);
-  float d2 = dist_array(c2.data, a.data, a.w * a.h * a.c, 100);
-
-  if (d2 < d1 && 0)
-  {
-    Image swap = a;
-    a = b;
-    b = swap;
-    shift = -shift;
-    printf("swapped, %d\n", shift);
-  }
-  else
-  {
-    printf("%d\n", shift);
-  }
-
-  Image c = crop_image(b, delta, shift, a.w, a.h);
-  int i;
-  for (i = 0; i < c.w * c.h; ++i)
-  {
-    c.data[i] = a.data[i];
-  }
-#ifdef OPENCV
-  save_image_jpg(c, out);
-#else
-  save_image(c, out);
-#endif
 }
 
 void fill_image(Image m, float s)
@@ -1403,7 +1356,6 @@ void test_resize(char* filename)
   show_image(c3, "C3");
   show_image(c4, "C4");
 
-#ifdef OPENCV
   while (1)
   {
     Image aug = random_augment_image(im, 0, .75, 320, 448, 320);
@@ -1426,7 +1378,6 @@ void test_resize(char* filename)
     free_image(c);
     wait_until_press_key_cv();
   }
-#endif
 }
 
 Image load_image_stb(char const* filename, int channels)
@@ -1484,12 +1435,7 @@ Image load_image_stb_resize(char* filename, int w, int h, int c)
 
 Image load_image(char const* filename, int w, int h, int c)
 {
-#ifdef OPENCV
-  // image out = load_image_stb(filename, c);
   Image out = load_image_cv(filename, c);
-#else
-  Image out = load_image_stb(filename, c);  // without OpenCV
-#endif  // OPENCV
 
   if ((h && w) && (h != out.h || w != out.w))
   {

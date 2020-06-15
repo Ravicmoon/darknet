@@ -764,9 +764,8 @@ LIB_API layer* get_network_layer(Network* net, int i);
 LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
 
 LIB_API void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, char const* chart_path, int* gpus, int ngpus,
-    int clear, int show_imgs, int dont_show, int calc_map,
-    int benchmark_layers);
+    char const* weights_file, int* gpus, int ngpus, int clear, int show_imgs,
+    int calc_map, int benchmark_layers);
 LIB_API float ValidateDetector(char const* data_file, char const* model_file,
     char const* weights_file, float const thresh_calc_avg_iou,
     float const iou_thresh, int const map_points, int letter_box,

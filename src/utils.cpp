@@ -19,9 +19,7 @@
 
 #include "darkunistd.h"
 
-#ifdef WIN32
-#include "gettimeofday.h"
-#else
+#ifndef WIN32
 #include <sys/time.h>
 #endif
 
@@ -34,7 +32,8 @@ void* xmalloc(size_t size)
   void* ptr = malloc(size);
   if (!ptr)
   {
-    malloc_error();
+    fprintf(stderr, "xmalloc error\n");
+    exit(EXIT_FAILURE);
   }
   return ptr;
 }
@@ -44,7 +43,8 @@ void* xcalloc(size_t nmemb, size_t size)
   void* ptr = calloc(nmemb, size);
   if (!ptr)
   {
-    calloc_error();
+    fprintf(stderr, "xcalloc error\n");
+    exit(EXIT_FAILURE);
   }
   return ptr;
 }
@@ -54,19 +54,10 @@ void* xrealloc(void* ptr, size_t size)
   ptr = realloc(ptr, size);
   if (!ptr)
   {
-    realloc_error();
+    fprintf(stderr, "xrealloc error\n");
+    exit(EXIT_FAILURE);
   }
   return ptr;
-}
-
-double GetCurrTime()
-{
-  struct timeval time;
-  if (gettimeofday(&time, NULL))
-  {
-    return 0;
-  }
-  return (double)time.tv_sec + (double)time.tv_usec * .000001;
 }
 
 int* read_map(char* filename)
@@ -89,109 +80,6 @@ int* read_map(char* filename)
   return map;
 }
 
-void sorta_shuffle(void* arr, size_t n, size_t size, size_t sections)
-{
-  size_t i;
-  for (i = 0; i < sections; ++i)
-  {
-    size_t start = n * i / sections;
-    size_t end = n * (i + 1) / sections;
-    size_t num = end - start;
-    shuffle((char*)arr + (start * size), num, size);
-  }
-}
-
-void shuffle(void* arr, size_t n, size_t size)
-{
-  size_t i;
-  void* swp = (void*)xcalloc(1, size);
-  for (i = 0; i < n - 1; ++i)
-  {
-    size_t j = i + random_gen() / (RAND_MAX / (n - i) + 1);
-    memcpy(swp, (char*)arr + (j * size), size);
-    memcpy((char*)arr + (j * size), (char*)arr + (i * size), size);
-    memcpy((char*)arr + (i * size), swp, size);
-  }
-  free(swp);
-}
-
-void del_arg(int argc, char** argv, int index)
-{
-  int i;
-  for (i = index; i < argc - 1; ++i) argv[i] = argv[i + 1];
-  argv[i] = 0;
-}
-
-int find_arg(int argc, char* argv[], char* arg)
-{
-  int i;
-  for (i = 0; i < argc; ++i)
-  {
-    if (!argv[i])
-      continue;
-    if (0 == strcmp(argv[i], arg))
-    {
-      del_arg(argc, argv, i);
-      return 1;
-    }
-  }
-  return 0;
-}
-
-int find_int_arg(int argc, char** argv, char* arg, int def)
-{
-  int i;
-  for (i = 0; i < argc - 1; ++i)
-  {
-    if (!argv[i])
-      continue;
-    if (0 == strcmp(argv[i], arg))
-    {
-      def = atoi(argv[i + 1]);
-      del_arg(argc, argv, i);
-      del_arg(argc, argv, i);
-      break;
-    }
-  }
-  return def;
-}
-
-float find_float_arg(int argc, char** argv, char* arg, float def)
-{
-  int i;
-  for (i = 0; i < argc - 1; ++i)
-  {
-    if (!argv[i])
-      continue;
-    if (0 == strcmp(argv[i], arg))
-    {
-      def = atof(argv[i + 1]);
-      del_arg(argc, argv, i);
-      del_arg(argc, argv, i);
-      break;
-    }
-  }
-  return def;
-}
-
-char* find_char_arg(int argc, char** argv, char* arg, char* def)
-{
-  int i;
-  for (i = 0; i < argc - 1; ++i)
-  {
-    if (!argv[i])
-      continue;
-    if (0 == strcmp(argv[i], arg))
-    {
-      def = argv[i + 1];
-      del_arg(argc, argv, i);
-      del_arg(argc, argv, i);
-      break;
-    }
-  }
-  return def;
-}
-
 char* BaseCfg(char const* cfg_file)
 {
   char* c = (char*)cfg_file;
@@ -210,14 +98,6 @@ char* BaseCfg(char const* cfg_file)
   if (next)
     *next = 0;
   return c;
-}
-
-int alphanum_to_int(char c) { return (c < 58) ? c - 48 : c - 87; }
-char int_to_alphanum(int i)
-{
-  if (i == 36)
-    return '.';
-  return (i < 10) ? i + 48 : i + 87;
 }
 
 void pm(int M, int N, float* A)
@@ -348,8 +228,6 @@ void ReplaceImage2Label(char const* input_path, char* output_path)
   }
 }
 
-float sec(clock_t clocks) { return (float)clocks / CLOCKS_PER_SEC; }
-
 void top_k(float* a, int n, int k, int* index)
 {
   int i, j;
@@ -376,45 +254,10 @@ void error(const char* s)
   exit(EXIT_FAILURE);
 }
 
-void malloc_error()
-{
-  fprintf(stderr, "xMalloc error\n");
-  exit(EXIT_FAILURE);
-}
-
-void calloc_error()
-{
-  fprintf(stderr, "Calloc error\n");
-  exit(EXIT_FAILURE);
-}
-
-void realloc_error()
-{
-  fprintf(stderr, "Realloc error\n");
-  exit(EXIT_FAILURE);
-}
-
 void FileError(char const* s)
 {
   fprintf(stderr, "Couldn't open file: %s\n", s);
   exit(EXIT_FAILURE);
-}
-
-list* split_str(char* s, char delim)
-{
-  size_t i;
-  size_t len = strlen(s);
-  list* l = MakeList();
-  InsertList(l, s);
-  for (i = 0; i < len; ++i)
-  {
-    if (s[i] == delim)
-    {
-      s[i] = '\0';
-      InsertList(l, &(s[i + 1]));
-    }
-  }
-  return l;
 }
 
 void strip(char* s)
@@ -427,38 +270,6 @@ void strip(char* s)
     char c = s[i];
     if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == 0x0d ||
         c == 0x0a)
-      ++offset;
-    else
-      s[i - offset] = c;
-  }
-  s[len - offset] = '\0';
-}
-
-void strip_args(char* s)
-{
-  size_t i;
-  size_t len = strlen(s);
-  size_t offset = 0;
-  for (i = 0; i < len; ++i)
-  {
-    char c = s[i];
-    if (c == '\t' || c == '\n' || c == '\r' || c == 0x0d || c == 0x0a)
-      ++offset;
-    else
-      s[i - offset] = c;
-  }
-  s[len - offset] = '\0';
-}
-
-void strip_char(char* s, char bad)
-{
-  size_t i;
-  size_t len = strlen(s);
-  size_t offset = 0;
-  for (i = 0; i < len; ++i)
-  {
-    char c = s[i];
-    if (c == bad)
       ++offset;
     else
       s[i - offset] = c;
@@ -511,72 +322,6 @@ char* fgetl(FILE* fp)
   return line;
 }
 
-int read_int(int fd)
-{
-  int n = 0;
-  int next = read(fd, &n, sizeof(int));
-  if (next <= 0)
-    return -1;
-  return n;
-}
-
-void write_int(int fd, int n)
-{
-  int next = write(fd, &n, sizeof(int));
-  if (next <= 0)
-    error("read failed");
-}
-
-int read_all_fail(int fd, char* buffer, size_t bytes)
-{
-  size_t n = 0;
-  while (n < bytes)
-  {
-    int next = read(fd, buffer + n, bytes - n);
-    if (next <= 0)
-      return 1;
-    n += next;
-  }
-  return 0;
-}
-
-int write_all_fail(int fd, char* buffer, size_t bytes)
-{
-  size_t n = 0;
-  while (n < bytes)
-  {
-    size_t next = write(fd, buffer + n, bytes - n);
-    if (next <= 0)
-      return 1;
-    n += next;
-  }
-  return 0;
-}
-
-void read_all(int fd, char* buffer, size_t bytes)
-{
-  size_t n = 0;
-  while (n < bytes)
-  {
-    int next = read(fd, buffer + n, bytes - n);
-    if (next <= 0)
-      error("read failed");
-    n += next;
-  }
-}
-
-void write_all(int fd, char* buffer, size_t bytes)
-{
-  size_t n = 0;
-  while (n < bytes)
-  {
-    size_t next = write(fd, buffer + n, bytes - n);
-    if (next <= 0)
-      error("write failed");
-    n += next;
-  }
-}
-
 char* copy_string(char* s)
 {
   if (!s)
@@ -586,26 +331,6 @@ char* copy_string(char* s)
   char* copy = (char*)xmalloc(strlen(s) + 1);
   strncpy(copy, s, strlen(s) + 1);
   return copy;
-}
-
-list* parse_csv_line(char* line)
-{
-  list* l = MakeList();
-  char *c, *p;
-  int in = 0;
-  for (c = line, p = line; *c != '\0'; ++c)
-  {
-    if (*c == '"')
-      in = !in;
-    else if (*c == ',' && !in)
-    {
-      *c = '\0';
-      InsertList(l, copy_string(p));
-      p = c + 1;
-    }
-  }
-  InsertList(l, copy_string(p));
-  return l;
 }
 
 int count_fields(char* line)
@@ -654,43 +379,6 @@ float sum_array(float* a, int n)
   return sum;
 }
 
-float mean_array(float* a, int n) { return sum_array(a, n) / n; }
-
-void mean_arrays(float** a, int n, int els, float* avg)
-{
-  int i;
-  int j;
-  memset(avg, 0, els * sizeof(float));
-  for (j = 0; j < n; ++j)
-  {
-    for (i = 0; i < els; ++i)
-    {
-      avg[i] += a[j][i];
-    }
-  }
-  for (i = 0; i < els; ++i)
-  {
-    avg[i] /= n;
-  }
-}
-
-void print_statistics(float* a, int n)
-{
-  float m = mean_array(a, n);
-  float v = variance_array(a, n);
-  printf("MSE: %.6f, Mean: %.6f, Variance: %.6f\n", mse_array(a, n), m, v);
-}
-
-float variance_array(float* a, int n)
-{
-  int i;
-  float sum = 0;
-  float mean = mean_array(a, n);
-  for (i = 0; i < n; ++i) sum += (a[i] - mean) * (a[i] - mean);
-  float variance = sum / n;
-  return variance;
-}
-
 int constrain_int(int a, int min, int max)
 {
   if (a < min)
@@ -717,36 +405,6 @@ float dist_array(float* a, float* b, int n, int sub)
   return sqrt(sum);
 }
 
-float mse_array(float* a, int n)
-{
-  int i;
-  float sum = 0;
-  for (i = 0; i < n; ++i) sum += a[i] * a[i];
-  return sqrt(sum / n);
-}
-
-void normalize_array(float* a, int n)
-{
-  int i;
-  float mu = mean_array(a, n);
-  float sigma = sqrt(variance_array(a, n));
-  for (i = 0; i < n; ++i)
-  {
-    a[i] = (a[i] - mu) / sigma;
-  }
-  mu = mean_array(a, n);
-  sigma = sqrt(variance_array(a, n));
-}
-
-void translate_array(float* a, int n, float s)
-{
-  int i;
-  for (i = 0; i < n; ++i)
-  {
-    a[i] += s;
-  }
-}
-
 float mag_array(float* a, int n)
 {
   int i;
@@ -756,108 +414,6 @@ float mag_array(float* a, int n)
     sum += a[i] * a[i];
   }
   return sqrt(sum);
-}
-
-// indicies to skip is a bit array
-float mag_array_skip(float* a, int n, int* indices_to_skip)
-{
-  int i;
-  float sum = 0;
-  for (i = 0; i < n; ++i)
-  {
-    if (indices_to_skip[i] != 1)
-    {
-      sum += a[i] * a[i];
-    }
-  }
-  return sqrt(sum);
-}
-
-void scale_array(float* a, int n, float s)
-{
-  int i;
-  for (i = 0; i < n; ++i)
-  {
-    a[i] *= s;
-  }
-}
-
-int sample_array(float* a, int n)
-{
-  float sum = sum_array(a, n);
-  scale_array(a, n, 1. / sum);
-  float r = rand_uniform(0, 1);
-  int i;
-  for (i = 0; i < n; ++i)
-  {
-    r = r - a[i];
-    if (r <= 0)
-      return i;
-  }
-  return n - 1;
-}
-
-int sample_array_custom(float* a, int n)
-{
-  float sum = sum_array(a, n);
-  scale_array(a, n, 1. / sum);
-  float r = rand_uniform(0, 1);
-  int start_index = rand_int(0, 0);
-  int i;
-  for (i = 0; i < n; ++i)
-  {
-    r = r - a[(i + start_index) % n];
-    if (r <= 0)
-      return i;
-  }
-  return n - 1;
-}
-
-int max_index(float* a, int n)
-{
-  if (n <= 0)
-    return -1;
-  int i, max_i = 0;
-  float max = a[0];
-  for (i = 1; i < n; ++i)
-  {
-    if (a[i] > max)
-    {
-      max = a[i];
-      max_i = i;
-    }
-  }
-  return max_i;
-}
-
-int top_max_index(float* a, int n, int k)
-{
-  if (n <= 0)
-    return -1;
-  float* values = (float*)xcalloc(k, sizeof(float));
-  int* indexes = (int*)xcalloc(k, sizeof(int));
-  int i, j;
-  for (i = 0; i < n; ++i)
-  {
-    for (j = 0; j < k; ++j)
-    {
-      if (a[i] > values[j])
-      {
-        values[j] = a[i];
-        indexes[j] = i;
-        break;
-      }
-    }
-  }
-  int count = 0;
-  for (j = 0; j < k; ++j)
-    if (values[j] > 0)
-      count++;
-  int get_index = rand_int(0, count - 1);
-  int val = indexes[get_index];
-  free(indexes);
-  free(values);
-  return val;
 }
 
 int int_index(int* a, int val, int n)
@@ -871,6 +427,20 @@ int int_index(int* a, int val, int n)
   return -1;
 }
 
+unsigned int random_gen()
+{
+  unsigned int rnd = 0;
+#ifdef WIN32
+  rand_s(&rnd);
+#else  // WIN32
+  rnd = rand();
+#if (RAND_MAX < 65536)
+  rnd = rand() * (RAND_MAX + 1) + rnd;
+#endif  //(RAND_MAX < 65536)
+#endif  // WIN32
+  return rnd;
+}
+
 int rand_int(int min, int max)
 {
   if (max < min)
@@ -881,6 +451,24 @@ int rand_int(int min, int max)
   }
   int r = (random_gen() % (max - min + 1)) + min;
   return r;
+}
+
+float random_float()
+{
+  unsigned int rnd = 0;
+#ifdef WIN32
+  rand_s(&rnd);
+  return ((float)rnd / (float)UINT_MAX);
+#else  // WIN32
+
+  rnd = rand();
+#if (RAND_MAX < 65536)
+  rnd = rand() * (RAND_MAX + 1) + rnd;
+  return ((float)rnd / (float)(RAND_MAX * RAND_MAX));
+#endif  //(RAND_MAX < 65536)
+  return ((float)rnd / (float)RAND_MAX);
+
+#endif  // WIN32
 }
 
 // From http://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
@@ -904,29 +492,6 @@ float rand_normal()
   rand2 = (random_gen() / ((double)RAND_MAX)) * 2.0 * M_PI;
 
   return sqrt(rand1) * cos(rand2);
-}
-
-/*
-   float rand_normal()
-   {
-   int n = 12;
-   int i;
-   float sum= 0;
-   for(i = 0; i < n; ++i) sum += (float)random_gen()/RAND_MAX;
-   return sum-n/2.;
-   }
- */
-
-size_t rand_size_t()
-{
-  return ((size_t)(random_gen() & 0xff) << 56) |
-         ((size_t)(random_gen() & 0xff) << 48) |
-         ((size_t)(random_gen() & 0xff) << 40) |
-         ((size_t)(random_gen() & 0xff) << 32) |
-         ((size_t)(random_gen() & 0xff) << 24) |
-         ((size_t)(random_gen() & 0xff) << 16) |
-         ((size_t)(random_gen() & 0xff) << 8) |
-         ((size_t)(random_gen() & 0xff) << 0);
 }
 
 float rand_uniform(float min, float max)
@@ -955,86 +520,6 @@ float RandScale(float s)
   return 1. / scale;
 }
 
-float** one_hot_encode(float* a, int n, int k)
-{
-  int i;
-  float** t = (float**)xcalloc(n, sizeof(float*));
-  for (i = 0; i < n; ++i)
-  {
-    t[i] = (float*)xcalloc(k, sizeof(float));
-    int index = (int)a[i];
-    t[i][index] = 1;
-  }
-  return t;
-}
-
-static unsigned int x = 123456789, y = 362436069, z = 521288629;
-
-// Marsaglia's xorshf96 generator: period 2^96-1
-unsigned int random_gen_fast(void)
-{
-  unsigned int t;
-  x ^= x << 16;
-  x ^= x >> 5;
-  x ^= x << 1;
-
-  t = x;
-  x = y;
-  y = z;
-  z = t ^ x ^ y;
-
-  return z;
-}
-
-float random_float_fast()
-{
-  return ((float)random_gen_fast() / (float)UINT_MAX);
-}
-
-int rand_int_fast(int min, int max)
-{
-  if (max < min)
-  {
-    int s = min;
-    min = max;
-    max = s;
-  }
-  int r = (random_gen_fast() % (max - min + 1)) + min;
-  return r;
-}
-
-unsigned int random_gen()
-{
-  unsigned int rnd = 0;
-#ifdef WIN32
-  rand_s(&rnd);
-#else  // WIN32
-  rnd = rand();
-#if (RAND_MAX < 65536)
-  rnd = rand() * (RAND_MAX + 1) + rnd;
-#endif  //(RAND_MAX < 65536)
-#endif  // WIN32
-  return rnd;
-}
-
-float random_float()
-{
-  unsigned int rnd = 0;
-#ifdef WIN32
-  rand_s(&rnd);
-  return ((float)rnd / (float)UINT_MAX);
-#else  // WIN32
-
-  rnd = rand();
-#if (RAND_MAX < 65536)
-  rnd = rand() * (RAND_MAX + 1) + rnd;
-  return ((float)rnd / (float)(RAND_MAX * RAND_MAX));
-#endif  //(RAND_MAX < 65536)
-  return ((float)rnd / (float)RAND_MAX);
-
-#endif  // WIN32
-}
-
 float rand_uniform_strong(float min, float max)
 {
   if (max < min)
@@ -1057,81 +542,7 @@ float rand_precalc_random(float min, float max, float random_part)
   return (random_part * (max - min)) + min;
 }
 
-#define RS_SCALE (1.0 / (1.0 + RAND_MAX))
-
-double double_rand(void)
-{
-  double d;
-  do
-  {
-    d = (((rand() * RS_SCALE) + rand()) * RS_SCALE + rand()) * RS_SCALE;
-  } while (d >= 1);  // Round off
-  return d;
-}
-
-unsigned int uint_rand(unsigned int less_than)
-{
-  return (unsigned int)((less_than)*double_rand());
-}
-
-int check_array_is_nan(float* arr, int size)
-{
-  int i;
-  for (i = 0; i < size; ++i)
-  {
-    if (isnan(arr[i]))
-      return 1;
-  }
-  return 0;
-}
-
-int check_array_is_inf(float* arr, int size)
-{
-  int i;
-  for (i = 0; i < size; ++i)
-  {
-    if (isinf(arr[i]))
-      return 1;
-  }
-  return 0;
-}
-
-int* random_index_order(int min, int max)
-{
-  int* inds = (int*)xcalloc(max - min, sizeof(int));
-  int i;
-  for (i = min; i < max; ++i)
-  {
-    inds[i - min] = i;
-  }
-  for (i = min; i < max - 1; ++i)
-  {
-    int swap = inds[i - min];
-    int index = i + rand() % (max - i);
-    inds[i - min] = inds[index - min];
-    inds[index - min] = swap;
-  }
-  return inds;
-}
-
-int max_int_index(int* a, int n)
-{
-  if (n <= 0)
-    return -1;
-  int i, max_i = 0;
-  int max = a[0];
-  for (i = 1; i < n; ++i)
-  {
-    if (a[i] > max)
-    {
-      max = a[i];
-      max_i = i;
-    }
-  }
-  return max_i;
-}
-
-int MakeDir(char* path, int mode)
+int MakeDir(char const* path, int mode)
 {
 #ifdef WIN32
   return _mkdir(path);
@@ -1150,17 +561,18 @@ bool Exists(char const* path)
 }
 
 #if __cplusplus >= 201103L || _MSC_VER >= 1900  // C++11
-
 #include <atomic>
 #include <chrono>
 #include <iostream>
 #include <thread>
 
 // timer related functions
-static std::chrono::steady_clock::time_point steady_start, steady_end;
-static double total_time;
+float Clocks2Sec(clock_t clocks) { return (float)clocks / CLOCKS_PER_SEC; }
 
-double get_time_point()
+static std::chrono::steady_clock::time_point steady_start, steady_end;
+static double total_time = 0.0;
+
+double GetTimePoint()
 {
   std::chrono::steady_clock::time_point current_time =
       std::chrono::steady_clock::now();
@@ -1169,11 +581,11 @@ double get_time_point()
       .count();
 }
 
-void start_timer() { steady_start = std::chrono::steady_clock::now(); }
+void StartGlobalTimer() { steady_start = std::chrono::steady_clock::now(); }
 
-void stop_timer() { steady_end = std::chrono::steady_clock::now(); }
+void StopGlobalTimer() { steady_end = std::chrono::steady_clock::now(); }
 
-double get_time()
+double GetGlobalTime()
 {
   double took_time =
       std::chrono::duration<double>(steady_end - steady_start).count();
@@ -1181,51 +593,20 @@ double get_time()
   return took_time;
 }
 
-void stop_timer_and_show()
+void StopGlobalTimerAndShow(char* name)
 {
-  stop_timer();
-  std::cout << " " << get_time() * 1000 << " msec" << std::endl;
+  StopGlobalTimer();
+  if (name != nullptr)
+    std::cout << name << ": ";
+  std::cout << GetGlobalTime() * 1000 << " ms" << std::endl;
 }
 
-void stop_timer_and_show_name(char* name)
-{
-  stop_timer();
-  std::cout << " " << name;
-  std::cout << " " << get_time() * 1000 << " msec" << std::endl;
-}
-
-void show_total_time()
+void ShowGlobalTotalTime()
 {
   std::cout << " Total: " << total_time * 1000 << " msec" << std::endl;
 }
 
 // thread related functions
-int custom_create_thread(custom_thread_t* tid, const custom_attr_t* attr,
-    void* (*func)(void*), void* arg)
-{
-  std::thread* ptr = new std::thread(func, arg);
-  *tid = (custom_thread_t*)ptr;
-  if (tid)
-    return 0;
-  else
-    return -1;
-}
-
-int custom_join(custom_thread_t tid, void** value_ptr)
-{
-  std::thread* ptr = (std::thread*)tid;
-  if (ptr)
-  {
-    ptr->join();
-    delete ptr;
-    return 0;
-  }
-  else
-    printf(" Error: ptr of thread is NULL in custom_join() \n");
-
-  return -1;
-}
-
 int custom_atomic_load_int(volatile int* obj)
 {
   const volatile std::atomic<int>* ptr_a =
@@ -1246,24 +627,4 @@ void this_thread_sleep_for(int ms_time)
 }
 
 void this_thread_yield() { std::this_thread::yield(); }
-
-#else  // C++11
-#include <iostream>
-
-double get_time_point() { return 0.0; }
-
-void start_timer() {}
-
-void stop_timer() {}
-
-double get_time() { return 0.0; }
-
-void stop_timer_and_show()
-{
-  std::cout << " stop_timer_and_show() isn't implemented " << std::endl;
-}
-
-void stop_timer_and_show_name(char* name) { stop_timer_and_show(); }
-
-void total_time() {}
 #endif  // C++11

@@ -3096,7 +3096,7 @@ void time_ongpu(int TA, int TB, int m, int k, int n)
   double flop = ((double)m) * n * (2. * k + 2.) * iter;
   double gflop = flop / pow(10., 9);
   end = clock();
-  double seconds = sec(end - start);
+  double seconds = Clocks2Sec(end - start);
   printf(
       "Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf s, %lf GFLOPS\n",
       m, k, k, n, TA, TB, seconds, gflop / seconds);

@@ -11,8 +11,8 @@
 #include "yolo_core.h"
 
 void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, char const* chart_path, int* gpus, int num_gpus,
-    int clear, int show_imgs, int dont_show, int calc_map, int benchmark_layers)
+    char const* weights_file, int* gpus, int num_gpus, int clear, int show_imgs,
+    int calc_map, int benchmark_layers)
 {
   list* options = ReadDataCfg(data_file);
   char* train_images = FindOptionStr(options, "train", "data/train.txt");
@@ -151,23 +151,15 @@ void TrainDetector(char const* data_file, char const* model_file,
   args.saturation = net->saturation;
   args.hue = net->hue;
   args.letter_box = net->letter_box;
-  if (dont_show && show_imgs)
-    show_imgs = 2;
   args.show_imgs = show_imgs;
 
-#ifdef OPENCV
   args.threads = 6 * num_gpus;  // 3 for - Amazon EC2 Tesla V100: p3.2xlarge (8
                                 // logical cores) - p3.16xlarge
   // args.threads = 12 * ngpus;    // Ryzen 7 2700X (16 logical cores)
-  mat_cv* img = NULL;
-  float max_img_loss = 5;
-  int number_of_lines = 100;
-  int img_size = 1000;
   char windows_name[100];
   sprintf(windows_name, "chart_%s.png", base);
-  img = draw_train_chart(windows_name, max_img_loss, net->max_batches,
-      number_of_lines, img_size, chart_path);
-#endif  // OPENCV
+  mat_cv* img =
+      draw_train_chart(windows_name, 20, net->max_batches, 100, 1024, nullptr);
 
   if (net->track)
   {
@@ -250,7 +242,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       }
     }
 
-    double time = GetCurrTime();
+    double load_start = GetTimePoint();
     pthread_join(load_thread, nullptr);
 
     train = buffer;
@@ -263,10 +255,9 @@ void TrainDetector(char const* data_file, char const* model_file,
     }
     load_thread = load_data(args);
 
-    double const load_time = (GetCurrTime() - time);
-    printf("Load time: %lf s\n", load_time);
+    double load_end = GetTimePoint();
+    printf("Load time: %lf s\n", (load_end - load_start) / 1000.0);
 
-    time = GetCurrTime();
     float loss = 0;
 #ifdef GPU
     if (num_gpus == 1)
@@ -277,9 +268,9 @@ void TrainDetector(char const* data_file, char const* model_file,
     loss = TrainNetwork(net, train);
 #endif
 
-    if (avg_loss < 0 || avg_loss != avg_loss)
+    if (avg_loss < 0)
       avg_loss = loss;
-    avg_loss = avg_loss * .9 + loss * .1;
+    avg_loss = avg_loss * 0.9f + loss * 0.1f;
 
     int const iter = GetCurrentIteration(net);
 
@@ -304,11 +295,6 @@ void TrainDetector(char const* data_file, char const* model_file,
       else
         printf("Tensor Cores are used\n");
     }
-
-    printf(
-        "%d: %f, %f avg loss, %f rate, %lf seconds, %d images, %f hours left\n",
-        iter, loss, avg_loss, GetCurrentRate(net), (GetCurrTime() - time),
-        iter * imgs, avg_time);
 
     int draw_precision = 0;
     if (calc_map && (iter >= next_map_calc || iter == net->max_batches))
@@ -335,6 +321,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       map = ValidateDetector(data_file, model_file, weights_file, 0.25, 0.5, 0,
           net->letter_box, &net_map);
       printf("mAP@0.5 = %f\n", map);
+
       if (map > best_map)
       {
         best_map = map;
@@ -346,17 +333,21 @@ void TrainDetector(char const* data_file, char const* model_file,
       draw_precision = 1;
     }
 
-    time_remaining = ((net->max_batches - iter) / num_gpus) *
-                     (GetCurrTime() - time + load_time) / 60 / 60;
+    double alg_end = GetTimePoint();
+    double time_remaining = ((net->max_batches - iter) / num_gpus) *
+                            (alg_end - load_start) / 1e6 / 3600;
 
     if (avg_time < 0)
       avg_time = time_remaining;
     else
       avg_time = alpha_time * time_remaining + (1 - alpha_time) * avg_time;
-#ifdef OPENCV
-    draw_train_loss(windows_name, img, img_size, avg_loss, max_img_loss, iter,
+
+    printf(
+        "[%04d] loss: %f, avg_loss: %f, rate: %f, images: %d, %lf hours left\n",
+        iter, loss, avg_loss, GetCurrentRate(net), iter * imgs, avg_time);
+
+    draw_train_loss(windows_name, img, 1024, avg_loss, 20, iter,
         net->max_batches, map, draw_precision, "mAP%", avg_time);
-#endif  // OPENCV
 
     if (iter >= (iter_save + 1000) || iter % 1000 == 0)
     {
@@ -381,8 +372,10 @@ void TrainDetector(char const* data_file, char const* model_file,
       sprintf(buff, "%s/%s_last.weights", backup_dir, base);
       SaveWeights(net, buff);
     }
+
     free_data(train);
   }
+
 #ifdef GPU
   if (num_gpus != 1)
     SyncNetworks(nets, num_gpus, 0);
@@ -392,10 +385,8 @@ void TrainDetector(char const* data_file, char const* model_file,
   sprintf(buff, "%s/%s_final.weights", backup_dir, base);
   SaveWeights(net, buff);
 
-#ifdef OPENCV
   release_mat(&img);
   destroy_all_windows_cv();
-#endif
 
   // free memory
   pthread_join(load_thread, nullptr);

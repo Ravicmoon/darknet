@@ -16,7 +16,6 @@
 
 #include <opencv2/opencv.hpp>
 
-DEFINE_int32(dont_show, 0, "");
 DEFINE_int32(benchmark, 0, "");
 DEFINE_int32(benchmark_layers, 0, "");
 DEFINE_int32(letter_box, 0, "");
@@ -37,7 +36,6 @@ DEFINE_string(mode, "video", "");
 DEFINE_string(data_file, "yolo.data", "");
 DEFINE_string(model_file, "yolo.cfg", "");
 DEFINE_string(weights_file, "yolo.weights", "");
-DEFINE_string(chart_path, "", "");
 DEFINE_string(input_file, "test.avi", "");
 DEFINE_string(gpu_list, "", "");
 
@@ -221,9 +219,8 @@ int main(int argc, char** argv)
 
   if (FLAGS_mode == "train")
     TrainDetector(FLAGS_data_file.c_str(), FLAGS_model_file.c_str(),
-        FLAGS_weights_file.c_str(), FLAGS_chart_path.c_str(), gpus, ngpus,
-        FLAGS_clear, FLAGS_show_imgs, FLAGS_dont_show, FLAGS_calc_map,
-        FLAGS_benchmark_layers);
+        FLAGS_weights_file.c_str(), gpus, ngpus, FLAGS_clear, FLAGS_show_imgs,
+        FLAGS_calc_map, FLAGS_benchmark_layers);
 
   if (FLAGS_mode == "val")
     ValidateDetector(FLAGS_data_file.c_str(), FLAGS_model_file.c_str(),

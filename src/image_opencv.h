@@ -3,18 +3,11 @@
 #include "image.h"
 #include "matrix.h"
 
-#ifdef OPENCV
-
 // declaration
 typedef void* mat_cv;
 typedef void* cap_cv;
 typedef void* write_cv;
 
-// typedef struct mat_cv mat_cv;
-// typedef struct cap_cv cap_cv;
-// typedef struct write_cv write_cv;
-
-// cv::Mat
 mat_cv* load_image_mat_cv(const char* filename, int flag);
 Image load_image_cv(char const* filename, int channels);
 Image load_image_resize(char* filename, int w, int h, int c, Image* im);
@@ -22,21 +15,6 @@ int get_width_mat(mat_cv* mat);
 int get_height_mat(mat_cv* mat);
 void release_mat(mat_cv** mat);
 
-// IplImage - to delete
-// int get_width_cv(mat_cv *ipl);
-// int get_height_cv(mat_cv *ipl);
-// void release_ipl(mat_cv **ipl);
-
-// image-to-ipl, ipl-to-image, image_to_mat, mat_to_image
-// mat_cv *image_to_ipl(image im);           // to delete
-// image ipl_to_image(mat_cv* src_ptr);    // to delete
-
-// mat_cv *image_to_ipl(image im)
-// image ipl_to_image(mat_cv* src_ptr)
-// cv::Mat ipl_to_mat(IplImage *ipl)
-// IplImage *mat_to_ipl(cv::Mat mat)
-// Mat image_to_mat(image img)
-// image mat_to_image(cv::Mat mat)
 Image mat_to_image_cv(mat_cv* mat);
 
 // Window
@@ -47,7 +25,6 @@ int wait_key_cv(int delay);
 int wait_until_press_key_cv();
 void make_window(char* name, int w, int h, int fullscreen);
 void show_image_cv(Image p, const char* name);
-// void show_image_cv_ipl(mat_cv *disp, const char *name);
 void show_image_mat(mat_cv* mat_ptr, const char* name);
 
 // Video Writer
@@ -55,11 +32,6 @@ write_cv* create_video_writer(char* out_filename, char c1, char c2, char c3,
     char c4, int fps, int width, int height, int is_color);
 void write_frame_cv(write_cv* output_video_writer, mat_cv* mat);
 void release_video_writer(write_cv** output_video_writer);
-
-// void *open_video_stream(const char *f, int c, int w, int h, int fps);
-// image get_image_from_stream(void *p);
-// image load_image_cv(char *filename, int channels);
-// int show_image_cv(image im, const char* name, int ms);
 
 // Video Capture
 cap_cv* get_capture_video_stream(const char* path);
@@ -102,19 +74,3 @@ void blend_images_cv(Image new_img, float alpha, Image old_img, float beta);
 
 // bilateralFilter bluring
 Image blur_image(Image src_img, int ksize);
-
-// draw objects for Adversarial attacks
-void cv_draw_object(Image sized, float* truth_cpu, int max_boxes, int num_truth,
-    int* it_num_set, float* lr_set, int* boxonly, int classes, char** names);
-
-// Show Anchors
-void show_acnhors(int number_of_boxes, int num_of_clusters,
-    float* rel_width_height_array, model anchors_data, int width, int height);
-
-#else  // OPENCV
-
-int wait_key_cv(int delay);
-int wait_until_press_key_cv();
-void destroy_all_windows_cv();
-
-#endif  // OPENCV

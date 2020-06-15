@@ -58,7 +58,6 @@ void saturate_exposure_image(Image im, float sat, float exposure);
 void hsv_to_rgb(Image im);
 // LIB_API void rgbgr_image(image im);
 void constrain_image(Image im);
-void composite_3d(char* f1, char* f2, char* out, int delta);
 int best_3d_shift_r(Image a, Image b, int min, int max);
 
 Image grayscale_image(Image im);

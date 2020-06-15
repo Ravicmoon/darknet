@@ -777,16 +777,17 @@ void ForwardYoloLayer(layer* l, NetworkState state)
   classification_loss /= l->batch;
   iou_loss /= l->batch;
 
-  fprintf(stderr,
-      "%s loss, normalizer: (iou: %.2f, cls: %.2f) region %d avg (IOU: %.2f, "
-      "GIOU: %.2f), class: %.2f, obj: %.2f, no-obj: %.2f, .5R: %.2f, .75R: "
-      "%.2f, count: %d, class_loss = %.2f, iou_loss = %.2f, total_loss = "
-      "%.2f\n",
-      (l->iou_loss == MSE ? "mse" : (l->iou_loss == GIOU ? "giou" : "iou")),
-      l->iou_normalizer, l->cls_normalizer, state.index, tot_iou / count,
-      tot_giou / count, avg_cat / class_count, avg_obj / count,
-      avg_anyobj / (l->w * l->h * l->n * l->batch), recall / count,
-      recall75 / count, count, classification_loss, iou_loss, loss);
+  // fprintf(stderr,
+  //     "%s loss, normalizer: (iou: %.2f, cls: %.2f) region %d avg (IOU: %.2f,
+  //     " "GIOU: %.2f), class: %.2f, obj: %.2f, no-obj: %.2f, .5R: %.2f, .75R:
+  //     "
+  //     "%.2f, count: %d, class_loss = %.2f, iou_loss = %.2f, total_loss = "
+  //     "%.2f\n",
+  //     (l->iou_loss == MSE ? "mse" : (l->iou_loss == GIOU ? "giou" : "iou")),
+  //     l->iou_normalizer, l->cls_normalizer, state.index, tot_iou / count,
+  //     tot_giou / count, avg_cat / class_count, avg_obj / count,
+  //     avg_anyobj / (l->w * l->h * l->n * l->batch), recall / count,
+  //     recall75 / count, count, classification_loss, iou_loss, loss);
 }
 
 void BackwardYoloLayer(layer* l, NetworkState state)
