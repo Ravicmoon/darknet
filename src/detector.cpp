@@ -276,8 +276,8 @@ void TrainDetector(char const* data_file, char const* model_file,
 
     // calculate mAP for each 4 Epochs
     int calc_map_for_each =
-        __max(100, 4 * num_train_imgs / (net->batch * net->subdiv));
-    int next_map_calc = __max(net->burn_in, iter_map + calc_map_for_each);
+        max_val_cmp(100, 4 * num_train_imgs / (net->batch * net->subdiv));
+    int next_map_calc = max_val_cmp(net->burn_in, iter_map + calc_map_for_each);
 
     if (calc_map)
     {
