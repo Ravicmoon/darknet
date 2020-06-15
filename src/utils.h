@@ -92,7 +92,8 @@ int check_array_is_inf(float* arr, int size);
 int int_index(int* a, int val, int n);
 int* random_index_order(int min, int max);
 int max_int_index(int* a, int n);
-int make_directory(char* path, int mode);
+int MakeDir(char* path, int mode);
+bool Exists(char const* path);
 
 // timer related functions
 double get_time_point();

@@ -1,7 +1,5 @@
 #include <stdlib.h>
 
-#include <filesystem>
-
 #include "box.h"
 #include "cost_layer.h"
 #include "image.h"
@@ -12,12 +10,6 @@
 #include "utils.h"
 #include "yolo_core.h"
 
-#if _HAS_CXX17
-namespace fs = std::filesystem;
-#else
-namespace fs = std::experimental::filesystem;
-#endif
-
 void TrainDetector(char const* data_file, char const* model_file,
     char const* weights_file, char const* chart_path, int* gpus, int num_gpus,
     int clear, int show_imgs, int dont_show, int calc_map, int benchmark_layers)
@@ -27,19 +19,19 @@ void TrainDetector(char const* data_file, char const* model_file,
   char* valid_images = FindOptionStr(options, "valid", train_images);
   char* backup_dir = FindOptionStr(options, "backup", "/backup/");
 
-  if (!fs::exists(train_images))
+  if (!Exists(train_images))
   {
     printf("%s does not exists", train_images);
     return;
   }
 
-  if (!fs::exists(backup_dir))
-    make_directory(backup_dir, 0);
+  if (!Exists(backup_dir))
+    MakeDir(backup_dir, 0);
 
   Network net_map = {0};
   if (calc_map)
   {
-    if (!fs::exists(valid_images))
+    if (!Exists(valid_images))
     {
       printf("%s does not exists", valid_images);
       return;

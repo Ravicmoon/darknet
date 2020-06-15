@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
@@ -20,9 +22,7 @@
 #ifdef WIN32
 #include "gettimeofday.h"
 #else
-#include <sys/stat.h>
 #include <sys/time.h>
-
 #endif
 
 #ifndef USE_CMAKE_LIBS
@@ -1131,13 +1131,22 @@ int max_int_index(int* a, int n)
   return max_i;
 }
 
-int make_directory(char* path, int mode)
+int MakeDir(char* path, int mode)
 {
 #ifdef WIN32
   return _mkdir(path);
 #else
   return mkdir(path, mode);
 #endif
+}
+
+bool Exists(char const* path)
+{
+  struct stat info;
+  if (stat(path, &info) != 0)
+    return false;
+  else
+    return true;
 }
 
 #if __cplusplus >= 201103L || _MSC_VER >= 1900  // C++11
