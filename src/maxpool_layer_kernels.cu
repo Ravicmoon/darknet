@@ -1,6 +1,7 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <curand.h>
+#include <float.h>
 
 #include "blas.h"
 #include "convolutional_layer.h"

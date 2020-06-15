@@ -1,8 +1,10 @@
+#include <float.h>
 #include <stdlib.h>
 
 #include "box.h"
 #include "cost_layer.h"
 #include "image.h"
+#include "image_opencv.h"
 #include "network.h"
 #include "option_list.h"
 #include "parser.h"

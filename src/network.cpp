@@ -1,6 +1,7 @@
 #include "network.h"
 
 #include <assert.h>
+#include <float.h>
 #include <stdio.h>
 #include <time.h>
 

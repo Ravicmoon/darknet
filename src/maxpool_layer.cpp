@@ -1,5 +1,6 @@
 #include "maxpool_layer.h"
 
+#include <float.h>
 #include <stdio.h>
 
 #include "convolutional_layer.h"
