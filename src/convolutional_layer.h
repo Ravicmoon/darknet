@@ -49,7 +49,5 @@ void add_bias(float* output, float* biases, int batch, int n, int size);
 void backward_bias(
     float* bias_updates, float* delta, int batch, int n, int size);
 
-Image get_convolutional_weight(layer layer, int i);
-
 int ConvOutHeight(layer* l);
 int ConvOutWidth(layer* l);

@@ -283,7 +283,21 @@ float TrainNetwork(Network* net, data d)
   return (float)sum / (n * batch);
 }
 
-int ResizeNetwork(Network* net, int w, int h)
+int GetNetworkInputSize(Network* net) { return net->layers[0].inputs; }
+
+int GetNetworkOutputSize(Network* net)
+{
+  int i;
+  for (i = net->n - 1; i > 0; --i)
+  {
+    if (net->layers[i].type != COST)
+      break;
+  }
+
+  return net->layers[i].outputs;
+}
+
+void ResizeNetwork(Network* net, int w, int h)
 {
 #ifdef GPU
   cuda_set_device(net->gpu_index);
@@ -314,12 +328,11 @@ int ResizeNetwork(Network* net, int w, int h)
   net->h = h;
   int inputs = 0;
   size_t workspace_size = 0;
-  // fprintf(stderr, "Resizing to %d x %d...\n", w, h);
-  // fflush(stderr);
+
   for (int i = 0; i < net->n; ++i)
   {
     layer* l = &net->layers[i];
-    // printf(" (resize %d: layer = %d) , ", i, l->type);
+
     if (l->type == CONVOLUTIONAL)
     {
       resize_convolutional_layer(l, w, h);
@@ -440,23 +453,7 @@ int ResizeNetwork(Network* net, int w, int h)
   free(net->workspace);
   net->workspace = (float*)xcalloc(1, workspace_size);
 #endif
-  // fprintf(stderr, " Done!\n");
-  return 0;
 }
-
-int GetNetworkOutputSize(Network* net)
-{
-  int i;
-  for (i = net->n - 1; i > 0; --i)
-  {
-    if (net->layers[i].type != COST)
-      break;
-  }
-
-  return net->layers[i].outputs;
-}
-
-int GetNetworkInputSize(Network* net) { return net->layers[0].inputs; }
 
 float* NetworkPredict(Network* net, float* input)
 {

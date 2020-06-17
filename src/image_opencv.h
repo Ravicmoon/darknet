@@ -15,8 +15,6 @@ int get_width_mat(mat_cv* mat);
 int get_height_mat(mat_cv* mat);
 void release_mat(mat_cv** mat);
 
-Image mat_to_image_cv(mat_cv* mat);
-
 // Window
 void create_window_cv(
     char const* window_name, int full_screen, int width, int height);
@@ -26,43 +24,6 @@ int wait_until_press_key_cv();
 void make_window(char* name, int w, int h, int fullscreen);
 void show_image_cv(Image p, const char* name);
 void show_image_mat(mat_cv* mat_ptr, const char* name);
-
-// Video Writer
-write_cv* create_video_writer(char* out_filename, char c1, char c2, char c3,
-    char c4, int fps, int width, int height, int is_color);
-void write_frame_cv(write_cv* output_video_writer, mat_cv* mat);
-void release_video_writer(write_cv** output_video_writer);
-
-// Video Capture
-cap_cv* get_capture_video_stream(const char* path);
-cap_cv* get_capture_webcam(int index);
-void release_capture(cap_cv* cap);
-
-mat_cv* get_capture_frame_cv(cap_cv* cap);
-int get_stream_fps_cpp_cv(cap_cv* cap);
-double get_capture_property_cv(cap_cv* cap, int property_id);
-double get_capture_frame_count_cv(cap_cv* cap);
-int set_capture_property_cv(cap_cv* cap, int property_id, double value);
-int set_capture_position_frame_cv(cap_cv* cap, int index);
-
-// ... Video Capture
-Image get_image_from_stream_cpp(cap_cv* cap);
-Image get_image_from_stream_resize(
-    cap_cv* cap, int w, int h, int c, mat_cv** in_img, int dont_close);
-Image get_image_from_stream_letterbox(
-    cap_cv* cap, int w, int h, int c, mat_cv** in_img, int dont_close);
-
-// Image Saving
-void save_cv_png(mat_cv* img, const char* name);
-void save_cv_jpg(mat_cv* img, const char* name);
-
-// Draw Loss & Accuracy chart
-mat_cv* draw_train_chart(char* windows_name, float max_img_loss,
-    int max_batches, int number_of_lines, int img_size, char const* chart_path);
-void draw_train_loss(char* windows_name, mat_cv* img, int img_size,
-    float avg_loss, float max_img_loss, int current_batch, int max_batches,
-    float precision, int draw_precision, char* accuracy_name,
-    double time_remaining);
 
 // Data augmentation
 Image image_data_augmentation(mat_cv* mat, int w, int h, int pleft, int ptop,

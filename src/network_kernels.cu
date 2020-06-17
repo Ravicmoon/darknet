@@ -551,12 +551,8 @@ float TrainNetworks(Network* nets, int n, data d, int interval)
       GetCurrentIteration(&nets[0]);  // remove this line, when you will save to
                                       // weights-file both: seen & cur_iteration
   if (GetCurrentIteration(&nets[0]) % interval == 0)
-  {
-    printf("Syncing... ");
-    fflush(stdout);
     SyncNetworks(nets, n, interval);
-    printf("Done!\n");
-  }
+
   // cudaDeviceSynchronize();
   free(threads);
   free(errors);

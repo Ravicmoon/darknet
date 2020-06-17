@@ -10,32 +10,40 @@
 #include "parser.h"
 #include "region_layer.h"
 #include "utils.h"
+#include "visualize.h"
 #include "yolo_core.h"
 
 void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, int* gpus, int num_gpus, int clear, int show_imgs,
-    int calc_map, int benchmark_layers)
+    char const* weights_file, int num_gpus, bool clear, bool show_imgs,
+    bool calc_map, int benchmark_layers)
 {
   list* options = ReadDataCfg(data_file);
-  char* train_images = FindOptionStr(options, "train", "data/train.txt");
-  char* valid_images = FindOptionStr(options, "valid", train_images);
+  char* train_imgs = FindOptionStr(options, "train", "data/train.txt");
+  char* valid_imgs = FindOptionStr(options, "valid", train_imgs);
   char* backup_dir = FindOptionStr(options, "backup", "/backup/");
 
-  if (!Exists(train_images))
+  if (!Exists(train_imgs))
   {
-    printf("%s does not exists", train_images);
+    printf("%s does not exists", train_imgs);
     return;
   }
 
   if (!Exists(backup_dir))
     MakeDir(backup_dir, 0);
 
+  // make a gpu index array
+  std::vector<int> gpus;
+  for (int i = 0; i < num_gpus; i++)
+  {
+    gpus.push_back(i);
+  }
+
   Network net_map = {0};
   if (calc_map)
   {
-    if (!Exists(valid_images))
+    if (!Exists(valid_imgs))
     {
-      printf("%s does not exists", valid_images);
+      printf("%s does not exists", valid_imgs);
       return;
     }
 
@@ -79,10 +87,10 @@ void TrainDetector(char const* data_file, char const* model_file,
 #endif
     ParseNetworkCfg(&nets[k], model_file);
     nets[k].benchmark_layers = benchmark_layers;
-    if (weights_file)
-    {
-      LoadWeights(&nets[k], weights_file);
-    }
+
+    if (weights_file != nullptr)
+      LoadWeights(nets + k, weights_file);
+
     if (clear)
     {
       *nets[k].seen = 0;
@@ -93,19 +101,19 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   Network* net = &nets[0];
 
-  int const actual_batch_size = net->batch * net->subdiv;
-  if (actual_batch_size == 1)
+  int const actual_batch = net->batch * net->subdiv;
+  if (actual_batch == 1)
   {
     printf("Error: batch size = 1");
     return;
   }
-  else if (actual_batch_size < 8)
+  else if (actual_batch < 8)
   {
     printf("Warning: batch size < 8");
   }
 
-  int imgs = net->batch * net->subdiv * num_gpus;
-  printf("Learning rate: %g, Momentum: %g, Decay: %g\n", net->learning_rate,
+  int imgs_per_iter = actual_batch * num_gpus;
+  printf("Learning rate: %e, Momentum: %g, Decay: %g\n", net->learning_rate,
       net->momentum, net->decay);
 
   data train, buffer;
@@ -115,35 +123,30 @@ void TrainDetector(char const* data_file, char const* model_file,
   int classes = l->classes;
   float jitter = l->jitter;
 
-  list* plist = get_paths(train_images);
-  int num_train_imgs = plist->size;
-  char** paths = (char**)ListToArray(plist);
+  list* train_img_paths = get_paths(train_imgs);
+  char** paths = (char**)ListToArray(train_img_paths);
+  int num_train_imgs = train_img_paths->size;
 
   int const init_w = net->w;
   int const init_h = net->h;
   int const init_b = net->batch;
   int iter_save = GetCurrentIteration(net);
   int iter_save_last = GetCurrentIteration(net);
-  int iter_map = GetCurrentIteration(net);
-  float map = -FLT_MAX;
-  float best_map = map;
+  int iter_map = max_val_cmp(net->burn_in, GetCurrentIteration(net));
 
   load_args args = {0};
   args.w = net->w;
   args.h = net->h;
   args.c = net->c;
   args.paths = paths;
-  args.n = imgs;
-  args.m = plist->size;
+  args.n = imgs_per_iter;
+  args.m = train_img_paths->size;
   args.classes = classes;
   args.flip = net->flip;
   args.jitter = jitter;
   args.num_boxes = l->max_boxes;
-  net->num_boxes = args.num_boxes;
-  net->train_images_num = num_train_imgs;
   args.d = &buffer;
   args.type = DETECTION_DATA;
-  args.threads = 64;  // 16 or 64
 
   args.angle = net->angle;
   args.gaussian_noise = net->gaussian_noise;
@@ -155,13 +158,10 @@ void TrainDetector(char const* data_file, char const* model_file,
   args.letter_box = net->letter_box;
   args.show_imgs = show_imgs;
 
-  args.threads = 6 * num_gpus;  // 3 for - Amazon EC2 Tesla V100: p3.2xlarge (8
-                                // logical cores) - p3.16xlarge
-  // args.threads = 12 * ngpus;    // Ryzen 7 2700X (16 logical cores)
-  char windows_name[100];
-  sprintf(windows_name, "chart_%s.png", base);
-  mat_cv* img =
-      draw_train_chart(windows_name, 20, net->max_batches, 100, 1024, nullptr);
+  args.threads = 6 * num_gpus;
+
+  int const max_loss = 20;
+  cv::Mat graph_bg = DrawLossGraphBg(net->max_batches, max_loss, 100, 720);
 
   if (net->track)
   {
@@ -179,10 +179,15 @@ void TrainDetector(char const* data_file, char const* model_file,
   pthread_t load_thread = load_data(args);
 
   int count = 0;
-  double time_remaining = 0.0;
   double avg_time = -DBL_MAX;
-  double alpha_time = 0.01;
   float avg_loss = -FLT_MAX;
+  float best_map = 0.0f;
+
+  double const alpha_time = 0.01;
+  int const map_step = max_val_cmp(100, num_train_imgs / actual_batch);
+
+  std::vector<float> avg_loss_stack, map_stack;
+  std::vector<int> iter_stack, iter_map_stack;
 
   while (GetCurrentIteration(net) < net->max_batches)
   {
@@ -191,7 +196,6 @@ void TrainDetector(char const* data_file, char const* model_file,
       float rand_coef = 1.4f;
       if (abs(l->random - 1.0f) > FLT_EPSILON)
         rand_coef = l->random;
-      printf("Resizing, random_coef = %.2f \n", rand_coef);
 
       float rand_scale = RandScale(rand_coef);
       int dim_w =
@@ -231,7 +235,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       args.w = dim_w;
       args.h = dim_h;
 
-      printf("%d x %d\n", dim_w, dim_h);
+      printf("Resizing: %d x %d\n", dim_w, dim_h);
 
       pthread_join(load_thread, nullptr);
       train = buffer;
@@ -244,7 +248,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       }
     }
 
-    double load_start = GetTimePoint();
+    double start_step = GetTimePoint();
     pthread_join(load_thread, nullptr);
 
     train = buffer;
@@ -256,9 +260,6 @@ void TrainDetector(char const* data_file, char const* model_file,
           GetSequenceValue(net));
     }
     load_thread = load_data(args);
-
-    double load_end = GetTimePoint();
-    printf("Load time: %lf s\n", (load_end - load_start) / 1000.0);
 
     float loss = 0;
 #ifdef GPU
@@ -273,21 +274,10 @@ void TrainDetector(char const* data_file, char const* model_file,
     if (avg_loss < 0)
       avg_loss = loss;
     avg_loss = avg_loss * 0.9f + loss * 0.1f;
+    avg_loss_stack.push_back(avg_loss);
 
     int const iter = GetCurrentIteration(net);
-
-    // calculate mAP for each 4 Epochs
-    int calc_map_for_each =
-        max_val_cmp(100, 4 * num_train_imgs / (net->batch * net->subdiv));
-    int next_map_calc = max_val_cmp(net->burn_in, iter_map + calc_map_for_each);
-
-    if (calc_map)
-    {
-      printf("Next mAP calculation: %d\n", next_map_calc);
-      if (map > 0)
-        printf(
-            "mAP@0.5 = %2.2f%%, best = %2.2f%%\n", map * 100, best_map * 100);
-    }
+    iter_stack.push_back(iter);
 
     if (net->cudnn_half)
     {
@@ -298,8 +288,7 @@ void TrainDetector(char const* data_file, char const* model_file,
         printf("Tensor Cores are used\n");
     }
 
-    int draw_precision = 0;
-    if (calc_map && (iter >= next_map_calc || iter == net->max_batches))
+    if (calc_map && (iter >= iter_map || iter == net->max_batches))
     {
       if (l->random)
       {
@@ -319,25 +308,31 @@ void TrainDetector(char const* data_file, char const* model_file,
 
       CopyNetWeights(net, &net_map);
 
-      iter_map = iter;
-      map = ValidateDetector(data_file, model_file, weights_file, 0.25, 0.5, 0,
-          net->letter_box, &net_map);
-      printf("mAP@0.5 = %f\n", map);
+      float map = ValidateDetector(data_file, model_file, weights_file, 0.25,
+          0.5, 0, net->letter_box, &net_map);
+
+      map_stack.push_back(map);
+      iter_map_stack.push_back(iter_map);
 
       if (map > best_map)
       {
         best_map = map;
-        printf("New best mAP!\n");
+
         char buff[256];
         sprintf(buff, "%s/%s_best.weights", backup_dir, base);
         SaveWeights(net, buff);
       }
-      draw_precision = 1;
+
+      iter_map = iter + map_step;
+
+      std::cout << "Next mAP calculation: " << iter_map << std::endl;
+      std::cout << "mAP@0.5 = " << map << "\t";
+      std::cout << "Best mAP@0.5 = " << best_map << std::endl;
     }
 
-    double alg_end = GetTimePoint();
+    double end_step = GetTimePoint();
     double time_remaining = ((net->max_batches - iter) / num_gpus) *
-                            (alg_end - load_start) / 1e6 / 3600;
+                            (end_step - start_step) / 1e6 / 3600;
 
     if (avg_time < 0)
       avg_time = time_remaining;
@@ -345,11 +340,13 @@ void TrainDetector(char const* data_file, char const* model_file,
       avg_time = alpha_time * time_remaining + (1 - alpha_time) * avg_time;
 
     printf(
-        "[%04d] loss: %f, avg_loss: %f, rate: %f, images: %d, %lf hours left\n",
-        iter, loss, avg_loss, GetCurrentRate(net), iter * imgs, avg_time);
+        "[%04d] loss: %.2f, avg loss: %.2f, lr: %e, images: %d, %.2lf hours "
+        "left\n",
+        iter, loss, avg_loss, GetCurrentRate(net), iter * imgs_per_iter,
+        avg_time);
 
-    draw_train_loss(windows_name, img, 1024, avg_loss, 20, iter,
-        net->max_batches, map, draw_precision, "mAP%", avg_time);
+    DrawLossGraph(graph_bg, iter_stack, avg_loss_stack, iter_map_stack,
+        map_stack, net->max_batches, max_loss, avg_time);
 
     if (iter >= (iter_save + 1000) || iter % 1000 == 0)
     {
@@ -387,8 +384,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   sprintf(buff, "%s/%s_final.weights", backup_dir, base);
   SaveWeights(net, buff);
 
-  release_mat(&img);
-  destroy_all_windows_cv();
+  cv::destroyAllWindows();
 
   // free memory
   pthread_join(load_thread, nullptr);
@@ -398,8 +394,8 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   free(base);
   free(paths);
-  FreeListContents(plist);
-  FreeList(plist);
+  FreeListContents(train_img_paths);
+  FreeList(train_img_paths);
 
   FreeListContentsKvp(options);
   FreeList(options);
@@ -446,8 +442,8 @@ float ValidateDetector(char const* data_file, char const* model_file,
 {
   int j;
   list* options = ReadDataCfg(data_file);
-  char* valid_images = FindOptionStr(options, "valid", "data/train.txt");
-  char* difficult_valid_images = FindOptionStr(options, "difficult", NULL);
+  char* valid_imgs = FindOptionStr(options, "valid", "data/train.txt");
+
   char* name_list = FindOptionStr(options, "names", "data/names.list");
   int names_size = 0;
   char** names = GetLabels(name_list, &names_size);
@@ -456,13 +452,13 @@ float ValidateDetector(char const* data_file, char const* model_file,
   // int initial_batch;
   if (existing_net)
   {
-    char* train_images = FindOptionStr(options, "train", "data/train.txt");
-    valid_images = FindOptionStr(options, "valid", train_images);
+    char* train_imgs = FindOptionStr(options, "train", "data/train.txt");
+    valid_imgs = FindOptionStr(options, "valid", train_imgs);
     net = *existing_net;
   }
   else
   {
-    ParseNetworkCfgCustom(&net, model_file, 1, 1);  // set batch=1
+    ParseNetworkCfgCustom(&net, model_file, 1, 1);
     if (weights_file)
       LoadWeights(&net, weights_file);
 
@@ -480,18 +476,11 @@ float ValidateDetector(char const* data_file, char const* model_file,
   srand(time(0));
   printf("\n calculation mAP (mean average precision)...\n");
 
-  list* plist = get_paths(valid_images);
+  list* plist = get_paths(valid_imgs);
   char** paths = (char**)ListToArray(plist);
 
-  char** paths_dif = NULL;
-  if (difficult_valid_images)
-  {
-    list* plist_dif = get_paths(difficult_valid_images);
-    paths_dif = (char**)ListToArray(plist_dif);
-  }
-
-  layer l = net.layers[net.n - 1];
-  int classes = l.classes;
+  layer* l = &net.layers[net.n - 1];
+  int classes = l->classes;
 
   int m = plist->size;
   int i = 0;
@@ -501,14 +490,13 @@ float ValidateDetector(char const* data_file, char const* model_file,
   const float nms = .45;
   // const float iou_thresh = 0.5;
 
-  int nthreads = 4;
-  if (m < 4)
-    nthreads = m;
-  Image* val = (Image*)xcalloc(nthreads, sizeof(Image));
-  Image* val_resized = (Image*)xcalloc(nthreads, sizeof(Image));
-  Image* buf = (Image*)xcalloc(nthreads, sizeof(Image));
-  Image* buf_resized = (Image*)xcalloc(nthreads, sizeof(Image));
-  pthread_t* thr = (pthread_t*)xcalloc(nthreads, sizeof(pthread_t));
+  int num_threads = min_val_cmp(4, m);
+
+  Image* val = (Image*)xcalloc(num_threads, sizeof(Image));
+  Image* val_resized = (Image*)xcalloc(num_threads, sizeof(Image));
+  Image* buf = (Image*)xcalloc(num_threads, sizeof(Image));
+  Image* buf_resized = (Image*)xcalloc(num_threads, sizeof(Image));
+  pthread_t* thr = (pthread_t*)xcalloc(num_threads, sizeof(pthread_t));
 
   load_args args = {0};
   args.w = net.w;
@@ -535,33 +523,34 @@ float ValidateDetector(char const* data_file, char const* model_file,
   int* tp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
   int* fp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
 
-  for (t = 0; t < nthreads; ++t)
+  for (t = 0; t < num_threads; ++t)
   {
     args.path = paths[i + t];
     args.im = &buf[t];
     args.resized = &buf_resized[t];
     thr[t] = load_data_in_thread(args);
   }
+
   time_t start = time(0);
-  for (i = nthreads; i < m + nthreads; i += nthreads)
+  for (i = num_threads; i < m + num_threads; i += num_threads)
   {
     fprintf(stderr, "\r%d", i);
-    for (t = 0; t < nthreads && (i + t - nthreads) < m; ++t)
+    for (t = 0; t < num_threads && (i + t - num_threads) < m; ++t)
     {
       pthread_join(thr[t], 0);
       val[t] = buf[t];
       val_resized[t] = buf_resized[t];
     }
-    for (t = 0; t < nthreads && (i + t) < m; ++t)
+    for (t = 0; t < num_threads && (i + t) < m; ++t)
     {
       args.path = paths[i + t];
       args.im = &buf[t];
       args.resized = &buf_resized[t];
       thr[t] = load_data_in_thread(args);
     }
-    for (t = 0; t < nthreads && i + t - nthreads < m; ++t)
+    for (t = 0; t < num_threads && i + t - num_threads < m; ++t)
     {
-      const int image_index = i + t - nthreads;
+      const int image_index = i + t - num_threads;
       char* path = paths[image_index];
       char* id = BaseCfg(path);
       float* X = val_resized[t].data;
@@ -584,10 +573,10 @@ float ValidateDetector(char const* data_file, char const* model_file,
       // hier_thresh, 0, 1, &nboxes, letter_box); // for letter_box=1
       if (nms)
       {
-        if (l.nms_kind == DEFAULT_NMS)
-          NmsSort(dets, nboxes, l.classes, nms);
+        if (l->nms_kind == DEFAULT_NMS)
+          NmsSort(dets, nboxes, l->classes, nms);
         else
-          DiouNmsSort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+          DiouNmsSort(dets, nboxes, l->classes, nms, l->nms_kind, l->beta_nms);
       }
 
       char label_file[4096];
@@ -598,19 +587,6 @@ float ValidateDetector(char const* data_file, char const* model_file,
       for (j = 0; j < num_labels; ++j)
       {
         truth_classes_count[truth[j].id]++;
-      }
-
-      // difficult
-      box_label* truth_dif = NULL;
-      int num_labels_dif = 0;
-      if (paths_dif)
-      {
-        char* path_dif = paths_dif[image_index];
-
-        char labelpath_dif[4096];
-        ReplaceImage2Label(path_dif, labelpath_dif);
-
-        truth_dif = read_boxes(labelpath_dif, &num_labels_dif);
       }
 
       const int checkpoint_detections_count = detections_count;
@@ -658,21 +634,6 @@ float ValidateDetector(char const* data_file, char const* model_file,
             {
               detections[detections_count - 1].truth_flag = 1;
               detections[detections_count - 1].unique_truth_index = truth_index;
-            }
-            else
-            {
-              // if object is difficult then remove detection
-              for (j = 0; j < num_labels_dif; ++j)
-              {
-                Box t(truth_dif[j].x, truth_dif[j].y, truth_dif[j].w,
-                    truth_dif[j].h);
-                float current_iou = Box::Iou(dets[i].bbox, t);
-                if (current_iou > iou_thresh && class_id == truth_dif[j].id)
-                {
-                  --detections_count;
-                  break;
-                }
-              }
             }
 
             // calc avg IoU, true-positives, false-positives for required
@@ -723,17 +684,14 @@ float ValidateDetector(char const* data_file, char const* model_file,
   if ((tp_for_thresh + fp_for_thresh) > 0)
     avg_iou = avg_iou / (tp_for_thresh + fp_for_thresh);
 
-  int class_id;
-  for (class_id = 0; class_id < classes; class_id++)
+  for (int cid = 0; cid < classes; cid++)
   {
-    if ((tp_for_thresh_per_class[class_id] +
-            fp_for_thresh_per_class[class_id]) > 0)
-      avg_iou_per_class[class_id] =
-          avg_iou_per_class[class_id] / (tp_for_thresh_per_class[class_id] +
-                                            fp_for_thresh_per_class[class_id]);
+    if ((tp_for_thresh_per_class[cid] + fp_for_thresh_per_class[cid]) > 0)
+      avg_iou_per_class[cid] =
+          avg_iou_per_class[cid] /
+          (tp_for_thresh_per_class[cid] + fp_for_thresh_per_class[cid]);
   }
 
-  // SORT(detections)
   qsort(detections, detections_count, sizeof(box_prob), detections_comparator);
 
   typedef struct
@@ -823,7 +781,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
 
   free(truth_flags);
 
-  double mean_average_precision = 0;
+  double map = 0;
 
   for (i = 0; i < classes; ++i)
   {
@@ -882,7 +840,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
         i, names[i], avg_precision * 100, tp_for_thresh_per_class[i],
         fp_for_thresh_per_class[i]);
 
-    mean_average_precision += avg_precision;
+    map += avg_precision;
   }
 
   const float cur_precision =
@@ -903,7 +861,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
       thresh_calc_avg_iou, tp_for_thresh, fp_for_thresh,
       unique_truth_count - tp_for_thresh, avg_iou * 100);
 
-  mean_average_precision = mean_average_precision / classes;
+  map = map / classes;
   printf("\n IoU threshold = %2.0f %%, ", iou_thresh * 100);
   if (map_points)
     printf("used %d Recall-points \n", map_points);
@@ -911,7 +869,7 @@ float ValidateDetector(char const* data_file, char const* model_file,
     printf("used Area-Under-Curve for each unique Recall \n");
 
   printf(" mean average precision (mAP@%0.2f) = %f, or %2.2f %% \n", iou_thresh,
-      mean_average_precision, mean_average_precision * 100);
+      map, map * 100);
 
   for (i = 0; i < classes; ++i)
   {
@@ -955,5 +913,5 @@ float ValidateDetector(char const* data_file, char const* model_file,
   if (buf_resized)
     free(buf_resized);
 
-  return mean_average_precision;
+  return map;
 }

@@ -1396,29 +1396,3 @@ void UpdateConvolutionalLayer(
     scal_cpu(l->n, momentum, l->scale_updates, 1);
   }
 }
-
-Image get_convolutional_weight(layer l, int i)
-{
-  int h = l.size;
-  int w = l.size;
-  int c = l.c / l.groups;
-  return float_to_image(w, h, c, l.weights + i * h * w * c);
-}
-
-Image* get_weights(layer l)
-{
-  Image* weights = (Image*)xcalloc(l.n, sizeof(Image));
-  int i;
-  for (i = 0; i < l.n; ++i)
-  {
-    weights[i] = copy_image(get_convolutional_weight(l, i));
-    normalize_image(weights[i]);
-    /*
-    char buff[256];
-    sprintf(buff, "filter%d", i);
-    save_image(weights[i], buff);
-    */
-  }
-  // error("hey");
-  return weights;
-}

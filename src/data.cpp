@@ -7,6 +7,7 @@
 #include "box.h"
 #include "dark_cuda.h"
 #include "image.h"
+#include "image_opencv.h"
 #include "utils.h"
 
 #define NUMCHARS 37

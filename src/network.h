@@ -32,9 +32,9 @@ float TrainNetwork(Network* net, data d);
 float TrainNetworkDatum(Network* net, float* x, float* y);
 
 float* GetNetworkOutput(Network* net);
-int GetNetworkOutputSize(Network* net);
-int ResizeNetwork(Network* net, int w, int h);
 int GetNetworkInputSize(Network* net);
+int GetNetworkOutputSize(Network* net);
+void ResizeNetwork(Network* net, int w, int h);
 float GetNetworkCost(Network* net);
 
 void CopyNetWeights(Network* net_train, Network* net_map);

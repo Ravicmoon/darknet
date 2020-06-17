@@ -28,6 +28,7 @@
 #endif  // GPU
 
 #include "box.h"
+#include "image.h"
 #include "libapi.h"
 #include "option_list.h"
 
@@ -132,15 +133,6 @@ typedef enum
   RELU_NORMALIZATION,
   SOFTMAX_NORMALIZATION
 } WEIGHTS_NORMALIZATION_T;
-
-// image.h
-typedef enum
-{
-  PNG,
-  BMP,
-  TGA,
-  JPG
-} IMTYPE;
 
 // activations.h
 typedef enum
@@ -538,8 +530,6 @@ typedef struct Network
   int time_steps;
   int step;
   int max_batches;
-  int num_boxes;
-  int train_images_num;
   float* seq_scales;
   float* scales;
   int* steps;
@@ -631,15 +621,6 @@ typedef struct NetworkState
   int index;
   Network* net;
 } NetworkState;
-
-// image.h
-typedef struct Image
-{
-  int w;
-  int h;
-  int c;
-  float* data;
-} Image;
 
 // network.c -batch inference
 typedef struct det_num_pair
@@ -764,27 +745,12 @@ LIB_API layer* get_network_layer(Network* net, int i);
 LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
 
 LIB_API void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, int* gpus, int ngpus, int clear, int show_imgs,
-    int calc_map, int benchmark_layers);
+    char const* weights_file, int num_gpus, bool clear, bool show_imgs,
+    bool calc_map, int benchmark_layers);
 LIB_API float ValidateDetector(char const* data_file, char const* model_file,
     char const* weights_file, float const thresh_calc_avg_iou,
     float const iou_thresh, int const map_points, int letter_box,
     Network* existing_net);
-
-// image.h
-LIB_API void make_image_red(Image im);
-LIB_API Image make_attention_image(int img_size, float* original_delta_cpu,
-    float* original_input_cpu, int w, int h, int c);
-LIB_API Image resize_image(Image im, int w, int h);
-LIB_API void quantize_image(Image im);
-LIB_API void copy_image_from_bytes(Image im, char* pdata);
-LIB_API Image letterbox_image(Image im, int w, int h);
-LIB_API void rgbgr_image(Image im);
-LIB_API Image make_image(int w, int h, int c);
-LIB_API Image load_image_color(char* filename, int w, int h);
-LIB_API void free_image(Image m);
-LIB_API Image crop_image(Image im, int dx, int dy, int w, int h);
-LIB_API Image resize_min(Image im, int min);
 
 // layer.h
 LIB_API void free_layer(layer* l, bool keep_cudnn_desc = false);

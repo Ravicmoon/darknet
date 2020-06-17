@@ -12,16 +12,12 @@
 #define max_val_cmp(a, b) (((a) > (b)) ? (a) : (b))
 #define min_val_cmp(a, b) (((a) < (b)) ? (a) : (b))
 
-LIB_API void free_ptrs(void** ptrs, int n);
-LIB_API void top_k(float* a, int n, int k, int* index);
-
 void* xmalloc(size_t size);
 void* xcalloc(size_t nmemb, size_t size);
 void* xrealloc(void* ptr, size_t size);
 
 int* read_map(char* filename);
 char* BaseCfg(char const* cfgfile);
-LIB_API void find_replace(const char* str, char* orig, char* rep, char* output);
 void ReplaceImage2Label(char const* input_path, char* output_path);
 void error(const char* s);
 void FileError(char const* s);
@@ -50,6 +46,7 @@ int int_index(int* a, int val, int n);
 int MakeDir(char const* path, int mode);
 bool Exists(char const* path);
 
+#if __cplusplus >= 201103L || _MSC_VER >= 1900  // C++11
 // timer related functions
 float Clocks2Sec(clock_t clocks);
 double GetTimePoint();
@@ -64,3 +61,4 @@ int custom_atomic_load_int(volatile int* obj);
 void custom_atomic_store_int(volatile int* obj, int desr);
 void this_thread_sleep_for(int ms_time);
 void this_thread_yield();
+#endif  // C++11
