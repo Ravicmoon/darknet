@@ -244,14 +244,17 @@ void DrawLossGraph(cv::Mat const& bg, std::vector<int> const& iter,
   }
 
   // draw maximum mAP
-  pt1.x = draw_size * max_iter_map / max_iter;
-  pt1.y = draw_size * (1.0f - max_map);
-  pt1 += offset;
-
   char buff[128];
-  sprintf(buff, "%2.0f%% ", max_map * 100.0f);
-  cv::putText(img, buff, pt1, kFont, kFontSz, kWhite, 3, cv::LINE_AA);
-  cv::putText(img, buff, pt1, kFont, kFontSz, kRed, 1, cv::LINE_AA);
+  if (abs(max_map) > FLT_EPSILON)
+  {
+    pt1.x = draw_size * max_iter_map / max_iter;
+    pt1.y = draw_size * (1.0f - max_map);
+    pt1 += offset;
+
+    sprintf(buff, "%2.0f%% ", max_map * 100.0f);
+    cv::putText(img, buff, pt1, kFont, kFontSz, kWhite, 3, cv::LINE_AA);
+    cv::putText(img, buff, pt1, kFont, kFontSz, kRed, 1, cv::LINE_AA);
+  }
 
   sprintf(buff, "iter: %d  avg loss: %2.2f  time remaining: %2.2lf hrs",
       iter.back(), avg_loss.back(), time_remaining);

@@ -18,7 +18,7 @@ void* xrealloc(void* ptr, size_t size);
 
 int* read_map(char* filename);
 char* BaseCfg(char const* cfgfile);
-void ReplaceImage2Label(char const* input_path, char* output_path);
+std::string ReplaceImage2Label(std::string str);
 void error(const char* s);
 void FileError(char const* s);
 void strip(char* s);

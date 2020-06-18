@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
+#include <iostream>
+
 #include "box.h"
 #include "dark_cuda.h"
 #include "image.h"
@@ -148,108 +151,91 @@ matrix load_image_augment_paths(char** paths, int n, int use_flip, int min,
   return X;
 }
 
-box_label* read_boxes(char* filename, int* n)
+std::vector<BoxLabel> ReadBoxAnnot(std::string filename)
 {
-  box_label* boxes = (box_label*)xcalloc(1, sizeof(box_label));
-  FILE* file = fopen(filename, "r");
-  if (!file)
-  {
-    printf(
-        "Can't open label file. (This can be normal only if you use MSCOCO): "
-        "%s \n",
-        filename);
-    // file_error(filename);
-    FILE* fw = fopen("bad.list", "a");
-    fwrite(filename, sizeof(char), strlen(filename), fw);
-    char* new_line = "\n";
-    fwrite(new_line, sizeof(char), strlen(new_line), fw);
-    fclose(fw);
+  std::vector<BoxLabel> annot;
 
-    *n = 0;
-    return boxes;
+  FILE* file = fopen(filename.c_str(), "r");
+  if (file == nullptr)
+  {
+    std::cout << "Cannot open label file: " << filename << std::endl;
+
+    FILE* file_bad = fopen("bad.list", "a");
+    fprintf(file_bad, "%s\n", filename.c_str());
+    fclose(file_bad);
+
+    return annot;
   }
-  float x, y, h, w;
-  int id;
-  int count = 0;
+
+  int id = 0;
+  float x = 0.0f, y = 0.0f, h = 0.0f, w = 0.0f;
   while (fscanf(file, "%d %f %f %f %f", &id, &x, &y, &w, &h) == 5)
   {
-    boxes = (box_label*)xrealloc(boxes, (count + 1) * sizeof(box_label));
-    boxes[count].id = id;
-    boxes[count].x = x;
-    boxes[count].y = y;
-    boxes[count].h = h;
-    boxes[count].w = w;
-    boxes[count].left = x - w / 2;
-    boxes[count].right = x + w / 2;
-    boxes[count].top = y - h / 2;
-    boxes[count].bottom = y + h / 2;
-    ++count;
+    BoxLabel box;
+    box.id = id;
+    box.x = x;
+    box.y = y;
+    box.h = h;
+    box.w = w;
+    box.left = x - w / 2;
+    box.right = x + w / 2;
+    box.top = y - h / 2;
+    box.bottom = y + h / 2;
+
+    annot.push_back(box);
   }
   fclose(file);
-  *n = count;
-  return boxes;
+
+  return annot;
 }
 
-void randomize_boxes(box_label* b, int n)
+void CorrectBoxAnnot(std::vector<BoxLabel>& annot, float dx, float dy, float sx,
+    float sy, int flip)
 {
-  int i;
-  for (i = 0; i < n; ++i)
+  for (size_t i = 0; i < annot.size(); ++i)
   {
-    box_label swap = b[i];
-    int index = random_gen() % n;
-    b[i] = b[index];
-    b[index] = swap;
-  }
-}
-
-void correct_boxes(
-    box_label* boxes, int n, float dx, float dy, float sx, float sy, int flip)
-{
-  int i;
-  for (i = 0; i < n; ++i)
-  {
-    if (boxes[i].x == 0 && boxes[i].y == 0)
+    if (annot[i].x == 0 && annot[i].y == 0)
     {
-      boxes[i].x = 999999;
-      boxes[i].y = 999999;
-      boxes[i].w = 999999;
-      boxes[i].h = 999999;
+      annot[i].x = 999999;
+      annot[i].y = 999999;
+      annot[i].w = 999999;
+      annot[i].h = 999999;
       continue;
     }
-    if ((boxes[i].x + boxes[i].w / 2) < 0 ||
-        (boxes[i].y + boxes[i].h / 2) < 0 ||
-        (boxes[i].x - boxes[i].w / 2) > 1 || (boxes[i].y - boxes[i].h / 2) > 1)
+    if ((annot[i].x + annot[i].w / 2) < 0 ||
+        (annot[i].y + annot[i].h / 2) < 0 ||
+        (annot[i].x - annot[i].w / 2) > 1 || (annot[i].y - annot[i].h / 2) > 1)
     {
-      boxes[i].x = 999999;
-      boxes[i].y = 999999;
-      boxes[i].w = 999999;
-      boxes[i].h = 999999;
+      annot[i].x = 999999;
+      annot[i].y = 999999;
+      annot[i].w = 999999;
+      annot[i].h = 999999;
       continue;
     }
-    boxes[i].left = boxes[i].left * sx - dx;
-    boxes[i].right = boxes[i].right * sx - dx;
-    boxes[i].top = boxes[i].top * sy - dy;
-    boxes[i].bottom = boxes[i].bottom * sy - dy;
+    annot[i].left = annot[i].left * sx - dx;
+    annot[i].right = annot[i].right * sx - dx;
+    annot[i].top = annot[i].top * sy - dy;
+    annot[i].bottom = annot[i].bottom * sy - dy;
 
     if (flip)
     {
-      float swap = boxes[i].left;
-      boxes[i].left = 1. - boxes[i].right;
-      boxes[i].right = 1. - swap;
+      float swap = annot[i].left;
+      annot[i].left = 1. - annot[i].right;
+      annot[i].right = 1. - swap;
     }
 
-    boxes[i].left = constrain(0, 1, boxes[i].left);
-    boxes[i].right = constrain(0, 1, boxes[i].right);
-    boxes[i].top = constrain(0, 1, boxes[i].top);
-    boxes[i].bottom = constrain(0, 1, boxes[i].bottom);
+    annot[i].left = constrain(0, 1, annot[i].left);
+    annot[i].right = constrain(0, 1, annot[i].right);
+    annot[i].top = constrain(0, 1, annot[i].top);
+    annot[i].bottom = constrain(0, 1, annot[i].bottom);
 
-    boxes[i].x = (boxes[i].left + boxes[i].right) / 2;
-    boxes[i].y = (boxes[i].top + boxes[i].bottom) / 2;
-    boxes[i].w = (boxes[i].right - boxes[i].left);
-    boxes[i].h = (boxes[i].bottom - boxes[i].top);
+    annot[i].x = (annot[i].left + annot[i].right) / 2;
+    annot[i].y = (annot[i].top + annot[i].bottom) / 2;
+    annot[i].w = (annot[i].right - annot[i].left);
+    annot[i].h = (annot[i].bottom - annot[i].top);
 
-    boxes[i].w = constrain(0, 1, boxes[i].w);
-    boxes[i].h = constrain(0, 1, boxes[i].h);
+    annot[i].w = constrain(0, 1, annot[i].w);
+    annot[i].h = constrain(0, 1, annot[i].h);
   }
 }
 
@@ -257,50 +243,42 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
     int classes, int flip, float dx, float dy, float sx, float sy, int net_w,
     int net_h)
 {
-  char labelpath[4096];
-  ReplaceImage2Label(path, labelpath);
+  std::string label_path = ReplaceImage2Label(path);
+  std::vector<BoxLabel> annot = ReadBoxAnnot(label_path);
+  std::random_shuffle(annot.begin(), annot.end());
+  CorrectBoxAnnot(annot, dx, dy, sx, sy, flip);
 
-  int count = 0;
-  int i;
-  box_label* boxes = read_boxes(labelpath, &count);
   int min_w_h = 0;
-  float lowest_w = 1.F / net_w;
-  float lowest_h = 1.F / net_h;
-  randomize_boxes(boxes, count);
-  correct_boxes(boxes, count, dx, dy, sx, sy, flip);
-  if (count > num_boxes)
-    count = num_boxes;
-  float x, y, w, h;
-  int id;
-  int sub = 0;
+  float lowest_w = 1.0f / net_w;
+  float lowest_h = 1.0f / net_h;
 
-  for (i = 0; i < count; ++i)
+  int id = 0, sub = 0;
+  float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
+
+  for (size_t i = 0; i < std::min(num_boxes, (int)annot.size()); ++i)
   {
-    x = boxes[i].x;
-    y = boxes[i].y;
-    w = boxes[i].w;
-    h = boxes[i].h;
-    id = boxes[i].id;
+    id = annot[i].id;
+    x = annot[i].x;
+    y = annot[i].y;
+    w = annot[i].w;
+    h = annot[i].h;
 
-    // not detect small objects
-    // if ((w < 0.001F || h < 0.001F)) continue;
-    // if truth (box for object) is smaller than 1x1 pix
     char buff[256];
     if (id >= classes)
     {
       printf(
           "\n Wrong annotation: class_id = %d. But class_id should be [from 0 "
           "to %d], file: %s \n",
-          id, (classes - 1), labelpath);
+          id, (classes - 1), label_path);
       sprintf(buff,
           "echo %s \"Wrong annotation: class_id = %d. But class_id should "
           "be [from 0 to %d]\" >> bad_label.list",
-          labelpath, id, (classes - 1));
+          label_path, id, (classes - 1));
       system(buff);
       ++sub;
       continue;
     }
-    if ((w < lowest_w || h < lowest_h))
+    if (w < lowest_w || h < lowest_h)
     {
       // sprintf(buff, "echo %s \"Very small object: w < lowest_w OR h <
       // lowest_h\" >> bad_label.list", labelpath); system(buff);
@@ -310,10 +288,10 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
     if (x == 999999 || y == 999999)
     {
       printf("\n Wrong annotation: x = 0, y = 0, < 0 or > 1, file: %s \n",
-          labelpath);
+          label_path);
       sprintf(buff,
           "echo %s \"Wrong annotation: x = 0 or y = 0\" >> bad_label.list",
-          labelpath);
+          label_path);
       system(buff);
       ++sub;
       continue;
@@ -321,27 +299,27 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
     if (x <= 0 || x > 1 || y <= 0 || y > 1)
     {
       printf(
-          "\n Wrong annotation: x = %f, y = %f, file: %s \n", x, y, labelpath);
+          "\n Wrong annotation: x = %f, y = %f, file: %s \n", x, y, label_path);
       sprintf(buff,
           "echo %s \"Wrong annotation: x = %f, y = %f\" >> bad_label.list",
-          labelpath, x, y);
+          label_path, x, y);
       system(buff);
       ++sub;
       continue;
     }
     if (w > 1)
     {
-      printf("\n Wrong annotation: w = %f, file: %s \n", w, labelpath);
+      printf("\n Wrong annotation: w = %f, file: %s \n", w, label_path);
       sprintf(buff, "echo %s \"Wrong annotation: w = %f\" >> bad_label.list",
-          labelpath, w);
+          label_path, w);
       system(buff);
       w = 1;
     }
     if (h > 1)
     {
-      printf("\n Wrong annotation: h = %f, file: %s \n", h, labelpath);
+      printf("\n Wrong annotation: h = %f, file: %s \n", h, label_path);
       sprintf(buff, "echo %s \"Wrong annotation: h = %f\" >> bad_label.list",
-          labelpath, h);
+          label_path, h);
       system(buff);
       h = 1;
     }
@@ -363,36 +341,8 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
     if (min_w_h > h * net_h)
       min_w_h = h * net_h;
   }
-  free(boxes);
-  return min_w_h;
-}
 
-void fill_truth(char* path, char** labels, int k, float* truth)
-{
-  int i;
-  memset(truth, 0, k * sizeof(float));
-  int count = 0;
-  for (i = 0; i < k; ++i)
-  {
-    if (strstr(path, labels[i]))
-    {
-      truth[i] = 1;
-      ++count;
-    }
-  }
-  if (count != 1)
-  {
-    printf("Too many or too few labels: %d, %s\n", count, path);
-    count = 0;
-    for (i = 0; i < k; ++i)
-    {
-      if (strstr(path, labels[i]))
-      {
-        printf("\t label %d: %s  \n", count, labels[i]);
-        count++;
-      }
-    }
-  }
+  return min_w_h;
 }
 
 void fill_truth_smooth(

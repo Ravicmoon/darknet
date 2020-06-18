@@ -174,13 +174,13 @@ void TrainDetector(char const* data_file, char const* model_file,
       if (abs(l->random - 1.0f) > FLT_EPSILON)
         rand_coef = l->random;
 
-      float rand_scale = RandScale(rand_coef);
+      float scale = RandScale(rand_coef);
       int dim_w =
-          roundl(rand_scale * init_w / net->resize_step + 1) * net->resize_step;
+          roundl(scale * init_w / net->resize_step + 1) * net->resize_step;
       int dim_h =
-          roundl(rand_scale * init_h / net->resize_step + 1) * net->resize_step;
+          roundl(scale * init_h / net->resize_step + 1) * net->resize_step;
 
-      if (rand_scale < 1 && (dim_w > init_w || dim_h > init_h))
+      if (scale < 1 && (dim_w > init_w || dim_h > init_h))
       {
         dim_w = init_w;
         dim_h = init_h;
@@ -302,8 +302,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       iter_map = iter + map_step;
 
       std::cout << "Next mAP calculation: " << iter_map << std::endl;
-      std::cout << "mAP@0.5 = " << map << "\t";
-      std::cout << "Best mAP@0.5 = " << best_map << std::endl;
+      std::cout << "Best mAP = " << best_map << std::endl;
     }
 
     double end_step = GetTimePoint();
@@ -426,11 +425,10 @@ float ValidateDetector(
 
   list* val_img_paths = get_paths(val_imgs);
   char** paths = (char**)ListToArray(val_img_paths);
+  int num_val_imgs = val_img_paths->size;
 
   float const thresh = .005;
   float const nms = .45;
-
-  int num_val_imgs = val_img_paths->size;
 
   Image* buff = new Image;
   Image* buff_resized = new Image;
@@ -481,12 +479,9 @@ float ValidateDetector(
     else
       DiouNmsSort(dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
 
-    char label_path[4096];
-    ReplaceImage2Label(paths[i], label_path);
-
-    int num_labels = 0;
-    box_label* gt = read_boxes(label_path, &num_labels);
-    for (int k = 0; k < num_labels; ++k)
+    std::string label_path = ReplaceImage2Label(paths[i]);
+    std::vector<BoxLabel> gt = ReadBoxAnnot(label_path);
+    for (size_t k = 0; k < gt.size(); ++k)
     {
       num_gt_class[gt[k].id]++;
     }
@@ -504,7 +499,7 @@ float ValidateDetector(
 
         int gt_idx = -1;
         float max_iou = 0;
-        for (int k = 0; k < num_labels; ++k)
+        for (size_t k = 0; k < gt.size(); ++k)
         {
           Box gt_box(gt[k].x, gt[k].y, gt[k].w, gt[k].h);
           float iou = Box::Iou(pred_box, gt_box);
@@ -529,7 +524,7 @@ float ValidateDetector(
       }
     }
 
-    num_gt += num_labels;
+    num_gt += (int)gt.size();
 
     FreeDetections(dets, num_boxes);
   }

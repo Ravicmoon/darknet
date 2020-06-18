@@ -717,12 +717,12 @@ typedef struct load_args
 } load_args;
 
 // data.h
-typedef struct box_label
+typedef struct BoxLabel
 {
   int id;
   float x, y, w, h;
   float left, right, top, bottom;
-} box_label;
+} BoxLabel;
 
 // parser.c
 LIB_API Network* LoadNetwork(

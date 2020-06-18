@@ -1,6 +1,8 @@
 #pragma once
 #include <pthread.h>
 
+#include <vector>
+
 #include "list.h"
 #include "matrix.h"
 #include "tree.h"
@@ -80,7 +82,7 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
     float aspect, float hue, float saturation, float exposure, int use_mixup,
     int use_blur, int show_imgs, float label_smooth_eps, int dontuse_opencv);
 
-box_label* read_boxes(char* filename, int* n);
+std::vector<BoxLabel> ReadBoxAnnot(std::string filename);
 
 list* get_paths(char* filename);
 char** GetLabels(char* filename, int* size = nullptr);
@@ -89,6 +91,5 @@ data get_data_part(data d, int part, int total);
 void get_next_batch(data d, int n, int offset, float* X, float* y);
 data concat_data(data d1, data d2);
 data concat_datas(data* d, int n);
-void fill_truth(char* path, char** labels, int k, float* truth);
 void fill_truth_smooth(
     char* path, char** labels, int k, float* truth, float label_smooth_eps);
