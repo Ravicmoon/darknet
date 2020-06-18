@@ -102,10 +102,16 @@ int main(int argc, char** argv)
         FLAGS_weights_file.c_str(), FLAGS_num_gpus, FLAGS_clear,
         FLAGS_show_imgs, FLAGS_calc_map, FLAGS_benchmark_layers);
 
-  if (FLAGS_mode == "val")
-    ValidateDetector(FLAGS_data_file.c_str(), FLAGS_model_file.c_str(),
-        FLAGS_weights_file.c_str(), FLAGS_thresh, FLAGS_iou_thresh,
-        FLAGS_map_points, FLAGS_letter_box, nullptr);
+  if (FLAGS_mode == "valid")
+  {
+    Network* net = LoadNetworkCustom(
+        FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);
+
+    ValidateDetector(net, FLAGS_data_file.c_str(), 0.5, 0);
+
+    FreeNetwork(net);
+    free(net);
+  }
 
   if (FLAGS_mode == "test")
   {
