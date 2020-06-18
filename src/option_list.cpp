@@ -56,13 +56,37 @@ Metadata::MetadataImpl::MetadataImpl(char const* filename)
   FreeList(options);
 }
 
+Metadata::Metadata() : impl_(nullptr) {}
+
 Metadata::Metadata(char const* filename) : impl_(new MetadataImpl(filename)) {}
 
-Metadata::~Metadata() { delete impl_; }
+Metadata::~Metadata()
+{
+  if (impl_ != nullptr)
+    delete impl_;
+}
 
-int Metadata::NumClasses() const { return impl_->classes_; }
+void Metadata::Get(char const* filename)
+{
+  if (impl_ == nullptr)
+    impl_ = new MetadataImpl(filename);
+}
 
-std::string Metadata::NameAt(int idx) const { return impl_->names_[idx]; }
+int Metadata::NumClasses() const
+{
+  if (impl_ != nullptr)
+    return impl_->classes_;
+  else
+    return -1;
+}
+
+std::string Metadata::NameAt(int idx) const
+{
+  if (impl_ != nullptr)
+    return impl_->names_[idx];
+  else
+    return std::string();
+}
 
 list* ReadDataCfg(char const* filename)
 {

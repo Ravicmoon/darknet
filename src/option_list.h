@@ -7,9 +7,11 @@
 class LIB_API Metadata
 {
  public:
+  Metadata();
   Metadata(char const* filename);
   ~Metadata();
 
+  void Get(char const* filename);
   int NumClasses() const;
   std::string NameAt(int idx) const;
 
