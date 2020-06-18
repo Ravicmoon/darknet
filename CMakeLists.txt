@@ -251,7 +251,7 @@ if(USE_INTEGRATED_LIBS)
 endif()
 
 set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
-set_target_properties(lib_yolo_core PROPERTIES PUBLIC_HEADER "${SRC_DIR}/yolo_core.h;${SRC_DIR}/box.h;${SRC_DIR}/image.h;${SRC_DIR}/libapi.h;${SRC_DIR}/option_list.h;${SRC_DIR}/list.h")
+set_target_properties(lib_yolo_core PROPERTIES PUBLIC_HEADER "${SRC_DIR}/yolo_core.h;${SRC_DIR}/box.h;${SRC_DIR}/image.h;${SRC_DIR}/libapi.h;${SRC_DIR}/option_list.h;${SRC_DIR}/list.h;${SRC_DIR}/visualize.h")
 set_target_properties(lib_yolo_core PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
 install(TARGETS yolo_core
