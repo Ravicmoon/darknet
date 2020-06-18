@@ -160,7 +160,6 @@ typedef struct SizeParams
   int w;
   int c;
   int index;
-  int time_steps;
   int train;
   Network* net;
 } SizeParams;
@@ -1079,16 +1078,12 @@ void ParseNetOptions(list* options, Network* net)
   net->momentum = FindOptionFloat(options, "momentum", .9);
   net->decay = FindOptionFloat(options, "decay", .0001);
   int subdivs = FindOptionInt(options, "subdivisions", 1);
-  net->time_steps = FindOptionIntQuiet(options, "time_steps", 1);
-  net->track = FindOptionIntQuiet(options, "track", 0);
-  net->augment_speed = FindOptionIntQuiet(options, "augment_speed", 2);
   net->init_seq_subdiv = net->seq_subdiv =
       FindOptionIntQuiet(options, "sequential_subdivisions", subdivs);
   if (net->seq_subdiv > subdivs)
     net->init_seq_subdiv = net->seq_subdiv = subdivs;
   net->try_fix_nan = FindOptionIntQuiet(options, "try_fix_nan", 0);
   net->batch /= subdivs;
-  net->batch *= net->time_steps;
   net->subdiv = subdivs;
 
   *net->seen = 0;
@@ -1248,13 +1243,7 @@ void SetTrainOnlyBn(Network* net)
   }
 }
 
-void ParseNetworkCfg(Network* net, char const* filename)
-{
-  ParseNetworkCfgCustom(net, filename, 0, 0);
-}
-
-void ParseNetworkCfgCustom(
-    Network* net, char const* filename, int batch, int time_steps)
+void ParseNetworkCfg(Network* net, char const* filename, int batch)
 {
   list* sections = ReadSections(filename);
   node* n = sections->front;
@@ -1292,19 +1281,12 @@ void ParseNetworkCfgCustom(
   params.inputs = net->inputs;
   if (batch > 0)
     net->batch = batch;
-  if (time_steps > 0)
-    net->time_steps = time_steps;
   if (net->batch < 1)
     net->batch = 1;
-  if (net->time_steps < 1)
-    net->time_steps = 1;
-  if (net->batch < net->time_steps)
-    net->batch = net->time_steps;
   params.batch = net->batch;
-  params.time_steps = net->time_steps;
   params.net = net;
-  printf("mini_batch = %d, batch = %d, time_steps = %d, train = %d \n",
-      net->batch, net->batch * net->subdiv, net->time_steps, params.train);
+  printf("mini_batch = %d, batch = %d, train = %d \n", net->batch,
+      net->batch * net->subdiv, params.train);
 
   int avg_outputs = 0;
   int avg_counter = 0;
@@ -2072,7 +2054,7 @@ Network* LoadNetworkCustom(
       weights_file, clear);
 
   Network* net = (Network*)xcalloc(1, sizeof(Network));
-  ParseNetworkCfgCustom(net, model_file, batch, 1);
+  ParseNetworkCfg(net, model_file, batch);
   if (weights_file && weights_file[0] != 0)
   {
     printf(" Try to load weights: %s \n", weights_file);

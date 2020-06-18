@@ -32,45 +32,6 @@ list* get_paths(char* filename)
   return lines;
 }
 
-char** get_sequential_paths(
-    char** paths, int n, int m, int mini_batch, int augment_speed)
-{
-  int speed = rand_int(1, augment_speed);
-  if (speed < 1)
-    speed = 1;
-  char** sequentia_paths = (char**)xcalloc(n, sizeof(char*));
-  int i;
-  pthread_mutex_lock(&mutex);
-  // printf("n = %d, mini_batch = %d \n", n, mini_batch);
-  unsigned int* start_time_indexes =
-      (unsigned int*)xcalloc(mini_batch, sizeof(unsigned int));
-  for (i = 0; i < mini_batch; ++i)
-  {
-    start_time_indexes[i] = random_gen() % m;
-    // printf(" start_time_indexes[i] = %u, ", start_time_indexes[i]);
-  }
-
-  for (i = 0; i < n; ++i)
-  {
-    do
-    {
-      int time_line_index = i % mini_batch;
-      unsigned int index = start_time_indexes[time_line_index] % m;
-      start_time_indexes[time_line_index] += speed;
-
-      // int index = random_gen() % m;
-      sequentia_paths[i] = paths[index];
-      // if(i == 0) printf("%s\n", paths[index]);
-      // printf(" index = %u - grp: %s \n", index, paths[index]);
-      if (strlen(sequentia_paths[i]) <= 4)
-        printf(" Very small path to the image: %s \n", sequentia_paths[i]);
-    } while (strlen(sequentia_paths[i]) == 0);
-  }
-  free(start_time_indexes);
-  pthread_mutex_unlock(&mutex);
-  return sequentia_paths;
-}
-
 char** get_random_paths(char** paths, int n, int m)
 {
   char** random_paths = (char**)xcalloc(n, sizeof(char*));
@@ -595,7 +556,7 @@ void blend_truth_mosaic(float* new_truth, int boxes, float* old_truth, int w,
 data load_data_detection(int n, char** paths, int m, int w, int h, int c,
     int boxes, int classes, int use_flip, int use_gaussian_noise, int use_blur,
     int use_mixup, float jitter, float hue, float saturation, float exposure,
-    int mini_batch, int track, int augment_speed, int letter_box, int show_imgs)
+    int mini_batch, int letter_box, int show_imgs)
 {
   const int random_index = random_gen();
   c = c ? c : 3;
@@ -638,22 +599,12 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
 
   float r1 = 0, r2 = 0, r3 = 0, r4 = 0;
   float dhue = 0, dsat = 0, dexp = 0, flip = 0, blur = 0;
-  int augmentation_calculated = 0, gaussian_noise = 0;
+  int gaussian_noise = 0;
 
   d.y = make_matrix(n, 5 * boxes);
-  int i_mixup = 0;
-  for (i_mixup = 0; i_mixup <= use_mixup; i_mixup++)
+  for (int i_mixup = 0; i_mixup <= use_mixup; i_mixup++)
   {
-    if (i_mixup)
-      augmentation_calculated =
-          0;  // recalculate augmentation for the 2nd sequence if(track==1)
-
-    char** random_paths;
-    if (track)
-      random_paths =
-          get_sequential_paths(paths, n, m, mini_batch, augment_speed);
-    else
-      random_paths = get_random_paths(paths, n, m);
+    char** random_paths = get_random_paths(paths, n, m);
 
     for (i = 0; i < n; ++i)
     {
@@ -671,37 +622,33 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
       int dw = (ow * jitter);
       int dh = (oh * jitter);
 
-      if (!augmentation_calculated || !track)
+      r1 = random_float();
+      r2 = random_float();
+      r3 = random_float();
+      r4 = random_float();
+
+      dhue = rand_uniform_strong(-hue, hue);
+      dsat = RandScale(saturation);
+      dexp = RandScale(exposure);
+
+      flip = use_flip ? random_gen() % 2 : 0;
+
+      if (use_blur)
       {
-        augmentation_calculated = 1;
-        r1 = random_float();
-        r2 = random_float();
-        r3 = random_float();
-        r4 = random_float();
-
-        dhue = rand_uniform_strong(-hue, hue);
-        dsat = RandScale(saturation);
-        dexp = RandScale(exposure);
-
-        flip = use_flip ? random_gen() % 2 : 0;
-
-        if (use_blur)
-        {
-          int tmp_blur = rand_int(0,
-              2);  // 0 - disable, 1 - blur background, 2 - blur the whole image
-          if (tmp_blur == 0)
-            blur = 0;
-          else if (tmp_blur == 1)
-            blur = 1;
-          else
-            blur = use_blur;
-        }
-
-        if (use_gaussian_noise && rand_int(0, 1) == 1)
-          gaussian_noise = use_gaussian_noise;
+        int tmp_blur = rand_int(0,
+            2);  // 0 - disable, 1 - blur background, 2 - blur the whole image
+        if (tmp_blur == 0)
+          blur = 0;
+        else if (tmp_blur == 1)
+          blur = 1;
         else
-          gaussian_noise = 0;
+          blur = use_blur;
       }
+
+      if (use_gaussian_noise && rand_int(0, 1) == 1)
+        gaussian_noise = use_gaussian_noise;
+      else
+        gaussian_noise = 0;
 
       int pleft = rand_precalc_random(-dw, dw, r1);
       int pright = rand_precalc_random(-dw, dw, r2);
@@ -921,8 +868,7 @@ void* load_thread(void* ptr)
   {
     *a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.c, a.num_boxes,
         a.classes, a.flip, a.gaussian_noise, a.blur, a.mixup, a.jitter, a.hue,
-        a.saturation, a.exposure, a.mini_batch, a.track, a.augment_speed,
-        a.letter_box, a.show_imgs);
+        a.saturation, a.exposure, a.mini_batch, a.letter_box, a.show_imgs);
   }
   if (a.type == IMAGE_DATA)
   {

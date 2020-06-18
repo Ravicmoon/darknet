@@ -72,8 +72,7 @@ pthread_t load_data_in_thread(load_args args);
 data load_data_detection(int n, char** paths, int m, int w, int h, int c,
     int boxes, int classes, int use_flip, int gaussian_noise, int use_blur,
     int use_mixup, float jitter, float hue, float saturation, float exposure,
-    int mini_batch, int track, int augment_speed, int letter_box,
-    int show_imgs);
+    int mini_batch, int letter_box, int show_imgs);
 matrix load_image_augment_paths(char** paths, int n, int use_flip, int min,
     int max, int w, int h, float angle, float aspect, float hue,
     float saturation, float exposure, int dontuse_opencv);

@@ -42,7 +42,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   {
     cuda_set_device(gpus[0]);
     printf(" Prepare additional network for mAP calculation...\n");
-    ParseNetworkCfgCustom(&net_map, model_file, 1, 1);
+    ParseNetworkCfg(&net_map, model_file, 1);
     net_map.benchmark_layers = benchmark_layers;
 
     for (int k = 0; k < net_map.n - 1; ++k)
@@ -140,19 +140,6 @@ void TrainDetector(char const* data_file, char const* model_file,
   int const max_loss = 20;
   cv::Mat graph_bg = DrawLossGraphBg(net->max_batches, max_loss, 100, 720);
 
-  if (net->track)
-  {
-    args.track = net->track;
-    args.augment_speed = net->augment_speed;
-    if (net->seq_subdiv)
-      args.threads = net->seq_subdiv * num_gpus;
-    else
-      args.threads = net->subdiv * num_gpus;
-    args.mini_batch = net->batch / net->time_steps;
-    printf("batch = %d, subdiv = %d, time_steps = %d, mini_batch = %d \n",
-        net->batch, net->subdiv, net->time_steps, args.mini_batch);
-  }
-
   pthread_t load_thread = load_data(args);
 
   int count = 0;
@@ -229,13 +216,6 @@ void TrainDetector(char const* data_file, char const* model_file,
     pthread_join(load_thread, nullptr);
 
     train = buffer;
-    if (net->track)
-    {
-      net->seq_subdiv = GetCurrentSeqSubdivisions(net);
-      args.threads = net->seq_subdiv * num_gpus;
-      printf("seq_subdiv = %d, sequence = %d \n", net->seq_subdiv,
-          GetSequenceValue(net));
-    }
     load_thread = load_data(args);
 
     float loss = 0;

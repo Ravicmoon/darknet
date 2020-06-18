@@ -527,7 +527,6 @@ typedef struct Network
   float gamma;
   float scale;
   float power;
-  int time_steps;
   int step;
   int max_batches;
   float* seq_scales;
@@ -569,8 +568,6 @@ typedef struct Network
   float saturation;
   float hue;
   int random;
-  int track;
-  int augment_speed;
   int seq_subdiv;
   int init_seq_subdiv;
   int curr_subdiv;
@@ -693,8 +690,6 @@ typedef struct load_args
   int center;
   int coords;
   int mini_batch;
-  int track;
-  int augment_speed;
   int letter_box;
   int show_imgs;
   int dontuse_opencv;
