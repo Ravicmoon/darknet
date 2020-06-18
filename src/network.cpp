@@ -36,43 +36,6 @@ int GetCurrentBatch(Network* net)
   return (*net->seen) / (net->batch * net->subdiv);
 }
 
-float GetCurrentSeqSubdivisions(Network* net)
-{
-  int sequence_subdivisions = net->init_seq_subdiv;
-
-  if (net->num_steps > 0)
-  {
-    int batch_num = GetCurrentBatch(net);
-    int i;
-    for (i = 0; i < net->num_steps; ++i)
-    {
-      if (net->steps[i] > batch_num)
-        break;
-      sequence_subdivisions *= net->seq_scales[i];
-    }
-  }
-
-  if (sequence_subdivisions < 1)
-    sequence_subdivisions = 1;
-
-  if (sequence_subdivisions > net->subdiv)
-    sequence_subdivisions = net->subdiv;
-
-  return sequence_subdivisions;
-}
-
-int GetSequenceValue(Network* net)
-{
-  int sequence = 1;
-  if (net->seq_subdiv != 0)
-    sequence = net->subdiv / net->seq_subdiv;
-
-  if (sequence < 1)
-    sequence = 1;
-
-  return sequence;
-}
-
 float GetCurrentRate(Network* net)
 {
   int batch_num = GetCurrentBatch(net);
@@ -161,15 +124,14 @@ void ForwardNetwork(Network* net, NetworkState state)
 
 void UpdateNetwork(Network* net)
 {
-  int update_batch = net->batch * net->subdiv;
+  int actual_batch = net->batch * net->subdiv;
+
   float rate = GetCurrentRate(net);
   for (int i = 0; i < net->n; ++i)
   {
     layer* l = &net->layers[i];
     if (l->update)
-    {
-      l->update(l, update_batch, rate, net->momentum, net->decay);
-    }
+      l->update(l, actual_batch, rate, net->momentum, net->decay);
   }
 }
 

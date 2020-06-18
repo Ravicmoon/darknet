@@ -568,8 +568,6 @@ typedef struct Network
   float saturation;
   float hue;
   int random;
-  int seq_subdiv;
-  int init_seq_subdiv;
   int curr_subdiv;
   int try_fix_nan;
 
@@ -649,22 +647,8 @@ typedef enum
 {
   CLASSIFICATION_DATA,
   DETECTION_DATA,
-  CAPTCHA_DATA,
-  REGION_DATA,
   IMAGE_DATA,
-  COMPARE_DATA,
-  WRITING_DATA,
-  SWAG_DATA,
-  TAG_DATA,
-  OLD_CLASSIFICATION_DATA,
-  STUDY_DATA,
-  DET_DATA,
-  SUPER_DATA,
   LETTERBOX_DATA,
-  REGRESSION_DATA,
-  SEGMENTATION_DATA,
-  INSTANCE_DATA,
-  ISEG_DATA
 } data_type;
 
 // data.h
@@ -721,8 +705,6 @@ typedef struct BoxLabel
 
 // parser.c
 LIB_API Network* LoadNetwork(
-    char const* model_file, char const* weights_file, int clear);
-LIB_API Network* LoadNetworkCustom(
     char const* model_file, char const* weights_file, int clear, int batch);
 LIB_API void FreeNetwork(Network* net);
 

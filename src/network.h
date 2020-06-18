@@ -17,8 +17,6 @@ void UpdateNetworkGpu(Network* net);
 void ForwardBackwardNetworkGpu(Network* net, float* x, float* y);
 #endif
 
-float GetCurrentSeqSubdivisions(Network* net);
-int GetSequenceValue(Network* net);
 float GetCurrentRate(Network* net);
 int GetCurrentBatch(Network* net);
 int64_t GetCurrentIteration(Network* net);

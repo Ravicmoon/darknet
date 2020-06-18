@@ -251,24 +251,26 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
 void UpdateNetworkGpu(Network* net)
 {
   cuda_set_device(net->gpu_index);
-  const int iteration_num = (*net->seen) / (net->batch * net->subdiv);
-  int update_batch = net->batch * net->subdiv * GetSequenceValue(net);
+
+  int const actual_batch = net->batch * net->subdiv;
+  int const iter = *net->seen / actual_batch;
+
   float rate = GetCurrentRate(net);
   for (int i = 0; i < net->n; ++i)
   {
     layer* l = &net->layers[i];
     l->t = GetCurrentBatch(net);
 
-    if (l->burnin_update && (l->burnin_update * net->burn_in > iteration_num))
+    if (l->burnin_update && (l->burnin_update * net->burn_in > iter))
       continue;
 
     if (l->train_only_bn)
       continue;
 
-    if (l->update_gpu && l->dont_update < iteration_num)
+    if (l->update_gpu && l->dont_update < iter)
     {
       l->update_gpu(
-          l, update_batch, rate, net->momentum, net->decay, net->loss_scale);
+          l, actual_batch, rate, net->momentum, net->decay, net->loss_scale);
     }
   }
 }
@@ -350,10 +352,8 @@ float TrainNetworkDatumGpu(Network* net, float* x, float* y)
     net->adversarial = 0;
   }
   ForwardBackwardNetworkGpu(net, x, y);
-  float error = GetNetworkCost(net);
-  const int sequence = GetSequenceValue(net);
 
-  return error;
+  return GetNetworkCost(net);
 }
 
 typedef struct

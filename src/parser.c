@@ -1078,10 +1078,6 @@ void ParseNetOptions(list* options, Network* net)
   net->momentum = FindOptionFloat(options, "momentum", .9);
   net->decay = FindOptionFloat(options, "decay", .0001);
   int subdivs = FindOptionInt(options, "subdivisions", 1);
-  net->init_seq_subdiv = net->seq_subdiv =
-      FindOptionIntQuiet(options, "sequential_subdivisions", subdivs);
-  if (net->seq_subdiv > subdivs)
-    net->init_seq_subdiv = net->seq_subdiv = subdivs;
   net->try_fix_nan = FindOptionIntQuiet(options, "try_fix_nan", 0);
   net->batch /= subdivs;
   net->subdiv = subdivs;
@@ -1285,8 +1281,7 @@ void ParseNetworkCfg(Network* net, char const* filename, int batch)
     net->batch = 1;
   params.batch = net->batch;
   params.net = net;
-  printf("mini_batch = %d, batch = %d, train = %d \n", net->batch,
-      net->batch * net->subdiv, params.train);
+  printf("batch = %d, train = %d \n", net->batch * net->subdiv, params.train);
 
   int avg_outputs = 0;
   int avg_counter = 0;
@@ -2047,7 +2042,7 @@ void LoadWeights(Network* net, char const* filename)
 }
 
 // load network & force - set batch size
-Network* LoadNetworkCustom(
+Network* LoadNetwork(
     char const* model_file, char const* weights_file, int clear, int batch)
 {
   printf(" Try to load model: %s, weights: %s, clear = %d \n", model_file,
@@ -2062,29 +2057,6 @@ Network* LoadNetworkCustom(
   }
 
   FuseConvBatchNorm(net);
-  if (clear)
-  {
-    (*net->seen) = 0;
-    (*net->cur_iteration) = 0;
-  }
-
-  return net;
-}
-
-// load network & get batch size from cfg-file
-Network* LoadNetwork(
-    char const* model_file, char const* weights_file, int clear)
-{
-  printf(" Try to load cfg: %s, clear = %d \n", model_file, clear);
-
-  Network* net = (Network*)xcalloc(1, sizeof(Network));
-  ParseNetworkCfg(net, model_file);
-  if (weights_file && weights_file[0] != 0)
-  {
-    printf(" Try to load weights: %s \n", weights_file);
-    LoadWeights(net, weights_file);
-  }
-
   if (clear)
   {
     (*net->seen) = 0;
