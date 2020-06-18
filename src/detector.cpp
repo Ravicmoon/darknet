@@ -431,13 +431,9 @@ float ValidateDetector(
   float const nms = .45;
 
   int num_val_imgs = val_img_paths->size;
-  int num_threads = min_val_cmp(4, num_val_imgs);
 
-  Image* val = (Image*)xcalloc(num_threads, sizeof(Image));
-  Image* val_resized = (Image*)xcalloc(num_threads, sizeof(Image));
-  Image* buf = (Image*)xcalloc(num_threads, sizeof(Image));
-  Image* buf_resized = (Image*)xcalloc(num_threads, sizeof(Image));
-  pthread_t* thr = (pthread_t*)xcalloc(num_threads, sizeof(pthread_t));
+  Image* buff = new Image;
+  Image* buff_resized = new Image;
 
   load_args args = {0};
   args.w = net->w;
@@ -447,6 +443,8 @@ float ValidateDetector(
     args.type = LETTERBOX_DATA;
   else
     args.type = IMAGE_DATA;
+  args.im = buff;
+  args.resized = buff_resized;
 
   std::vector<ValBox> val_boxes;
   std::vector<int> num_gt_class(classes, 0);
@@ -454,103 +452,91 @@ float ValidateDetector(
   int num_gt = 0;
 
   double start = GetTimePoint();
-  for (int i = 0; i < num_val_imgs; i += num_threads)
+  for (int i = 0; i < num_val_imgs; i++)
   {
-    fprintf(stderr, "\rCalculating mAP for %d samples...", i);
+    printf("\rCalculating mAP for %d samples...", i);
 
-    for (int t = 0; t < num_threads && i + t < num_val_imgs; ++t)
+    args.path = paths[i];
+    pthread_t thr = load_data_in_thread(args);
+    pthread_join(thr, nullptr);
+
+    NetworkPredict(net, buff_resized->data);
+
+    int num_boxes = 0;
+    float hier_thresh = 0;
+    Detection* dets;
+    if (args.type == LETTERBOX_DATA)
     {
-      args.path = paths[i + t];
-      args.im = &buf[t];
-      args.resized = &buf_resized[t];
-      thr[t] = load_data_in_thread(args);
+      dets = GetNetworkBoxes(net, buff->w, buff->h, thresh, hier_thresh, 0, 1,
+          &num_boxes, letter_box);
+    }
+    else
+    {
+      dets = GetNetworkBoxes(
+          net, 1, 1, thresh, hier_thresh, 0, 0, &num_boxes, letter_box);
     }
 
-    for (int t = 0; t < num_threads && i + t < num_val_imgs; ++t)
+    if (l->nms_kind == DEFAULT_NMS)
+      NmsSort(dets, num_boxes, l->classes, nms);
+    else
+      DiouNmsSort(dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
+
+    char label_path[4096];
+    ReplaceImage2Label(paths[i], label_path);
+
+    int num_labels = 0;
+    box_label* gt = read_boxes(label_path, &num_labels);
+    for (int k = 0; k < num_labels; ++k)
     {
-      pthread_join(thr[t], 0);
-      val[t] = buf[t];
-      val_resized[t] = buf_resized[t];
+      num_gt_class[gt[k].id]++;
     }
 
-    for (int t = 0; t < num_threads && i + t < num_val_imgs; ++t)
+    for (int j = 0; j < num_boxes; ++j)
     {
-      NetworkPredict(net, val_resized[t].data);
-
-      int num_boxes = 0;
-      float hier_thresh = 0;
-      Detection* dets;
-      if (args.type == LETTERBOX_DATA)
+      for (int cid = 0; cid < classes; ++cid)
       {
-        dets = GetNetworkBoxes(net, val[t].w, val[t].h, thresh, hier_thresh, 0,
-            1, &num_boxes, letter_box);
-      }
-      else
-      {
-        dets = GetNetworkBoxes(
-            net, 1, 1, thresh, hier_thresh, 0, 0, &num_boxes, letter_box);
-      }
+        Box pred_box = dets[j].bbox;
+        float pred_prob = dets[j].prob[cid];
+        if (abs(pred_prob) < FLT_EPSILON)
+          continue;
 
-      if (l->nms_kind == DEFAULT_NMS)
-        NmsSort(dets, num_boxes, l->classes, nms);
-      else
-        DiouNmsSort(dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
+        num_pred_class[cid]++;
 
-      char label_path[4096];
-      ReplaceImage2Label(paths[i + t], label_path);
-
-      int num_labels = 0;
-      box_label* gt = read_boxes(label_path, &num_labels);
-      for (int k = 0; k < num_labels; ++k)
-      {
-        num_gt_class[gt[k].id]++;
-      }
-
-      for (int j = 0; j < num_boxes; ++j)
-      {
-        for (int cid = 0; cid < classes; ++cid)
+        int gt_idx = -1;
+        float max_iou = 0;
+        for (int k = 0; k < num_labels; ++k)
         {
-          Box pred_box = dets[j].bbox;
-          float pred_prob = dets[j].prob[cid];
-          if (abs(pred_prob) < FLT_EPSILON)
-            continue;
-
-          num_pred_class[cid]++;
-
-          int gt_idx = -1;
-          float max_iou = 0;
-          for (int k = 0; k < num_labels; ++k)
+          Box gt_box(gt[k].x, gt[k].y, gt[k].w, gt[k].h);
+          float iou = Box::Iou(pred_box, gt_box);
+          if (iou > iou_thresh && iou > max_iou && cid == gt[k].id)
           {
-            Box gt_box(gt[k].x, gt[k].y, gt[k].w, gt[k].h);
-            float iou = Box::Iou(pred_box, gt_box);
-            if (iou > iou_thresh && iou > max_iou && cid == gt[k].id)
-            {
-              max_iou = iou;
-              gt_idx = num_gt + k;
-            }
+            max_iou = iou;
+            gt_idx = num_gt + k;
           }
-
-          ValBox v;
-          v.b = pred_box;
-          v.p = pred_prob;
-          v.cid = cid;
-          if (gt_idx > -1)
-            v.matched = true;
-          else
-            v.matched = false;
-          v.gt_idx = gt_idx;
-
-          val_boxes.push_back(v);
         }
+
+        ValBox v;
+        v.b = pred_box;
+        v.p = pred_prob;
+        v.cid = cid;
+        if (gt_idx > -1)
+          v.matched = true;
+        else
+          v.matched = false;
+        v.gt_idx = gt_idx;
+
+        val_boxes.push_back(v);
       }
-
-      num_gt += num_labels;
-
-      FreeDetections(dets, num_boxes);
-      free_image(val[t]);
-      free_image(val_resized[t]);
     }
+
+    num_gt += num_labels;
+
+    FreeDetections(dets, num_boxes);
   }
+
+  delete buff, buff_resized;
+
+  printf("\n # of pred: %d, # of GT: %d\n", val_boxes.size(), num_gt);
 
   // calculating precision-recall curve
   std::sort(val_boxes.begin(), val_boxes.end(),
@@ -568,13 +554,11 @@ float ValidateDetector(
     int tp, fp, fn;
   } pr_t;
 
-  // for PR-curve
   std::vector<std::vector<pr_t>> pr(classes);
   for (size_t i = 0; i < pr.size(); i++)
   {
     pr[i].resize(val_boxes.size());
   }
-  printf("\n pred counts = %d, gt counts = %d  \n", val_boxes.size(), num_gt);
 
   std::vector<bool> gt_flags(num_gt, false);
   for (size_t i = 0; i < val_boxes.size(); ++i)
@@ -624,7 +608,11 @@ float ValidateDetector(
         pr[cid][i].recall = 0;
 
       if (i == val_boxes.size() - 1 && num_pred_class[cid] != tp + fp)
-        throw std::exception("# of predictions is not matched with tp + fp");
+      {
+        printf("# of predictions is not matched with tp + fp: %d != %d",
+            num_pred_class[cid], tp + fp);
+        return -1.0f;
+      }
     }
   }
 
@@ -643,7 +631,7 @@ float ValidateDetector(
       ap += delta_recall * last_precision;
     }
 
-    printf("cid = %d, name = %s, ap = %2.2f%%\n", cid, names[cid], ap * 100);
+    printf(" cid = %d, name = %s, ap = %2.2f%%\n", cid, names[cid], ap * 100);
 
     map += ap;
   }
@@ -656,17 +644,6 @@ float ValidateDetector(
   free_ptrs((void**)names, names_size);
   FreeListContentsKvp(options);
   FreeList(options);
-
-  if (thr)
-    free(thr);
-  if (val)
-    free(val);
-  if (val_resized)
-    free(val_resized);
-  if (buf)
-    free(buf);
-  if (buf_resized)
-    free(buf_resized);
 
   return map;
 }
