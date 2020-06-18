@@ -179,10 +179,7 @@ typedef enum
 {
   SSE,
   MASKED,
-  L1,
-  SEG,
   SMOOTH,
-  WGAN
 } COST_TYPE;
 
 // layer.h
@@ -617,13 +614,6 @@ typedef struct NetworkState
   Network* net;
 } NetworkState;
 
-// network.c -batch inference
-typedef struct det_num_pair
-{
-  int num;
-  Detection* dets;
-} det_num_pair, *pdet_num_pair;
-
 // matrix.h
 typedef struct matrix
 {
@@ -718,7 +708,6 @@ LIB_API void calculate_binary_weights(Network net);
 LIB_API char* Detection2Json(Detection* dets, int nboxes, int classes,
     char** names, long long int frame_id, char const* filename);
 
-LIB_API layer* get_network_layer(Network* net, int i);
 LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
 
 LIB_API void TrainDetector(char const* data_file, char const* model_file,
@@ -741,7 +730,6 @@ LIB_API void* load_thread(void* ptr);
 LIB_API void cuda_pull_array(float* x_gpu, float* x, size_t n);
 LIB_API void cuda_pull_array_async(float* x_gpu, float* x, size_t n);
 LIB_API void cuda_set_device(int n);
-LIB_API void* cuda_get_context();
 
 // utils.h
 LIB_API void free_ptrs(void** ptrs, int n);

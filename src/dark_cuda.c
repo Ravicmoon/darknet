@@ -50,15 +50,6 @@ int cuda_get_device()
   return n;
 }
 
-void* cuda_get_context()
-{
-  CUcontext pctx;
-  CUresult status = cuCtxGetCurrent(&pctx);
-  if (status != CUDA_SUCCESS)
-    fprintf(stderr, " Error: cuCtxGetCurrent() is failed \n");
-  return (void*)pctx;
-}
-
 void check_error(cudaError_t status)
 {
   cudaError_t status2 = cudaGetLastError();
