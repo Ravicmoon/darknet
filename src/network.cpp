@@ -65,7 +65,7 @@ float GetCurrentRate(Network* net)
       return net->learning_rate *
              pow(1 - (float)batch_num / net->max_batches, net->power);
     case RANDOM:
-      return net->learning_rate * pow(rand_uniform(0, 1), net->power);
+      return net->learning_rate * pow(RandUniform(0, 1), net->power);
     case SIG:
       return net->learning_rate *
              (1. / (1. + exp(net->gamma * (batch_num - net->step))));

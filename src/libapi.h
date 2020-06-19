@@ -6,6 +6,4 @@
 #else
 #define LIB_API __attribute__((visibility("default")))
 #endif
-#else
-#define LIB_API
 #endif

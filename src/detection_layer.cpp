@@ -223,42 +223,6 @@ void ForwardDetectionLayer(layer* l, NetworkState state)
       }
     }
 
-    if (0)
-    {
-      float* costs =
-          (float*)xcalloc(l->batch * locations * l->n, sizeof(float));
-      for (b = 0; b < l->batch; ++b)
-      {
-        int index = b * l->inputs;
-        for (i = 0; i < locations; ++i)
-        {
-          for (j = 0; j < l->n; ++j)
-          {
-            int p_index = index + locations * l->classes + i * l->n + j;
-            costs[b * locations * l->n + i * l->n + j] =
-                l->delta[p_index] * l->delta[p_index];
-          }
-        }
-      }
-      int indexes[100];
-      top_k(costs, l->batch * locations * l->n, 100, indexes);
-      float cutoff = costs[indexes[99]];
-      for (b = 0; b < l->batch; ++b)
-      {
-        int index = b * l->inputs;
-        for (i = 0; i < locations; ++i)
-        {
-          for (j = 0; j < l->n; ++j)
-          {
-            int p_index = index + locations * l->classes + i * l->n + j;
-            if (l->delta[p_index] * l->delta[p_index] < cutoff)
-              l->delta[p_index] = 0;
-          }
-        }
-      }
-      free(costs);
-    }
-
     *(l->cost) = pow(mag_array(l->delta, l->outputs * l->batch), 2);
 
     printf(

@@ -488,7 +488,7 @@ void FillConvLayer(layer* l, int batch, int steps, int h, int w, int c, int n,
   {
     for (int i = 0; i < l->nweights; ++i)
     {
-      l->weights[i] = scale * rand_uniform(-1, 1);
+      l->weights[i] = scale * RandUniform(-1, 1);
     }
   }
   int out_h = ConvOutHeight(l);

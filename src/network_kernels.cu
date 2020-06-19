@@ -330,7 +330,7 @@ void ForwardBackwardNetworkGpu(Network* net, float* x, float* y)
 float TrainNetworkDatumGpu(Network* net, float* x, float* y)
 {
   *net->seen += net->batch;
-  if (net->adversarial_lr && rand_int(0, 1) == 1 &&
+  if (net->adversarial_lr && RandInt(0, 1) == 1 &&
       GetCurrentIteration(net) > net->burn_in)
   {
     net->adversarial = 1;

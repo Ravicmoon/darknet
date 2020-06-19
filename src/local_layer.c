@@ -61,7 +61,7 @@ void FillLocalLayer(layer* l, int batch, int h, int w, int c, int n, int size,
   float scale = sqrt(2. / (size * size * c));
   for (int i = 0; i < c * n * size * size; ++i)
   {
-    l->weights[i] = scale * rand_uniform(-1, 1);
+    l->weights[i] = scale * RandUniform(-1, 1);
   }
 
   l->col_image =

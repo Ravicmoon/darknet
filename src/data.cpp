@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 
 #include "box.h"
@@ -32,6 +33,26 @@ list* get_paths(char* filename)
   return lines;
 }
 
+std::vector<std::string> GetPaths(char const* filename)
+{
+  std::vector<std::string> paths;
+
+  std::ifstream instream(filename);
+  while (instream.is_open() && !instream.eof())
+  {
+    char buffer[256];
+    instream.getline(buffer, sizeof(buffer));
+
+    if (std::string(buffer).empty())
+      break;
+
+    paths.push_back(buffer);
+  }
+  instream.close();
+
+  return paths;
+}
+
 char** get_random_paths(char** paths, int n, int m)
 {
   char** random_paths = (char**)xcalloc(n, sizeof(char*));
@@ -42,7 +63,7 @@ char** get_random_paths(char** paths, int n, int m)
   {
     do
     {
-      int index = random_gen() % m;
+      int index = RandGen() % m;
       random_paths[i] = paths[index];
       // if(i == 0) printf("%s\n", paths[index]);
       // printf("grp: %s\n", paths[index]);
@@ -91,7 +112,7 @@ matrix load_image_augment_paths(char** paths, int n, int use_flip, int min,
       im = load_image_color(paths[i], 0, 0);
 
     Image crop = random_augment_image(im, angle, aspect, min, max, size);
-    int flip = use_flip ? random_gen() % 2 : 0;
+    int flip = use_flip ? RandGen() % 2 : 0;
     if (flip)
       flip_image(crop);
     random_distort_image(crop, hue, saturation, exposure);
@@ -558,7 +579,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
     int use_mixup, float jitter, float hue, float saturation, float exposure,
     int mini_batch, int letter_box, int show_imgs)
 {
-  const int random_index = random_gen();
+  const int random_index = RandGen();
   c = c ? c : 3;
 
   if (use_mixup == 2)
@@ -573,7 +594,7 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
         "of these parameters \n");
     exit(0);
   }
-  if (random_gen() % 2 == 0)
+  if (RandGen() % 2 == 0)
     use_mixup = 0;
   int i;
 
@@ -585,8 +606,8 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
     const float min_offset = 0.2;  // 20%
     for (i = 0; i < n; ++i)
     {
-      cut_x[i] = rand_int(w * min_offset, w * (1 - min_offset));
-      cut_y[i] = rand_int(h * min_offset, h * (1 - min_offset));
+      cut_x[i] = RandInt(w * min_offset, w * (1 - min_offset));
+      cut_y[i] = RandInt(h * min_offset, h * (1 - min_offset));
     }
   }
 
@@ -622,20 +643,20 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
       int dw = (ow * jitter);
       int dh = (oh * jitter);
 
-      r1 = random_float();
-      r2 = random_float();
-      r3 = random_float();
-      r4 = random_float();
+      r1 = RandFloat();
+      r2 = RandFloat();
+      r3 = RandFloat();
+      r4 = RandFloat();
 
-      dhue = rand_uniform_strong(-hue, hue);
+      dhue = RandUniformStrong(-hue, hue);
       dsat = RandScale(saturation);
       dexp = RandScale(exposure);
 
-      flip = use_flip ? random_gen() % 2 : 0;
+      flip = use_flip ? RandGen() % 2 : 0;
 
       if (use_blur)
       {
-        int tmp_blur = rand_int(0,
+        int tmp_blur = RandInt(0,
             2);  // 0 - disable, 1 - blur background, 2 - blur the whole image
         if (tmp_blur == 0)
           blur = 0;
@@ -645,15 +666,15 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
           blur = use_blur;
       }
 
-      if (use_gaussian_noise && rand_int(0, 1) == 1)
+      if (use_gaussian_noise && RandInt(0, 1) == 1)
         gaussian_noise = use_gaussian_noise;
       else
         gaussian_noise = 0;
 
-      int pleft = rand_precalc_random(-dw, dw, r1);
-      int pright = rand_precalc_random(-dw, dw, r2);
-      int ptop = rand_precalc_random(-dh, dh, r3);
-      int pbot = rand_precalc_random(-dh, dh, r4);
+      int pleft = RandPreCalc(-dw, dw, r1);
+      int pright = RandPreCalc(-dw, dw, r2);
+      int ptop = RandPreCalc(-dh, dh, r3);
+      int pbot = RandPreCalc(-dh, dh, r4);
       // printf("\n pleft = %d, pright = %d, ptop = %d, pbot = %d, ow = %d, oh =
       // %d \n", pleft, pright, ptop, pbot, ow, oh);
 
@@ -803,8 +824,8 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
         Image tmp_ai = copy_image(ai);
         char buff[1000];
         // sprintf(buff, "aug_%d_%d_%s_%d", random_index, i,
-        // basecfg((char*)filename), random_gen());
-        sprintf(buff, "aug_%d_%d_%d", random_index, i, random_gen());
+        // basecfg((char*)filename), RandGen());
+        sprintf(buff, "aug_%d_%d_%d", random_index, i, RandGen());
         int t;
         for (t = 0; t < boxes; ++t)
         {
@@ -1045,7 +1066,7 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
       aspect, hue, saturation, exposure, dontuse_opencv);
   d.y = load_labels_paths(paths, n, labels, k, hierarchy, label_smooth_eps);
 
-  if (use_mixup && rand_int(0, 1))
+  if (use_mixup && RandInt(0, 1))
   {
     char** paths_mix = get_random_paths(paths_stored, n, m);
     data d2 = {0};
@@ -1083,7 +1104,7 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
     {
       int mixup = use_mixup;
       if (use_mixup == 4)
-        mixup = rand_int(2, 3);  // alternate CutMix and Mosaic
+        mixup = RandInt(2, 3);  // alternate CutMix and Mosaic
 
       // MixUp -----------------------------------
       if (mixup == 1)
@@ -1105,10 +1126,10 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
       {
         const float min = 0.3;  // 0.3*0.3 = 9%
         const float max = 0.8;  // 0.8*0.8 = 64%
-        const int cut_w = rand_int(w * min, w * max);
-        const int cut_h = rand_int(h * min, h * max);
-        const int cut_x = rand_int(0, w - cut_w - 1);
-        const int cut_y = rand_int(0, h - cut_h - 1);
+        const int cut_w = RandInt(w * min, w * max);
+        const int cut_h = RandInt(h * min, h * max);
+        const int cut_x = RandInt(0, w - cut_w - 1);
+        const int cut_y = RandInt(0, h - cut_h - 1);
         const int left = cut_x;
         const int right = cut_x + cut_w;
         const int top = cut_y;
@@ -1152,8 +1173,8 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
       else if (mixup == 3)
       {
         const float min_offset = 0.2;  // 20%
-        const int cut_x = rand_int(w * min_offset, w * (1 - min_offset));
-        const int cut_y = rand_int(h * min_offset, h * (1 - min_offset));
+        const int cut_x = RandInt(w * min_offset, w * (1 - min_offset));
+        const int cut_y = RandInt(h * min_offset, h * (1 - min_offset));
 
         float s1 = (float)(cut_x * cut_y) / (w * h);
         float s2 = (float)((w - cut_x) * cut_y) / (w * h);
@@ -1206,7 +1227,7 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
     int i;
     for (i = 0; i < d.X.rows; ++i)
     {
-      if (random_gen() % 2)
+      if (RandGen() % 2)
       {
         Image im = make_empty_image(w, h, 3);
         im.data = d.X.vals[i];
@@ -1233,7 +1254,7 @@ data load_data_augment(char** paths, int n, int m, char** labels, int k,
       Image im = make_empty_image(w, h, 3);
       im.data = d.X.vals[i];
       char buff[1000];
-      sprintf(buff, "aug_%d_%s_%d", i, BaseCfg((char*)paths[i]), random_gen());
+      sprintf(buff, "aug_%d_%s_%d", i, BaseCfg((char*)paths[i]), RandGen());
       save_image(im, buff);
 
       char buff_string[1000];
@@ -1311,7 +1332,7 @@ void get_random_batch(data d, int n, float* X, float* y)
   int j;
   for (j = 0; j < n; ++j)
   {
-    int index = random_gen() % d.X.rows;
+    int index = RandGen() % d.X.rows;
     memcpy(X + j * d.X.cols, d.X.vals[index], d.X.cols * sizeof(float));
     memcpy(y + j * d.y.cols, d.y.vals[index], d.y.cols * sizeof(float));
   }

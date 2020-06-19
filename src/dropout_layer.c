@@ -93,7 +93,7 @@ void ForwardDropoutLayer(layer* l, NetworkState state)
 
   for (int i = 0; i < l->batch * l->inputs; ++i)
   {
-    float r = rand_uniform(0, 1);
+    float r = RandUniform(0, 1);
     l->rand[i] = r;
     if (r < l->probability)
       state.input[i] = 0;

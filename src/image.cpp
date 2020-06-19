@@ -316,8 +316,8 @@ Image letterbox_image(Image im, int w, int h)
 
 Image random_crop_image(Image im, int w, int h)
 {
-  int dx = rand_int(0, im.w - w);
-  int dy = rand_int(0, im.h - h);
+  int dx = RandInt(0, im.w - w);
+  int dy = RandInt(0, im.h - h);
   Image crop = crop_image(im, dx, dy, w, h);
   return crop;
 }
@@ -326,11 +326,11 @@ Image random_augment_image(
     Image im, float angle, float aspect, int low, int high, int size)
 {
   aspect = RandScale(aspect);
-  int r = rand_int(low, high);
+  int r = RandInt(low, high);
   int min = (im.h < im.w * aspect) ? im.h : im.w * aspect;
   float scale = (float)r / min;
 
-  float rad = rand_uniform(-angle, angle) * 2.0 * M_PI / 360.;
+  float rad = RandUniform(-angle, angle) * 2.0 * M_PI / 360.;
 
   float dx = (im.w * scale / aspect - size) / 2.;
   float dy = (im.h * scale - size) / 2.;
@@ -338,8 +338,8 @@ Image random_augment_image(
     dx = 0;
   if (dy < 0)
     dy = 0;
-  dx = rand_uniform(-dx, dx);
-  dy = rand_uniform(-dy, dy);
+  dx = RandUniform(-dx, dx);
+  dy = RandUniform(-dy, dy);
 
   Image crop = rotate_crop_image(im, rad, scale, size, size, dx, dy, aspect);
 
@@ -515,7 +515,7 @@ void distort_image(Image im, float hue, float sat, float val)
 
 void random_distort_image(Image im, float hue, float saturation, float exposure)
 {
-  float dhue = rand_uniform_strong(-hue, hue);
+  float dhue = RandUniformStrong(-hue, hue);
   float dsat = RandScale(saturation);
   float dexp = RandScale(exposure);
   distort_image(im, dhue, dsat, dexp);

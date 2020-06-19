@@ -61,7 +61,7 @@ void FillConnectedLayer(layer* l, int batch, int steps, int inputs, int outputs,
   float scale = sqrt(2.f / inputs);
   for (int i = 0; i < outputs * inputs; ++i)
   {
-    l->weights[i] = scale * rand_uniform(-1, 1);
+    l->weights[i] = scale * RandUniform(-1, 1);
   }
 
   for (int i = 0; i < outputs; ++i)

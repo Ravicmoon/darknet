@@ -27,6 +27,15 @@
 #pragma warning(disable : 4996)
 #endif
 
+void free_ptrs(void** ptrs, int n)
+{
+  for (int i = 0; i < n; ++i)
+  {
+    free(ptrs[i]);
+  }
+  free(ptrs);
+}
+
 void* xmalloc(size_t size)
 {
   void* ptr = malloc(size);
@@ -123,25 +132,6 @@ std::string ReplaceImage2Label(std::string str)
   return str;
 }
 
-void top_k(float* a, int n, int k, int* index)
-{
-  int i, j;
-  for (j = 0; j < k; ++j) index[j] = -1;
-  for (i = 0; i < n; ++i)
-  {
-    int curr = i;
-    for (j = 0; j < k; ++j)
-    {
-      if ((index[j] < 0) || a[curr] > a[index[j]])
-      {
-        int swap = curr;
-        curr = index[j];
-        index[j] = swap;
-      }
-    }
-  }
-}
-
 void error(const char* s)
 {
   perror(s);
@@ -170,13 +160,6 @@ void strip(char* s)
       s[i - offset] = c;
   }
   s[len - offset] = '\0';
-}
-
-void free_ptrs(void** ptrs, int n)
-{
-  int i;
-  for (i = 0; i < n; ++i) free(ptrs[i]);
-  free(ptrs);
 }
 
 char* fgetl(FILE* fp)
@@ -322,7 +305,7 @@ int int_index(int* a, int val, int n)
   return -1;
 }
 
-unsigned int random_gen()
+unsigned int RandGen()
 {
   unsigned int rnd = 0;
 #ifdef WIN32
@@ -336,7 +319,7 @@ unsigned int random_gen()
   return rnd;
 }
 
-int rand_int(int min, int max)
+int RandInt(int min, int max)
 {
   if (max < min)
   {
@@ -344,11 +327,11 @@ int rand_int(int min, int max)
     min = max;
     max = s;
   }
-  int r = (random_gen() % (max - min + 1)) + min;
+  int r = (RandGen() % (max - min + 1)) + min;
   return r;
 }
 
-float random_float()
+float RandFloat()
 {
   unsigned int rnd = 0;
 #ifdef WIN32
@@ -367,7 +350,7 @@ float random_float()
 }
 
 // From http://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
-float rand_normal()
+float RandNormal()
 {
   static int haveSpare = 0;
   static double rand1, rand2;
@@ -380,16 +363,24 @@ float rand_normal()
 
   haveSpare = 1;
 
-  rand1 = random_gen() / ((double)RAND_MAX);
+  rand1 = RandGen() / ((double)RAND_MAX);
   if (rand1 < 1e-100)
     rand1 = 1e-100;
   rand1 = -2 * log(rand1);
-  rand2 = (random_gen() / ((double)RAND_MAX)) * 2.0 * M_PI;
+  rand2 = (RandGen() / ((double)RAND_MAX)) * 2.0 * M_PI;
 
   return sqrt(rand1) * cos(rand2);
 }
 
-float rand_uniform(float min, float max)
+float RandScale(float s)
+{
+  float scale = RandUniformStrong(1, s);
+  if (RandGen() % 2)
+    return scale;
+  return 1. / scale;
+}
+
+float RandUniform(float min, float max)
 {
   if (max < min)
   {
@@ -404,18 +395,9 @@ float rand_uniform(float min, float max)
 #else
   return ((float)rand() / RAND_MAX * (max - min)) + min;
 #endif
-  // return (random_float() * (max - min)) + min;
 }
 
-float RandScale(float s)
-{
-  float scale = rand_uniform_strong(1, s);
-  if (random_gen() % 2)
-    return scale;
-  return 1. / scale;
-}
-
-float rand_uniform_strong(float min, float max)
+float RandUniformStrong(float min, float max)
 {
   if (max < min)
   {
@@ -423,10 +405,10 @@ float rand_uniform_strong(float min, float max)
     min = max;
     max = swap;
   }
-  return (random_float() * (max - min)) + min;
+  return (RandFloat() * (max - min)) + min;
 }
 
-float rand_precalc_random(float min, float max, float random_part)
+float RandPreCalc(float min, float max, float random_part)
 {
   if (max < min)
   {

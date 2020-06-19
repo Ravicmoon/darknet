@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "yolo_core.h"
+#include <string>
+
+#include "libapi.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -11,6 +13,8 @@
 
 #define max_val_cmp(a, b) (((a) > (b)) ? (a) : (b))
 #define min_val_cmp(a, b) (((a) < (b)) ? (a) : (b))
+
+LIB_API void free_ptrs(void** ptrs, int n);
 
 void* xmalloc(size_t size);
 void* xcalloc(size_t nmemb, size_t size);
@@ -33,14 +37,14 @@ float sum_array(float* a, int n);
 float mag_array(float* a, int n);
 float dist_array(float* a, float* b, int n, int sub);
 
-unsigned int random_gen();
-int rand_int(int min, int max);
-float random_float();
-float rand_normal();
-float rand_uniform(float min, float max);
+unsigned int RandGen();
+int RandInt(int min, int max);
+float RandFloat();
+float RandNormal();
 float RandScale(float s);
-float rand_uniform_strong(float min, float max);
-float rand_precalc_random(float min, float max, float random_part);
+float RandUniform(float min, float max);
+float RandUniformStrong(float min, float max);
+float RandPreCalc(float min, float max, float random_part);
 
 int int_index(int* a, int val, int n);
 int MakeDir(char const* path, int mode);

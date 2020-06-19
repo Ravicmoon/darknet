@@ -15,29 +15,6 @@ void free_matrix(matrix m)
   free(m.vals);
 }
 
-float matrix_topk_accuracy(matrix truth, matrix guess, int k)
-{
-  int* indexes = (int*)xcalloc(k, sizeof(int));
-  int n = truth.cols;
-  int i, j;
-  int correct = 0;
-  for (i = 0; i < truth.rows; ++i)
-  {
-    top_k(guess.vals[i], n, k, indexes);
-    for (j = 0; j < k; ++j)
-    {
-      int class_id = indexes[j];
-      if (truth.vals[i][class_id])
-      {
-        ++correct;
-        break;
-      }
-    }
-  }
-  free(indexes);
-  return (float)correct / truth.rows;
-}
-
 void scale_matrix(matrix m, float scale)
 {
   int i, j;

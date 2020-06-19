@@ -31,6 +31,7 @@
 #include "image.h"
 #include "libapi.h"
 #include "option_list.h"
+#include "utils.h"
 
 #define SECRET_NUM -1234
 
@@ -730,10 +731,6 @@ LIB_API void* load_thread(void* ptr);
 LIB_API void cuda_pull_array(float* x_gpu, float* x, size_t n);
 LIB_API void cuda_pull_array_async(float* x_gpu, float* x, size_t n);
 LIB_API void cuda_set_device(int n);
-
-// utils.h
-LIB_API void free_ptrs(void** ptrs, int n);
-LIB_API void top_k(float* a, int n, int k, int* index);
 
 // tree.h
 LIB_API tree* read_tree(char* filename);
