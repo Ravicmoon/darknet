@@ -8,7 +8,6 @@
 #include "network.h"
 #include "option_list.h"
 #include "parser.h"
-#include "region_layer.h"
 #include "utils.h"
 #include "visualize.h"
 #include "yolo_core.h"
@@ -125,7 +124,6 @@ void TrainDetector(char const* data_file, char const* model_file,
   args.d = &buffer;
   args.type = DETECTION_DATA;
 
-  args.angle = net->angle;
   args.gaussian_noise = net->gaussian_noise;
   args.blur = net->blur;
   args.mixup = net->mixup;
@@ -381,31 +379,26 @@ float ValidateDetector(
     Network* net, char const* data_file, float const iou_thresh, int letter_box)
 {
   list* options = ReadDataCfg(data_file);
-  char* val_imgs = FindOptionStr(options, "valid", "data/valid.txt");
-  if (!Exists(val_imgs))
+  char* val_file = FindOptionStr(options, "valid", "data/valid.txt");
+  if (!Exists(val_file))
   {
-    printf("%s does not exists", val_imgs);
+    printf("%s does not exists", val_file);
     return -1.0f;
   }
 
-  char* name_list = FindOptionStr(options, "names", "data/names.list");
-  int names_size = 0;
-  char** names = GetLabels(name_list, &names_size);
+  char* name_file = FindOptionStr(options, "names", "data/names.list");
+  std::vector<std::string> name_list = GetList(name_file);
 
   layer* l = &net->layers[net->n - 1];
   int classes = l->classes;
-  if (classes != names_size)
+  if (classes != name_list.size())
   {
     printf(
         "\n Error: in the file %s number of names %d that isn't equal to "
         "classes=%d\n",
-        name_list, names_size, classes);
+        name_file, name_list.size(), classes);
     return -1.0f;
   }
-
-  list* val_img_paths = get_paths(val_imgs);
-  char** paths = (char**)ListToArray(val_img_paths);
-  int num_val_imgs = val_img_paths->size;
 
   float const thresh = .005;
   float const nms = .45;
@@ -429,12 +422,14 @@ float ValidateDetector(
   std::vector<int> num_pred_class(classes, 0);
   int num_gt = 0;
 
+  std::vector<std::string> val_img_list = GetList(val_file);
+
   double start = GetTimePoint();
-  for (int i = 0; i < num_val_imgs; i++)
+  for (size_t i = 0; i < val_img_list.size(); i++)
   {
     printf("\rCalculating mAP for %d samples...", i);
 
-    args.path = paths[i];
+    args.path = val_img_list[i].c_str();
     pthread_t thr = load_data_in_thread(args);
     pthread_join(thr, nullptr);
 
@@ -459,7 +454,7 @@ float ValidateDetector(
     else
       DiouNmsSort(dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
 
-    std::string label_path = ReplaceImage2Label(paths[i]);
+    std::string label_path = ReplaceImage2Label(val_img_list[i]);
     std::vector<BoxLabel> gt = ReadBoxAnnot(label_path);
     for (size_t k = 0; k < gt.size(); ++k)
     {
@@ -606,7 +601,8 @@ float ValidateDetector(
       ap += delta_recall * last_precision;
     }
 
-    printf(" cid = %d, name = %s, ap = %2.2f%%\n", cid, names[cid], ap * 100);
+    printf(
+        " cid = %d, name = %s, ap = %2.2f%%\n", cid, name_list[cid], ap * 100);
 
     map += ap;
   }
@@ -616,7 +612,6 @@ float ValidateDetector(
   printf(" Spent time: %.2lf s\n", (GetTimePoint() - start) / 1e6);
 
   // free memory
-  free_ptrs((void**)names, names_size);
   FreeListContentsKvp(options);
   FreeList(options);
 

@@ -65,25 +65,7 @@ typedef struct load_args load_args;
 struct data;
 typedef struct data data;
 
-struct tree;
-typedef struct tree tree;
-
 extern int gpu_index;
-
-// tree.h
-typedef struct tree
-{
-  int* leaf;
-  int n;
-  int* parent;
-  int* child;
-  int* group;
-  char** name;
-
-  int groups;
-  int* group_size;
-  int* group_offset;
-} tree;
 
 // activations.h
 typedef enum
@@ -151,7 +133,6 @@ typedef enum
   CONNECTED,
   MAXPOOL,
   LOCAL_AVGPOOL,
-  SOFTMAX,
   DETECTION,
   DROPOUT,
   CROP,
@@ -165,7 +146,6 @@ typedef enum
   BATCHNORM,
   NETWORK,
   XNOR,
-  REGION,
   YOLO,
   GAUSSIAN_YOLO,
   REORG,
@@ -223,7 +203,6 @@ struct layer
   int out_channels;
   int reverse;
   int flatten;
-  int spatial;
   int pad;
   int sqrt;
   int flip;
@@ -247,8 +226,6 @@ struct layer
   int focal_loss;
   float* classes_multipliers;
   float label_smooth_eps;
-  int noloss;
-  int softmax;
   int classes;
   int coords;
   int rescore;
@@ -277,17 +254,13 @@ struct layer
   float coord_scale;
   float object_scale;
   float noobject_scale;
-  float mask_scale;
   float class_scale;
-  int bias_match;
   float random;
   float ignore_thresh;
   float truth_thresh;
   float iou_thresh;
   float thresh;
   float focus;
-  int classfix;
-  int absolute;
 
   int onlyforward;
   int stopbackward;
@@ -297,7 +270,6 @@ struct layer
   int dontload;
   int dontloadscales;
 
-  float temperature;
   float probability;
   float dropblock_size_rel;
   int dropblock_size_abs;
@@ -392,8 +364,6 @@ struct layer
   char* t_bit_input;
 
   struct layer* input_layer;
-
-  tree* softmax_tree;
 
   size_t workspace_size;
 
@@ -565,12 +535,10 @@ typedef struct Network
   float exposure;
   float saturation;
   float hue;
-  int random;
   int curr_subdiv;
   int try_fix_nan;
 
   int gpu_index;
-  tree* hierarchy;
 
   float* input;
   float* truth;
@@ -647,34 +615,23 @@ typedef struct load_args
 {
   int threads;
   char** paths;
-  char* path;
+  char const* path;
   int n;
   int m;
-  char** labels;
   int h;
   int w;
   int c;  // color depth
-  int out_w;
-  int out_h;
-  int nh;
-  int nw;
   int num_boxes;
   int min, max, size;
   int classes;
   int scale;
-  int center;
-  int coords;
-  int mini_batch;
   int letter_box;
   int show_imgs;
-  int dontuse_opencv;
   float jitter;
   int flip;
   int gaussian_noise;
   int blur;
   int mixup;
-  float label_smooth_eps;
-  float angle;
   float aspect;
   float saturation;
   float exposure;
@@ -683,7 +640,6 @@ typedef struct load_args
   Image* im;
   Image* resized;
   data_type type;
-  tree* hierarchy;
 } load_args;
 
 // data.h
@@ -731,9 +687,6 @@ LIB_API void* load_thread(void* ptr);
 LIB_API void cuda_pull_array(float* x_gpu, float* x, size_t n);
 LIB_API void cuda_pull_array_async(float* x_gpu, float* x, size_t n);
 LIB_API void cuda_set_device(int n);
-
-// tree.h
-LIB_API tree* read_tree(char* filename);
 
 // gemm.h
 LIB_API void init_cpu();

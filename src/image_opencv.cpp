@@ -536,15 +536,3 @@ void blend_images_cv(Image new_img, float alpha, Image old_img, float beta)
       cv::Size(old_img.w, old_img.h), CV_32FC(old_img.c), old_img.data);
   cv::addWeighted(new_mat, alpha, old_mat, beta, 0.0, new_mat);
 }
-
-// bilateralFilter bluring
-Image blur_image(Image src_img, int ksize)
-{
-  cv::Mat src = image_to_mat(src_img);
-  cv::Mat dst;
-  cv::Size kernel_size = cv::Size(ksize, ksize);
-  cv::GaussianBlur(src, dst, kernel_size, 0);
-  // cv::bilateralFilter(src, dst, ksize, 75, 75);
-  Image dst_img = mat_to_image(dst);
-  return dst_img;
-}

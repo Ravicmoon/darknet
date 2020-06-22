@@ -32,6 +32,3 @@ Image image_data_augmentation(mat_cv* mat, int w, int h, int pleft, int ptop,
 
 // blend two images with (alpha and beta)
 void blend_images_cv(Image new_img, float alpha, Image old_img, float beta);
-
-// bilateralFilter bluring
-Image blur_image(Image src_img, int ksize);

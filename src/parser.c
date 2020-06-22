@@ -23,13 +23,11 @@
 #include "local_layer.h"
 #include "maxpool_layer.h"
 #include "option_list.h"
-#include "region_layer.h"
 #include "reorg_layer.h"
 #include "reorg_old_layer.h"
 #include "route_layer.h"
 #include "scale_channels_layer.h"
 #include "shortcut_layer.h"
-#include "softmax_layer.h"
 #include "upsample_layer.h"
 #include "utils.h"
 #include "version.h"
@@ -113,8 +111,6 @@ LAYER_TYPE StrToLayerType(char* type)
     return COST;
   if (strcmp(type, "[detection]") == 0)
     return DETECTION;
-  if (strcmp(type, "[region]") == 0)
-    return REGION;
   if (strcmp(type, "[yolo]") == 0)
     return YOLO;
   if (strcmp(type, "[Gaussian_yolo]") == 0)
@@ -141,8 +137,6 @@ LAYER_TYPE StrToLayerType(char* type)
     return DROPOUT;
   if (strcmp(type, "[batchnorm]") == 0)
     return BATCHNORM;
-  if (strcmp(type, "[soft]") == 0 || strcmp(type, "[softmax]") == 0)
-    return SOFTMAX;
   if (strcmp(type, "[route]") == 0)
     return ROUTE;
   if (strcmp(type, "[upsample]") == 0)
@@ -256,23 +250,6 @@ void ParseConnected(layer* l, list* options, SizeParams params)
 
   FillConnectedLayer(
       l, params.batch, 1, params.inputs, output, activation, batch_normalize);
-}
-
-void ParseSoftmax(layer* l, list* options, SizeParams params)
-{
-  int groups = FindOptionIntQuiet(options, "groups", 1);
-
-  FillSoftmaxLayer(l, params.batch, params.inputs, groups);
-
-  l->temperature = FindOptionFloatQuiet(options, "temperature", 1);
-  char* tree_file = FindOptionStr(options, "tree", 0);
-  if (tree_file)
-    l->softmax_tree = read_tree(tree_file);
-  l->w = params.w;
-  l->h = params.h;
-  l->c = params.c;
-  l->spatial = FindOptionFloatQuiet(options, "spatial", 0);
-  l->noloss = FindOptionIntQuiet(options, "noloss", 0);
 }
 
 int* parse_yolo_mask(char* a, int* num)
@@ -594,72 +571,6 @@ void ParseGaussianYolo(layer* l, list* options, SizeParams params)
   }
 }
 
-void ParseRegion(layer* l, list* options, SizeParams params)
-{
-  int coords = FindOptionInt(options, "coords", 4);
-  int classes = FindOptionInt(options, "classes", 20);
-  int num = FindOptionInt(options, "num", 1);
-  int max_boxes = FindOptionIntQuiet(options, "max", 90);
-
-  FillRegionLayer(
-      l, params.batch, params.w, params.h, num, classes, coords, max_boxes);
-
-  if (l->outputs != params.inputs)
-  {
-    printf("Error: l->outputs == params.inputs \n");
-    printf(
-        "filters= in the [convolutional]-layer doesn't correspond to classes= "
-        "or num= in [region]-layer \n");
-    exit(EXIT_FAILURE);
-  }
-
-  l->log = FindOptionIntQuiet(options, "log", 0);
-  l->sqrt = FindOptionIntQuiet(options, "sqrt", 0);
-
-  l->softmax = FindOptionInt(options, "softmax", 0);
-  l->focal_loss = FindOptionIntQuiet(options, "focal_loss", 0);
-  l->jitter = FindOptionFloat(options, "jitter", .2);
-  l->rescore = FindOptionIntQuiet(options, "rescore", 0);
-
-  l->thresh = FindOptionFloat(options, "thresh", .5);
-  l->classfix = FindOptionIntQuiet(options, "classfix", 0);
-  l->absolute = FindOptionIntQuiet(options, "absolute", 0);
-  l->random = FindOptionFloatQuiet(options, "random", 0);
-
-  l->coord_scale = FindOptionFloat(options, "coord_scale", 1);
-  l->object_scale = FindOptionFloat(options, "object_scale", 1);
-  l->noobject_scale = FindOptionFloat(options, "noobject_scale", 1);
-  l->mask_scale = FindOptionFloat(options, "mask_scale", 1);
-  l->class_scale = FindOptionFloat(options, "class_scale", 1);
-  l->bias_match = FindOptionIntQuiet(options, "bias_match", 0);
-
-  char* tree_file = FindOptionStr(options, "tree", 0);
-  if (tree_file)
-    l->softmax_tree = read_tree(tree_file);
-
-  char* map_file = FindOptionStr(options, "map", 0);
-  if (map_file)
-    l->map = read_map(map_file);
-
-  char* a = FindOptionStr(options, "anchors", 0);
-  if (a)
-  {
-    int len = strlen(a);
-    int n = 1;
-    for (int i = 0; i < len; ++i)
-    {
-      if (a[i] == ',')
-        ++n;
-    }
-    for (int i = 0; i < n && i < num * 2; ++i)
-    {
-      float bias = atof(a);
-      l->biases[i] = bias;
-      a = strchr(a, ',') + 1;
-    }
-  }
-}
-
 void ParseDetection(layer* l, list* options, SizeParams params)
 {
   int coords = FindOptionInt(options, "coords", 1);
@@ -671,7 +582,6 @@ void ParseDetection(layer* l, list* options, SizeParams params)
   FillDetectionLayer(
       l, params.batch, params.inputs, num, side, classes, coords, rescore);
 
-  l->softmax = FindOptionInt(options, "softmax", 0);
   l->sqrt = FindOptionInt(options, "sqrt", 0);
 
   l->max_boxes = FindOptionIntQuiet(options, "max", 30);
@@ -1334,11 +1244,6 @@ void ParseNetworkCfg(Network* net, char const* filename, int batch)
       ParseCost(l, options, params);
       l->keep_delta_gpu = 1;
     }
-    else if (lt == REGION)
-    {
-      ParseRegion(l, options, params);
-      l->keep_delta_gpu = 1;
-    }
     else if (lt == YOLO)
     {
       ParseYolo(l, options, params);
@@ -1352,12 +1257,6 @@ void ParseNetworkCfg(Network* net, char const* filename, int batch)
     else if (lt == DETECTION)
     {
       ParseDetection(l, options, params);
-    }
-    else if (lt == SOFTMAX)
-    {
-      ParseSoftmax(l, options, params);
-      net->hierarchy = l->softmax_tree;
-      l->keep_delta_gpu = 1;
     }
     else if (lt == BATCHNORM)
     {
@@ -1684,8 +1583,7 @@ void ParseNetworkCfg(Network* net, char const* filename, int batch)
 #endif
 
   LAYER_TYPE lt = net->layers[net->n - 1].type;
-  if ((net->w % 32 != 0 || net->h % 32 != 0) &&
-      (lt == YOLO || lt == REGION || lt == DETECTION))
+  if ((net->w % 32 != 0 || net->h % 32 != 0) && (lt == YOLO || lt == DETECTION))
   {
     printf(
         "\n Warning: width=%d and height=%d in cfg-file must be divisible by "

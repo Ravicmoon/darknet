@@ -19,11 +19,9 @@
 #include "maxpool_layer.h"
 #include "network.h"
 #include "parser.h"
-#include "region_layer.h"
 #include "reorg_layer.h"
 #include "route_layer.h"
 #include "shortcut_layer.h"
-#include "softmax_layer.h"
 #include "utils.h"
 
 float* GetNetworkOutputGpu(Network* net);
@@ -563,8 +561,7 @@ float TrainNetworks(Network* nets, int n, data d, int interval)
 float* GetNetworkOutputLayerGpu(Network* net, int i)
 {
   layer* l = &net->layers[i];
-  if (l->type != REGION)
-    cuda_pull_array(l->output_gpu, l->output, l->outputs * l->batch);
+  cuda_pull_array(l->output_gpu, l->output, l->outputs * l->batch);
 
   return l->output;
 }

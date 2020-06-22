@@ -18,13 +18,11 @@
 #include "gaussian_yolo_layer.h"
 #include "local_layer.h"
 #include "maxpool_layer.h"
-#include "region_layer.h"
 #include "reorg_layer.h"
 #include "reorg_old_layer.h"
 #include "route_layer.h"
 #include "scale_channels_layer.h"
 #include "shortcut_layer.h"
-#include "softmax_layer.h"
 #include "upsample_layer.h"
 #include "utils.h"
 #include "yolo_layer.h"
@@ -315,10 +313,6 @@ void ResizeNetwork(Network* net, int w, int h)
     {
       ResizeBatchnormLayer(l, w, h);
     }
-    else if (l->type == REGION)
-    {
-      ResizeRegionLayer(l, w, h);
-    }
     else if (l->type == YOLO)
     {
       ResizeYoloLayer(l, w, h);
@@ -449,7 +443,7 @@ int NumDetections(Network* net, float thresh)
     if (l->type == GAUSSIAN_YOLO)
       s += GaussianYoloNumDetections(l, thresh);
 
-    if (l->type == DETECTION || l->type == REGION)
+    if (l->type == DETECTION)
       s += l->w * l->h * l->n;
   }
   return s;
@@ -476,36 +470,6 @@ Detection* MakeNetworkBoxes(Network* net, float thresh, int* num)
   }
 
   return dets;
-}
-
-void GetRegionDetections(layer const* l, int w, int h, int net_w, int net_h,
-    float thresh, int* map, float hier, int relative, Detection* dets,
-    int letter)
-{
-  Box* boxes = (Box*)xcalloc(l->w * l->h * l->n, sizeof(Box));
-  float** probs = (float**)xcalloc(l->w * l->h * l->n, sizeof(float*));
-
-  for (int j = 0; j < l->w * l->h * l->n; ++j)
-  {
-    probs[j] = (float*)xcalloc(l->classes, sizeof(float));
-  }
-  GetRegionBoxes(l, 1, 1, thresh, probs, boxes, 0, map);
-  for (int j = 0; j < l->w * l->h * l->n; ++j)
-  {
-    dets[j].classes = l->classes;
-    dets[j].bbox = boxes[j];
-    dets[j].objectness = 1;
-    for (int i = 0; i < l->classes; ++i)
-    {
-      dets[j].prob[i] = probs[j][i];
-    }
-  }
-
-  free(boxes);
-  free_ptrs((void**)probs, l->w * l->h * l->n);
-
-  CorrectYoloBoxes(
-      dets, l->w * l->h * l->n, w, h, net_w, net_h, relative, letter);
 }
 
 void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
@@ -536,13 +500,6 @@ void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
       int count = GetGaussianYoloDetections(
           l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
       dets += count;
-    }
-
-    if (l->type == REGION)
-    {
-      GetRegionDetections(
-          l, w, h, net->w, net->h, thresh, map, hier, relative, dets, letter);
-      dets += l->w * l->h * l->n;
     }
 
     if (l->type == DETECTION)

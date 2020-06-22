@@ -515,19 +515,6 @@ void l1_cpu(int n, float* pred, float* truth, float* delta, float* error)
   }
 }
 
-void softmax_x_ent_cpu(
-    int n, float* pred, float* truth, float* delta, float* error)
-{
-  int i;
-  for (i = 0; i < n; ++i)
-  {
-    float t = truth[i];
-    float p = pred[i];
-    error[i] = (t) ? -log(p) : 0;
-    delta[i] = t - p;
-  }
-}
-
 void logistic_x_ent_cpu(
     int n, float* pred, float* truth, float* delta, float* error)
 {
@@ -558,42 +545,6 @@ float dot_cpu(int N, float* X, int INCX, float* Y, int INCY)
   float dot = 0;
   for (i = 0; i < N; ++i) dot += X[i * INCX] * Y[i * INCY];
   return dot;
-}
-
-void softmax(float* input, int n, float temp, float* output, int stride)
-{
-  int i;
-  float sum = 0;
-  float largest = -FLT_MAX;
-  for (i = 0; i < n; ++i)
-  {
-    if (input[i * stride] > largest)
-      largest = input[i * stride];
-  }
-  for (i = 0; i < n; ++i)
-  {
-    float e = exp(input[i * stride] / temp - largest / temp);
-    sum += e;
-    output[i * stride] = e;
-  }
-  for (i = 0; i < n; ++i)
-  {
-    output[i * stride] /= sum;
-  }
-}
-
-void softmax_cpu(float* input, int n, int batch, int batch_offset, int groups,
-    int group_offset, int stride, float temp, float* output)
-{
-  int g, b;
-  for (b = 0; b < batch; ++b)
-  {
-    for (g = 0; g < groups; ++g)
-    {
-      softmax(input + b * batch_offset + g * group_offset, n, temp,
-          output + b * batch_offset + g * group_offset, stride);
-    }
-  }
 }
 
 void upsample_cpu(float* in, int w, int h, int c, int batch, int stride,

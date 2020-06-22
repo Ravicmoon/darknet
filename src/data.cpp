@@ -33,7 +33,7 @@ list* get_paths(char* filename)
   return lines;
 }
 
-std::vector<std::string> GetPaths(char const* filename)
+std::vector<std::string> GetList(char const* filename)
 {
   std::vector<std::string> paths;
 
@@ -73,64 +73,6 @@ char** get_random_paths(char** paths, int n, int m)
   }
   pthread_mutex_unlock(&mutex);
   return random_paths;
-}
-
-matrix load_image_paths(char** paths, int n, int w, int h)
-{
-  int i;
-  matrix X;
-  X.rows = n;
-  X.vals = (float**)xcalloc(X.rows, sizeof(float*));
-  X.cols = 0;
-
-  for (i = 0; i < n; ++i)
-  {
-    Image im = load_image_color(paths[i], w, h);
-    X.vals[i] = im.data;
-    X.cols = im.h * im.w * im.c;
-  }
-  return X;
-}
-
-matrix load_image_augment_paths(char** paths, int n, int use_flip, int min,
-    int max, int w, int h, float angle, float aspect, float hue,
-    float saturation, float exposure, int dontuse_opencv)
-{
-  int i;
-  matrix X;
-  X.rows = n;
-  X.vals = (float**)xcalloc(X.rows, sizeof(float*));
-  X.cols = 0;
-
-  for (i = 0; i < n; ++i)
-  {
-    int size = w > h ? w : h;
-    Image im;
-    if (dontuse_opencv)
-      im = load_image_stb_resize(paths[i], 0, 0, 3);
-    else
-      im = load_image_color(paths[i], 0, 0);
-
-    Image crop = random_augment_image(im, angle, aspect, min, max, size);
-    int flip = use_flip ? RandGen() % 2 : 0;
-    if (flip)
-      flip_image(crop);
-    random_distort_image(crop, hue, saturation, exposure);
-
-    Image sized = resize_image(crop, w, h);
-
-    // show_image(im, "orig");
-    // show_image(sized, "sized");
-    // show_image(sized, paths[i]);
-    // wait_until_press_key_cv();
-    // printf("w = %d, h = %d \n", sized.w, sized.h);
-
-    free_image(im);
-    free_image(crop);
-    X.vals[i] = sized.data;
-    X.cols = sized.h * sized.w * sized.c;
-  }
-  return X;
 }
 
 std::vector<BoxLabel> ReadBoxAnnot(std::string filename)
@@ -327,105 +269,6 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
   return min_w_h;
 }
 
-void fill_truth_smooth(
-    char* path, char** labels, int k, float* truth, float label_smooth_eps)
-{
-  int i;
-  memset(truth, 0, k * sizeof(float));
-  int count = 0;
-  for (i = 0; i < k; ++i)
-  {
-    if (strstr(path, labels[i]))
-    {
-      truth[i] = (1 - label_smooth_eps);
-      ++count;
-    }
-    else
-    {
-      truth[i] = label_smooth_eps / (k - 1);
-    }
-  }
-  if (count != 1)
-  {
-    printf("Too many or too few labels: %d, %s\n", count, path);
-    count = 0;
-    for (i = 0; i < k; ++i)
-    {
-      if (strstr(path, labels[i]))
-      {
-        printf("\t label %d: %s  \n", count, labels[i]);
-        count++;
-      }
-    }
-  }
-}
-
-void fill_hierarchy(float* truth, int k, tree* hierarchy)
-{
-  int j;
-  for (j = 0; j < k; ++j)
-  {
-    if (truth[j])
-    {
-      int parent = hierarchy->parent[j];
-      while (parent >= 0)
-      {
-        truth[parent] = 1;
-        parent = hierarchy->parent[parent];
-      }
-    }
-  }
-  int i;
-  int count = 0;
-  for (j = 0; j < hierarchy->groups; ++j)
-  {
-    // printf("%d\n", count);
-    int mask = 1;
-    for (i = 0; i < hierarchy->group_size[j]; ++i)
-    {
-      if (truth[count + i])
-      {
-        mask = 0;
-        break;
-      }
-    }
-    if (mask)
-    {
-      for (i = 0; i < hierarchy->group_size[j]; ++i)
-      {
-        truth[count + i] = SECRET_NUM;
-      }
-    }
-    count += hierarchy->group_size[j];
-  }
-}
-
-matrix load_labels_paths(char** paths, int n, char** labels, int k,
-    tree* hierarchy, float label_smooth_eps)
-{
-  matrix y = make_matrix(n, k);
-  int i;
-  for (i = 0; i < n && labels; ++i)
-  {
-    fill_truth_smooth(paths[i], labels, k, y.vals[i], label_smooth_eps);
-    if (hierarchy)
-    {
-      fill_hierarchy(y.vals[i], k, hierarchy);
-    }
-  }
-  return y;
-}
-
-char** GetLabels(char* filename, int* size)
-{
-  list* list = get_paths(filename);
-  if (size)
-    *size = list->size;
-  char** labels = (char**)ListToArray(list);
-  FreeList(list);
-  return labels;
-}
-
 void free_data(data d)
 {
   if (!d.shallow)
@@ -577,7 +420,7 @@ void blend_truth_mosaic(float* new_truth, int boxes, float* old_truth, int w,
 data load_data_detection(int n, char** paths, int m, int w, int h, int c,
     int boxes, int classes, int use_flip, int use_gaussian_noise, int use_blur,
     int use_mixup, float jitter, float hue, float saturation, float exposure,
-    int mini_batch, int letter_box, int show_imgs)
+    int letter_box, int show_imgs)
 {
   const int random_index = RandGen();
   c = c ? c : 3;
@@ -868,8 +711,6 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
 
 void* load_thread(void* ptr)
 {
-  // srand(time(0));
-  // printf("Loading data: %d\n", random_gen());
   load_args a = *(struct load_args*)ptr;
   if (a.exposure == 0)
     a.exposure = 1;
@@ -878,18 +719,11 @@ void* load_thread(void* ptr)
   if (a.aspect == 0)
     a.aspect = 1;
 
-  if (a.type == CLASSIFICATION_DATA)
-  {
-    *a.d = load_data_augment(a.paths, a.n, a.m, a.labels, a.classes,
-        a.hierarchy, a.flip, a.min, a.max, a.w, a.h, a.angle, a.aspect, a.hue,
-        a.saturation, a.exposure, a.mixup, a.blur, a.show_imgs,
-        a.label_smooth_eps, a.dontuse_opencv);
-  }
   if (a.type == DETECTION_DATA)
   {
     *a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.c, a.num_boxes,
         a.classes, a.flip, a.gaussian_noise, a.blur, a.mixup, a.jitter, a.hue,
-        a.saturation, a.exposure, a.mini_batch, a.letter_box, a.show_imgs);
+        a.saturation, a.exposure, a.letter_box, a.show_imgs);
   }
   if (a.type == IMAGE_DATA)
   {
@@ -955,11 +789,8 @@ void* run_thread_loop(void* ptr)
 
 void* load_threads(void* ptr)
 {
-  // srand(time(0));
-  int i;
   load_args args = *(load_args*)ptr;
-  if (args.threads == 0)
-    args.threads = 1;
+  args.threads = std::max(1, args.threads);
   data* out = args.d;
   int total = args.n;
   free(ptr);
@@ -969,9 +800,9 @@ void* load_threads(void* ptr)
     threads = (pthread_t*)xcalloc(args.threads, sizeof(pthread_t));
     run_load_data = (volatile int*)xcalloc(args.threads, sizeof(int));
     args_swap = (load_args*)xcalloc(args.threads, sizeof(load_args));
-    fprintf(stderr, " Create %d permanent cpu-threads \n", args.threads);
+    fprintf(stderr, " Create %d permanent cpu-threads\n", args.threads);
 
-    for (i = 0; i < args.threads; ++i)
+    for (int i = 0; i < args.threads; ++i)
     {
       int* ptr = (int*)xcalloc(1, sizeof(int));
       *ptr = i;
@@ -980,7 +811,7 @@ void* load_threads(void* ptr)
     }
   }
 
-  for (i = 0; i < args.threads; ++i)
+  for (int i = 0; i < args.threads; ++i)
   {
     args.d = buffers + i;
     args.n = (i + 1) * total / args.threads - i * total / args.threads;
@@ -991,27 +822,18 @@ void* load_threads(void* ptr)
 
     custom_atomic_store_int(&run_load_data[i], 1);  // run thread
   }
-  for (i = 0; i < args.threads; ++i)
+
+  for (int i = 0; i < args.threads; ++i)
   {
     while (custom_atomic_load_int(&run_load_data[i]))
+    {
       this_thread_sleep_for(thread_wait_ms);  //   join
+    }
   }
-
-  /*
-  pthread_t* threads = (pthread_t*)xcalloc(args.threads, sizeof(pthread_t));
-  for(i = 0; i < args.threads; ++i){
-      args.d = buffers + i;
-      args.n = (i+1) * total/args.threads - i * total/args.threads;
-      threads[i] = load_data_in_thread(args);
-  }
-  for(i = 0; i < args.threads; ++i){
-      pthread_join(threads[i], 0);
-  }
-  */
 
   *out = concat_datas(buffers, args.threads);
   out->shallow = 0;
-  for (i = 0; i < args.threads; ++i)
+  for (int i = 0; i < args.threads; ++i)
   {
     buffers[i].shallow = 1;
     free_data(buffers[i]);
@@ -1052,241 +874,6 @@ pthread_t load_data(load_args args)
   return thread;
 }
 
-data load_data_augment(char** paths, int n, int m, char** labels, int k,
-    tree* hierarchy, int use_flip, int min, int max, int w, int h, float angle,
-    float aspect, float hue, float saturation, float exposure, int use_mixup,
-    int use_blur, int show_imgs, float label_smooth_eps, int dontuse_opencv)
-{
-  char** paths_stored = paths;
-  if (m)
-    paths = get_random_paths(paths, n, m);
-  data d = {0};
-  d.shallow = 0;
-  d.X = load_image_augment_paths(paths, n, use_flip, min, max, w, h, angle,
-      aspect, hue, saturation, exposure, dontuse_opencv);
-  d.y = load_labels_paths(paths, n, labels, k, hierarchy, label_smooth_eps);
-
-  if (use_mixup && RandInt(0, 1))
-  {
-    char** paths_mix = get_random_paths(paths_stored, n, m);
-    data d2 = {0};
-    d2.shallow = 0;
-    d2.X = load_image_augment_paths(paths_mix, n, use_flip, min, max, w, h,
-        angle, aspect, hue, saturation, exposure, dontuse_opencv);
-    d2.y =
-        load_labels_paths(paths_mix, n, labels, k, hierarchy, label_smooth_eps);
-    free(paths_mix);
-
-    data d3 = {0};
-    d3.shallow = 0;
-    data d4 = {0};
-    d4.shallow = 0;
-    if (use_mixup >= 3)
-    {
-      char** paths_mix3 = get_random_paths(paths_stored, n, m);
-      d3.X = load_image_augment_paths(paths_mix3, n, use_flip, min, max, w, h,
-          angle, aspect, hue, saturation, exposure, dontuse_opencv);
-      d3.y = load_labels_paths(
-          paths_mix3, n, labels, k, hierarchy, label_smooth_eps);
-      free(paths_mix3);
-
-      char** paths_mix4 = get_random_paths(paths_stored, n, m);
-      d4.X = load_image_augment_paths(paths_mix4, n, use_flip, min, max, w, h,
-          angle, aspect, hue, saturation, exposure, dontuse_opencv);
-      d4.y = load_labels_paths(
-          paths_mix4, n, labels, k, hierarchy, label_smooth_eps);
-      free(paths_mix4);
-    }
-
-    // mix
-    int i, j;
-    for (i = 0; i < d2.X.rows; ++i)
-    {
-      int mixup = use_mixup;
-      if (use_mixup == 4)
-        mixup = RandInt(2, 3);  // alternate CutMix and Mosaic
-
-      // MixUp -----------------------------------
-      if (mixup == 1)
-      {
-        // mix images
-        for (j = 0; j < d2.X.cols; ++j)
-        {
-          d.X.vals[i][j] = (d.X.vals[i][j] + d2.X.vals[i][j]) / 2.0f;
-        }
-
-        // mix labels
-        for (j = 0; j < d2.y.cols; ++j)
-        {
-          d.y.vals[i][j] = (d.y.vals[i][j] + d2.y.vals[i][j]) / 2.0f;
-        }
-      }
-      // CutMix -----------------------------------
-      else if (mixup == 2)
-      {
-        const float min = 0.3;  // 0.3*0.3 = 9%
-        const float max = 0.8;  // 0.8*0.8 = 64%
-        const int cut_w = RandInt(w * min, w * max);
-        const int cut_h = RandInt(h * min, h * max);
-        const int cut_x = RandInt(0, w - cut_w - 1);
-        const int cut_y = RandInt(0, h - cut_h - 1);
-        const int left = cut_x;
-        const int right = cut_x + cut_w;
-        const int top = cut_y;
-        const int bot = cut_y + cut_h;
-
-        assert(cut_x >= 0 && cut_x <= w);
-        assert(cut_y >= 0 && cut_y <= h);
-        assert(cut_w >= 0 && cut_w <= w);
-        assert(cut_h >= 0 && cut_h <= h);
-
-        assert(right >= 0 && right <= w);
-        assert(bot >= 0 && bot <= h);
-
-        assert(top <= bot);
-        assert(left <= right);
-
-        const float alpha = (float)(cut_w * cut_h) / (float)(w * h);
-        const float beta = 1 - alpha;
-
-        int c, x, y;
-        for (c = 0; c < 3; ++c)
-        {
-          for (y = top; y < bot; ++y)
-          {
-            for (x = left; x < right; ++x)
-            {
-              int j = x + y * w + c * w * h;
-              d.X.vals[i][j] = d2.X.vals[i][j];
-            }
-          }
-        }
-
-        // printf("\n alpha = %f, beta = %f \n", alpha, beta);
-        // mix labels
-        for (j = 0; j < d.y.cols; ++j)
-        {
-          d.y.vals[i][j] = d.y.vals[i][j] * beta + d2.y.vals[i][j] * alpha;
-        }
-      }
-      // Mosaic -----------------------------------
-      else if (mixup == 3)
-      {
-        const float min_offset = 0.2;  // 20%
-        const int cut_x = RandInt(w * min_offset, w * (1 - min_offset));
-        const int cut_y = RandInt(h * min_offset, h * (1 - min_offset));
-
-        float s1 = (float)(cut_x * cut_y) / (w * h);
-        float s2 = (float)((w - cut_x) * cut_y) / (w * h);
-        float s3 = (float)(cut_x * (h - cut_y)) / (w * h);
-        float s4 = (float)((w - cut_x) * (h - cut_y)) / (w * h);
-
-        int c, x, y;
-        for (c = 0; c < 3; ++c)
-        {
-          for (y = 0; y < h; ++y)
-          {
-            for (x = 0; x < w; ++x)
-            {
-              int j = x + y * w + c * w * h;
-              if (x < cut_x && y < cut_y)
-                d.X.vals[i][j] = d.X.vals[i][j];
-              if (x >= cut_x && y < cut_y)
-                d.X.vals[i][j] = d2.X.vals[i][j];
-              if (x < cut_x && y >= cut_y)
-                d.X.vals[i][j] = d3.X.vals[i][j];
-              if (x >= cut_x && y >= cut_y)
-                d.X.vals[i][j] = d4.X.vals[i][j];
-            }
-          }
-        }
-
-        for (j = 0; j < d.y.cols; ++j)
-        {
-          const float max_s =
-              1;  // max_val_cmp(s1, max_val_cmp(s2, max_val_cmp(s3, s4)));
-
-          d.y.vals[i][j] =
-              d.y.vals[i][j] * s1 / max_s + d2.y.vals[i][j] * s2 / max_s +
-              d3.y.vals[i][j] * s3 / max_s + d4.y.vals[i][j] * s4 / max_s;
-        }
-      }
-    }
-
-    free_data(d2);
-
-    if (use_mixup >= 3)
-    {
-      free_data(d3);
-      free_data(d4);
-    }
-  }
-
-  if (use_blur)
-  {
-    int i;
-    for (i = 0; i < d.X.rows; ++i)
-    {
-      if (RandGen() % 2)
-      {
-        Image im = make_empty_image(w, h, 3);
-        im.data = d.X.vals[i];
-        int ksize = use_blur;
-        if (use_blur == 1)
-          ksize = 17;
-        Image blurred = blur_image(im, ksize);
-        free_image(im);
-        d.X.vals[i] = blurred.data;
-        // if (i == 0) {
-        //    show_image(im, "Not blurred");
-        //    show_image(blurred, "blurred");
-        //    wait_until_press_key_cv();
-        //}
-      }
-    }
-  }
-
-  if (show_imgs)
-  {
-    int i, j;
-    for (i = 0; i < d.X.rows; ++i)
-    {
-      Image im = make_empty_image(w, h, 3);
-      im.data = d.X.vals[i];
-      char buff[1000];
-      sprintf(buff, "aug_%d_%s_%d", i, BaseCfg((char*)paths[i]), RandGen());
-      save_image(im, buff);
-
-      char buff_string[1000];
-      sprintf(buff_string, "\n Classes: ");
-      for (j = 0; j < d.y.cols; ++j)
-      {
-        if (d.y.vals[i][j] > 0)
-        {
-          char buff_tmp[100];
-          sprintf(buff_tmp, " %d (%f), ", j, d.y.vals[i][j]);
-          strcat(buff_string, buff_tmp);
-        }
-      }
-      printf("%s \n", buff_string);
-
-      if (show_imgs == 1)
-      {
-        show_image(im, buff);
-        wait_until_press_key_cv();
-      }
-    }
-    printf(
-        "\nYou use flag -show_imgs, so will be saved aug_...jpg images. Click "
-        "on window and press ESC button \n");
-  }
-
-  if (m)
-    free(paths);
-
-  return d;
-}
-
 matrix concat_matrix(matrix m1, matrix m2)
 {
   int i, count = 0;
@@ -1325,17 +912,6 @@ data concat_datas(data* d, int n)
     out = newdata;
   }
   return out;
-}
-
-void get_random_batch(data d, int n, float* X, float* y)
-{
-  int j;
-  for (j = 0; j < n; ++j)
-  {
-    int index = RandGen() % d.X.rows;
-    memcpy(X + j * d.X.cols, d.X.vals[index], d.X.cols * sizeof(float));
-    memcpy(y + j * d.y.cols, d.y.vals[index], d.y.cols * sizeof(float));
-  }
 }
 
 void get_next_batch(data d, int n, int offset, float* X, float* y)

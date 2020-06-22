@@ -9,7 +9,6 @@
 #include "blas.h"
 #include "box.h"
 #include "dark_cuda.h"
-#include "softmax_layer.h"
 #include "utils.h"
 
 void FillDetectionLayer(layer* l, int batch, int inputs, int n, int side,
@@ -51,20 +50,6 @@ void ForwardDetectionLayer(layer* l, NetworkState state)
   int i, j;
   memcpy(l->output, state.input, l->outputs * l->batch * sizeof(float));
 
-  int b;
-  if (l->softmax)
-  {
-    for (b = 0; b < l->batch; ++b)
-    {
-      int index = b * l->inputs;
-      for (i = 0; i < locations; ++i)
-      {
-        int offset = i * l->classes;
-        softmax(l->output + index + offset, l->classes, 1,
-            l->output + index + offset, 1);
-      }
-    }
-  }
   if (state.train)
   {
     float avg_iou = 0;
@@ -76,7 +61,7 @@ void ForwardDetectionLayer(layer* l, NetworkState state)
     *(l->cost) = 0;
     int size = l->inputs * l->batch;
     memset(l->delta, 0, size * sizeof(float));
-    for (b = 0; b < l->batch; ++b)
+    for (int b = 0; b < l->batch; ++b)
     {
       int index = b * l->inputs;
       for (i = 0; i < locations; ++i)
