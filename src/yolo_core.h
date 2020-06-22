@@ -101,22 +101,6 @@ typedef enum
   YOLO_RIGHT_BOTTOM = 1 << 2
 } YOLO_POINT;
 
-// parser.h
-typedef enum
-{
-  NO_WEIGHTS,
-  PER_FEATURE,
-  PER_CHANNEL
-} WEIGHTS_TYPE_T;
-
-// parser.h
-typedef enum
-{
-  NO_NORMALIZATION,
-  RELU_NORMALIZATION,
-  SOFTMAX_NORMALIZATION
-} WEIGHTS_NORMALIZATION_T;
-
 // activations.h
 typedef enum
 {
@@ -286,8 +270,6 @@ struct layer
   int* input_sizes;
   float** layers_output;
   float** layers_delta;
-  WEIGHTS_TYPE_T weights_type;
-  WEIGHTS_NORMALIZATION_T weights_normalization;
   int* map;
   int* counts;
   float** sums;

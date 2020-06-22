@@ -12,10 +12,9 @@
 void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
     int* input_sizes, int w, int h, int c, float** layers_output,
     float** layers_delta, float** layers_output_gpu, float** layers_delta_gpu,
-    WEIGHTS_TYPE_T weights_type, WEIGHTS_NORMALIZATION_T weights_normalization,
     ACTIVATION activation, int train)
 {
-  fprintf(stderr, "Shortcut Layer: ");
+  fprintf(stderr, "shortcut Layer: ");
   for (int i = 0; i < n; ++i)
   {
     fprintf(stderr, "%d, ", input_layers[i]);
@@ -30,8 +29,6 @@ void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
   l->input_sizes = input_sizes;
   l->layers_output = layers_output;
   l->layers_delta = layers_delta;
-  l->weights_type = weights_type;
-  l->weights_normalization = weights_normalization;
   l->learning_rate_scale = 1;  // not necessary
 
   l->w = l->out_w = w;
@@ -47,23 +44,6 @@ void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
   l->output = (float*)xcalloc(l->outputs * batch, sizeof(float));
 
   l->nweights = 0;
-  if (l->weights_type == PER_FEATURE)
-    l->nweights = (l->n + 1);
-  else if (l->weights_type == PER_CHANNEL)
-    l->nweights = (l->n + 1) * l->c;
-
-  if (l->nweights > 0)
-  {
-    l->weights = (float*)calloc(l->nweights, sizeof(float));
-    for (int i = 0; i < l->nweights; ++i)
-    {
-      l->weights[i] = 1;
-    }
-
-    if (train)
-      l->weight_updates = (float*)calloc(l->nweights, sizeof(float));
-    l->update = UpdateShortcutLayer;
-  }
 
   l->forward = ForwardShortcutLayer;
   l->backward = BackwardShortcutLayer;
@@ -81,14 +61,6 @@ void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
   l->forward_gpu = ForwardShortcutLayerGpu;
   l->backward_gpu = BackwardShortcutLayerGpu;
 
-  if (l->nweights > 0)
-  {
-    l->update_gpu = UpdateShortcutLayerGpu;
-    l->weights_gpu = cuda_make_array(l->weights, l->nweights);
-    if (train)
-      l->weight_updates_gpu = cuda_make_array(l->weight_updates, l->nweights);
-  }
-
   if (train)
     l->delta_gpu = cuda_make_array(l->delta, l->outputs * batch);
   l->output_gpu = cuda_make_array(l->output, l->outputs * batch);
@@ -101,12 +73,9 @@ void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
 #endif  // GPU
 
   l->bflops = l->out_w * l->out_h * l->out_c * l->n / 1000000000.;
-  if (l->weights_type)
-    l->bflops *= 2;
 
-  fprintf(stderr, " wt = %d, wn = %d, outputs:%4d x%4d x%4d %5.3f BF\n",
-      l->weights_type, l->weights_normalization, l->out_w, l->out_h, l->out_c,
-      l->bflops);
+  fprintf(stderr, " outputs:%4d x%4d x%4d %5.3f BF\n", l->out_w, l->out_h,
+      l->out_c, l->bflops);
 }
 
 void ResizeShortcutLayer(layer* l, int w, int h, Network* net)
@@ -185,13 +154,13 @@ void ForwardShortcutLayer(layer* l, NetworkState state)
     int size = l->batch * l->w * l->h * l->c;
 #pragma omp parallel for
     for (int i = 0; i < size; ++i)
+    {
       l->output[i] = state.input[i] + state.net->layers[l->index].output[i];
+    }
   }
   else
   {
-    shortcut_multilayer_cpu(l->outputs * l->batch, l->outputs, l->batch, l->n,
-        l->input_sizes, l->layers_output, l->output, state.input, l->weights,
-        l->nweights, l->weights_normalization);
+    printf("something went wrong\n");
   }
 
   if (l->activation == SWISH)
@@ -214,35 +183,15 @@ void BackwardShortcutLayer(layer* l, NetworkState state)
   else
     gradient_array(l->output, l->outputs * l->batch, l->activation, l->delta);
 
-  backward_shortcut_multilayer_cpu(l->outputs * l->batch, l->outputs, l->batch,
-      l->n, l->input_sizes, l->layers_delta, state.delta, l->delta, l->weights,
-      l->weight_updates, l->nweights, state.input, l->layers_output,
-      l->weights_normalization);
-}
-
-void UpdateShortcutLayer(
-    layer* l, int batch, float learning_rate_init, float momentum, float decay)
-{
-  if (l->nweights > 0)
-  {
-    float learning_rate = learning_rate_init * l->learning_rate_scale;
-    // float momentum = a.momentum;
-    // float decay = a.decay;
-    // int batch = a.batch;
-
-    axpy_cpu(l->nweights, -decay * batch, l->weights, 1, l->weight_updates, 1);
-    axpy_cpu(l->nweights, learning_rate / batch, l->weight_updates, 1,
-        l->weights, 1);
-    scal_cpu(l->nweights, momentum, l->weight_updates, 1);
-  }
+  BackwardShortcutCpu(l->outputs * l->batch, l->outputs, l->n, l->input_sizes,
+      l->layers_delta, state.delta, l->delta);
 }
 
 #ifdef GPU
 void ForwardShortcutLayerGpu(layer* l, NetworkState state)
 {
-  shortcut_multilayer_gpu(l->outputs, l->batch, l->n, l->input_sizes_gpu,
-      l->layers_output_gpu, l->output_gpu, state.input, l->weights_gpu,
-      l->nweights, l->weights_normalization);
+  ShortcutGpu(l->outputs, l->batch, l->input_sizes_gpu, l->layers_output_gpu,
+      l->output_gpu, state.input);
 
   if (l->activation == SWISH)
     activate_array_swish_ongpu(l->output_gpu, l->outputs * l->batch,
@@ -266,35 +215,8 @@ void BackwardShortcutLayerGpu(layer* l, NetworkState state)
     gradient_array_ongpu(
         l->output_gpu, l->outputs * l->batch, l->activation, l->delta_gpu);
 
-  backward_shortcut_multilayer_gpu(l->outputs, l->batch, l->n,
-      l->input_sizes_gpu, l->layers_delta_gpu, state.delta, l->delta_gpu,
-      l->weights_gpu, l->weight_updates_gpu, l->nweights, state.input,
-      l->layers_output_gpu, l->weights_normalization);
-}
-
-void UpdateShortcutLayerGpu(layer* l, int batch, float learning_rate_init,
-    float momentum, float decay, float loss_scale)
-{
-  if (l->nweights > 0)
-  {
-    float learning_rate = learning_rate_init * l->learning_rate_scale;
-
-    // Loss scale for Mixed-Precision on Tensor-Cores
-    if (loss_scale != 1.0)
-    {
-      if (l->weight_updates_gpu && l->nweights > 0)
-        scal_ongpu(l->nweights, 1.0 / loss_scale, l->weight_updates_gpu, 1);
-    }
-
-    reset_nan_and_inf(l->weight_updates_gpu, l->nweights);
-    fix_nan_and_inf(l->weights_gpu, l->nweights);
-
-    constrain_ongpu(l->nweights, 1, l->weight_updates_gpu, 1);
-
-    axpy_ongpu(l->nweights, learning_rate / batch, l->weight_updates_gpu, 1,
-        l->weights_gpu, 1);
-    scal_ongpu(l->nweights, momentum, l->weight_updates_gpu, 1);
-  }
+  BackwardShortcutGpu(l->outputs, l->batch, l->n, l->input_sizes_gpu,
+      l->layers_delta_gpu, state.delta, l->delta_gpu);
 }
 
 void PushShortcutLayer(layer* l)

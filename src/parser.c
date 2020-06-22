@@ -738,52 +738,12 @@ void ParseShortcut(layer* l, list* options, SizeParams params, Network* net)
   char* activation_str = FindOptionStr(options, "activation", "linear");
   ACTIVATION activation = get_activation(activation_str);
 
-  char* weights_type_str = FindOptionStrQuiet(options, "weights_type", "none");
-  WEIGHTS_TYPE_T weights_type = NO_WEIGHTS;
-  if (strcmp(weights_type_str, "per_feature") == 0 ||
-      strcmp(weights_type_str, "per_layer") == 0)
-    weights_type = PER_FEATURE;
-  else if (strcmp(weights_type_str, "per_channel") == 0)
-    weights_type = PER_CHANNEL;
-  else if (strcmp(weights_type_str, "none") != 0)
-  {
-    printf(
-        "Error: Incorrect weights_type = %s \n Use one of: none, per_feature, "
-        "per_channel \n",
-        weights_type_str);
-    getchar();
-    exit(0);
-  }
-
-  char* weights_normalizion_str =
-      FindOptionStrQuiet(options, "weights_normalization", "none");
-  WEIGHTS_NORMALIZATION_T weights_normalization = NO_NORMALIZATION;
-  if (strcmp(weights_normalizion_str, "relu") == 0 ||
-      strcmp(weights_normalizion_str, "avg_relu") == 0)
-    weights_normalization = RELU_NORMALIZATION;
-  else if (strcmp(weights_normalizion_str, "softmax") == 0)
-    weights_normalization = SOFTMAX_NORMALIZATION;
-  else if (strcmp(weights_type_str, "none") != 0)
-  {
-    printf(
-        "Error: Incorrect weights_normalization = %s \n Use one of: none, "
-        "relu, "
-        "softmax \n",
-        weights_normalizion_str);
-    getchar();
-    exit(0);
-  }
-
   char* from = FindOption(options, "from");
   if (!from)
     error("Route Layer must specify input layers: from = ...");
 
+  // n is fixed as 1 for supported models
   int n = 1;
-  for (int i = 0; i < strlen(from); ++i)
-  {
-    if (from[i] == ',')
-      ++n;
-  }
 
   int* layers = (int*)calloc(n, sizeof(int));
   int* sizes = (int*)calloc(n, sizeof(int));
@@ -814,8 +774,7 @@ void ParseShortcut(layer* l, list* options, SizeParams params, Network* net)
 
   FillShortcutLayer(l, params.batch, n, layers, sizes, params.w, params.h,
       params.c, layers_output, layers_delta, layers_output_gpu,
-      layers_delta_gpu, weights_type, weights_normalization, activation,
-      params.train);
+      layers_delta_gpu, activation, params.train);
 
   free(layers_output_gpu);
   free(layers_delta_gpu);

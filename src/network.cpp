@@ -709,66 +709,6 @@ void FuseConvBatchNorm(Network* net)
 #endif
       }
     }
-    else if (l->type == SHORTCUT && l->weights && l->weights_normalization)
-    {
-      if (l->nweights > 0)
-      {
-        for (int i = 0; i < l->nweights; ++i)
-        {
-          printf(" w = %f,", l->weights[i]);
-        }
-        printf(" l->nweights = %d, j = %d \n", l->nweights, j);
-      }
-
-      const int layer_step = l->nweights / (l->n + 1);
-
-      for (int chan = 0; chan < layer_step; ++chan)
-      {
-        float sum = 1, max_val = -FLT_MAX;
-
-        if (l->weights_normalization == SOFTMAX_NORMALIZATION)
-        {
-          for (int i = 0; i < (l->n + 1); ++i)
-          {
-            int w_index = chan + i * layer_step;
-            float w = l->weights[w_index];
-            if (max_val < w)
-              max_val = w;
-          }
-        }
-
-        const float eps = 0.0001;
-        sum = eps;
-
-        for (int i = 0; i < (l->n + 1); ++i)
-        {
-          int w_index = chan + i * layer_step;
-          float w = l->weights[w_index];
-          if (l->weights_normalization == RELU_NORMALIZATION)
-            sum += lrelu(w);
-          else if (l->weights_normalization == SOFTMAX_NORMALIZATION)
-            sum += expf(w - max_val);
-        }
-
-        for (int i = 0; i < (l->n + 1); ++i)
-        {
-          int w_index = chan + i * layer_step;
-          float w = l->weights[w_index];
-          if (l->weights_normalization == RELU_NORMALIZATION)
-            w = lrelu(w) / sum;
-          else if (l->weights_normalization == SOFTMAX_NORMALIZATION)
-            w = expf(w - max_val) / sum;
-          l->weights[w_index] = w;
-        }
-      }
-
-      l->weights_normalization = NO_NORMALIZATION;
-
-#ifdef GPU
-      if (gpu_index >= 0)
-        PushShortcutLayer(l);
-#endif
-    }
   }
 }
 
