@@ -1899,13 +1899,12 @@ void LoadWeights(Network* net, char const* filename)
 }
 
 // load network & force - set batch size
-Network* LoadNetwork(
-    char const* model_file, char const* weights_file, int clear, int batch)
+void LoadNetwork(Network* net, char const* model_file, char const* weights_file,
+    int clear, int batch)
 {
   printf(" Try to load model: %s, weights: %s, clear = %d \n", model_file,
       weights_file, clear);
 
-  Network* net = (Network*)xcalloc(1, sizeof(Network));
   ParseNetworkCfg(net, model_file, batch);
   if (weights_file && weights_file[0] != 0)
   {
@@ -1919,6 +1918,4 @@ Network* LoadNetwork(
     (*net->seen) = 0;
     (*net->cur_iteration) = 0;
   }
-
-  return net;
 }

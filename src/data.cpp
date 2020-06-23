@@ -18,7 +18,7 @@
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-list* get_paths(char* filename)
+list* get_paths(char const* filename)
 {
   char* path;
   FILE* file = fopen(filename, "r");
@@ -33,7 +33,7 @@ list* get_paths(char* filename)
   return lines;
 }
 
-std::vector<std::string> GetList(char const* filename)
+std::vector<std::string> GetList(std::string filename)
 {
   std::vector<std::string> paths;
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 #include "libapi.h"
 #include "list.h"
@@ -13,11 +14,19 @@ class LIB_API Metadata
 
   void Get(char const* filename);
   int NumClasses() const;
-  std::string NameAt(int idx) const;
+
+  std::string TrainFile() const;
+  std::string ValFile() const;
+  std::string NameFile() const;
+  std::string SaveDir() const;
+
+  std::vector<std::string> TrainImgList() const;
+  std::vector<std::string> ValImgList() const;
+  std::vector<std::string> NameList() const;
 
  private:
   class MetadataImpl;
-  MetadataImpl const* impl_;
+  MetadataImpl* impl_;
 };
 
 list* ReadDataCfg(char const* filename);

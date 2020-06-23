@@ -104,8 +104,9 @@ int main(int argc, char** argv)
 
   if (FLAGS_mode == "valid")
   {
-    Network* net =
-        LoadNetwork(FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);
+    Network* net = (Network*)calloc(1, sizeof(Network));
+    LoadNetwork(
+        net, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);
 
     ValidateDetector(net, FLAGS_data_file.c_str(), 0.5, 0);
 
@@ -123,8 +124,11 @@ int main(int argc, char** argv)
     int num_boxes = 0;
 
     Metadata md(FLAGS_data_file.c_str());
-    Network* net =
-        LoadNetwork(FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);
+
+    Network* net = (Network*)calloc(1, sizeof(Network));
+    LoadNetwork(
+        net, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);
+
     layer* l = &net->layers[net->n - 1];
     Image image = {0, 0, 0, nullptr};
     Detection* dets = nullptr;

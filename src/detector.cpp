@@ -16,18 +16,11 @@ void TrainDetector(char const* data_file, char const* model_file,
     char const* weights_file, int num_gpus, bool clear, bool show_imgs,
     bool calc_map, int benchmark_layers)
 {
-  list* options = ReadDataCfg(data_file);
-  char* train_imgs = FindOptionStr(options, "train", "data/train.txt");
-  char* backup_dir = FindOptionStr(options, "backup", "/backup/");
+  Metadata md(data_file);
 
-  if (!Exists(train_imgs))
-  {
-    printf("%s does not exists", train_imgs);
-    return;
-  }
-
-  if (!Exists(backup_dir))
-    MakeDir(backup_dir, 0);
+  char const* save_dir = md.SaveDir().c_str();
+  if (!Exists(save_dir))
+    MakeDir(save_dir, 0);
 
   // make a gpu index array
   std::vector<int> gpus;
@@ -61,7 +54,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 #ifdef GPU
     cuda_set_device(gpus[k]);
 #endif
-    ParseNetworkCfg(&nets[k], model_file);
+    ParseNetworkCfg(nets + k, model_file);
     nets[k].benchmark_layers = benchmark_layers;
 
     if (weights_file != nullptr)
@@ -99,7 +92,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   int classes = l->classes;
   float jitter = l->jitter;
 
-  list* train_img_paths = get_paths(train_imgs);
+  list* train_img_paths = get_paths(md.TrainFile().c_str());
   char** paths = (char**)ListToArray(train_img_paths);
   int num_train_imgs = train_img_paths->size;
 
@@ -273,7 +266,7 @@ void TrainDetector(char const* data_file, char const* model_file,
         best_map = map;
 
         char buff[256];
-        sprintf(buff, "%s/%s_best.weights", backup_dir, base);
+        sprintf(buff, "%s/%s_best.weights", save_dir, base);
         SaveWeights(net, buff);
       }
 
@@ -309,7 +302,7 @@ void TrainDetector(char const* data_file, char const* model_file,
         SyncNetworks(nets, num_gpus, 0);
 #endif
       char buff[256];
-      sprintf(buff, "%s/%s_%d.weights", backup_dir, base, iter);
+      sprintf(buff, "%s/%s_%d.weights", save_dir, base, iter);
       SaveWeights(net, buff);
     }
 
@@ -321,7 +314,7 @@ void TrainDetector(char const* data_file, char const* model_file,
         SyncNetworks(nets, num_gpus, 0);
 #endif
       char buff[256];
-      sprintf(buff, "%s/%s_last.weights", backup_dir, base);
+      sprintf(buff, "%s/%s_last.weights", save_dir, base);
       SaveWeights(net, buff);
     }
 
@@ -334,7 +327,7 @@ void TrainDetector(char const* data_file, char const* model_file,
 #endif
 
   char buff[256];
-  sprintf(buff, "%s/%s_final.weights", backup_dir, base);
+  sprintf(buff, "%s/%s_final.weights", save_dir, base);
   SaveWeights(net, buff);
 
   cv::destroyAllWindows();
@@ -349,9 +342,6 @@ void TrainDetector(char const* data_file, char const* model_file,
   free(paths);
   FreeListContents(train_img_paths);
   FreeList(train_img_paths);
-
-  FreeListContentsKvp(options);
-  FreeList(options);
 
   for (int k = 0; k < num_gpus; ++k)
   {
@@ -378,25 +368,16 @@ typedef struct
 float ValidateDetector(
     Network* net, char const* data_file, float const iou_thresh, int letter_box)
 {
-  list* options = ReadDataCfg(data_file);
-  char* val_file = FindOptionStr(options, "valid", "data/valid.txt");
-  if (!Exists(val_file))
-  {
-    printf("%s does not exists", val_file);
-    return -1.0f;
-  }
+  Metadata md(data_file);
 
-  char* name_file = FindOptionStr(options, "names", "data/names.list");
-  std::vector<std::string> name_list = GetList(name_file);
+  std::vector<std::string> name_list = md.NameList();
 
   layer* l = &net->layers[net->n - 1];
   int classes = l->classes;
   if (classes != name_list.size())
   {
-    printf(
-        "\n Error: in the file %s number of names %d that isn't equal to "
-        "classes=%d\n",
-        name_file, name_list.size(), classes);
+    printf(" # of names %d is not equal to  # of classes %d\n",
+        (int)name_list.size(), classes);
     return -1.0f;
   }
 
@@ -422,7 +403,7 @@ float ValidateDetector(
   std::vector<int> num_pred_class(classes, 0);
   int num_gt = 0;
 
-  std::vector<std::string> val_img_list = GetList(val_file);
+  std::vector<std::string> val_img_list = md.ValImgList();
 
   double start = GetTimePoint();
   for (size_t i = 0; i < val_img_list.size(); i++)
@@ -610,10 +591,6 @@ float ValidateDetector(
 
   printf(" mAP@%0.2f = %f, or %2.2f%%\n", iou_thresh, map, map * 100);
   printf(" Spent time: %.2lf s\n", (GetTimePoint() - start) / 1e6);
-
-  // free memory
-  FreeListContentsKvp(options);
-  FreeList(options);
 
   return map;
 }

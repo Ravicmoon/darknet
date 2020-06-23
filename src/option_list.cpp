@@ -13,79 +13,83 @@
 class Metadata::MetadataImpl
 {
  public:
+  MetadataImpl();
   MetadataImpl(char const* filename);
+
+  void Get(char const* filename);
 
  public:
   int classes_;
-  std::vector<std::string> names_;
+
+  std::string train_file_;
+  std::string val_file_;
+  std::string name_file_;
+  std::string save_dir_;
+
+  std::vector<std::string> train_img_list_;
+  std::vector<std::string> val_img_list_;
+  std::vector<std::string> name_list_;
 };
 
-Metadata::MetadataImpl::MetadataImpl(char const* filename)
+Metadata::MetadataImpl::MetadataImpl() : classes_(0) {}
+
+Metadata::MetadataImpl::MetadataImpl(char const* filename) { Get(filename); }
+
+void Metadata::MetadataImpl::Get(char const* filename)
 {
   list* options = ReadDataCfg(filename);
 
-  char* name_file = FindOptionStr(options, "names", 0);
-  if (name_file == nullptr)
-  {
-    printf("Invalid metadata file: name file not found");
-    exit(EXIT_FAILURE);
-  }
-
   classes_ = FindOptionInt(options, "classes", 2);
-  names_.clear();
 
-  std::ifstream instream(name_file);
-  while (instream.is_open() && !instream.eof())
+  train_file_ = FindOptionStr(options, "train", "train.txt");
+  val_file_ = FindOptionStr(options, "valid", "valid.txt");
+  name_file_ = FindOptionStr(options, "name", "name.txt");
+  save_dir_ = FindOptionStr(options, "save", "save");
+
+  if (Exists(train_file_.c_str()))
+    train_img_list_ = GetList(train_file_);
+
+  if (Exists(val_file_.c_str()))
+    val_img_list_ = GetList(val_file_);
+
+  if (Exists(name_file_.c_str()))
+    name_list_ = GetList(name_file_);
+
+  if ((int)name_list_.size() != classes_)
   {
-    char buffer[256];
-    instream.getline(buffer, sizeof(buffer));
-
-    if (std::string(buffer).empty())
-      break;
-
-    names_.push_back(buffer);
-  }
-  instream.close();
-
-  if ((int)names_.size() != classes_)
-  {
-    printf("Invalid metadata file: %d != %d", (int)names_.size(), classes_);
+    printf("Invalid metadata file: %d != %d", (int)name_list_.size(), classes_);
     exit(EXIT_FAILURE);
   }
 
   FreeList(options);
 }
 
-Metadata::Metadata() : impl_(nullptr) {}
+Metadata::Metadata() : impl_(new MetadataImpl()) {}
 
 Metadata::Metadata(char const* filename) : impl_(new MetadataImpl(filename)) {}
 
-Metadata::~Metadata()
-{
-  if (impl_ != nullptr)
-    delete impl_;
-}
+Metadata::~Metadata() { delete impl_; }
 
-void Metadata::Get(char const* filename)
-{
-  if (impl_ == nullptr)
-    impl_ = new MetadataImpl(filename);
-}
+void Metadata::Get(char const* filename) { impl_->Get(filename); }
 
-int Metadata::NumClasses() const
-{
-  if (impl_ != nullptr)
-    return impl_->classes_;
-  else
-    return -1;
-}
+int Metadata::NumClasses() const { return impl_->classes_; }
 
-std::string Metadata::NameAt(int idx) const
+std::string Metadata::TrainFile() const { return impl_->train_file_; }
+std::string Metadata::ValFile() const { return impl_->val_file_; }
+std::string Metadata::NameFile() const { return impl_->name_file_; }
+std::string Metadata::SaveDir() const { return impl_->save_dir_; }
+
+std::vector<std::string> Metadata::TrainImgList() const
 {
-  if (impl_ != nullptr)
-    return impl_->names_[idx];
-  else
-    return std::string();
+  return impl_->train_img_list_;
+}
+std::vector<std::string> Metadata::ValImgList() const
+{
+  return impl_->val_img_list_;
+}
+std::vector<std::string> Metadata::NameList() const
+{
+  return impl_->name_list_;
 }
 
 list* ReadDataCfg(char const* filename)

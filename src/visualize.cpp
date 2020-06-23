@@ -57,6 +57,7 @@ void Mat2Image(cv::Mat const& mat, Image* image)
 void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
     float thresh, Metadata const& md)
 {
+  std::vector<std::string> name_list = md.NameList();
   for (int i = 0; i < num_boxes; i++)
   {
     std::string label;
@@ -69,7 +70,7 @@ void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
       if (class_id < 0)
       {
         class_id = j;
-        label += md.NameAt(j);
+        label += name_list[j];
 
         char prob[10];
         sprintf(prob, "(%2.0f%%)", dets[i].prob[j] * 100);
@@ -77,7 +78,7 @@ void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
       }
       else
       {
-        label += ", " + md.NameAt(j);
+        label += ", " + name_list[j];
       }
     }
 

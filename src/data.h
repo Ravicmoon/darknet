@@ -75,8 +75,8 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
 
 std::vector<BoxLabel> ReadBoxAnnot(std::string filename);
 
-list* get_paths(char* filename);
-std::vector<std::string> GetList(char const* filename);
+list* get_paths(char const* filename);
+std::vector<std::string> GetList(std::string filename);
 data get_data_part(data d, int part, int total);
 void get_next_batch(data d, int n, int offset, float* X, float* y);
 data concat_data(data d1, data d2);
