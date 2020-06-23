@@ -9,10 +9,10 @@ class LIB_API Metadata
 {
  public:
   Metadata();
-  Metadata(char const* filename);
+  Metadata(std::string filename);
   ~Metadata();
 
-  void Get(char const* filename);
+  void Get(std::string filename);
   int NumClasses() const;
 
   std::string TrainFile() const;

@@ -29,17 +29,17 @@ void TrainDetector(char const* data_file, char const* model_file,
     gpus.push_back(i);
   }
 
-  Network net_map = {0};
+  Network* net_map = nullptr;
   if (calc_map)
   {
+    net_map = (Network*)calloc(1, sizeof(Network));
+#ifdef GPU
     cuda_set_device(gpus[0]);
-    printf(" Prepare additional network for mAP calculation...\n");
-    ParseNetworkCfg(&net_map, model_file, 1);
-    net_map.benchmark_layers = benchmark_layers;
-
-    for (int k = 0; k < net_map.n - 1; ++k)
+#endif
+    LoadNetwork(net_map, model_file, nullptr, 0, 1);
+    for (int i = 0; i < net_map->n; i++)
     {
-      free_layer(&net_map.layers[k], true);
+      free_layer(&net_map->layers[i], true);
     }
   }
 
@@ -48,7 +48,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   char* base = BaseCfg(model_file);
   printf("%s\n", base);
 
-  Network* nets = (Network*)xcalloc(num_gpus, sizeof(Network));
+  Network* nets = (Network*)calloc(num_gpus, sizeof(Network));
   for (int k = 0; k < num_gpus; ++k)
   {
 #ifdef GPU
@@ -89,9 +89,6 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   layer* l = &net->layers[net->n - 1];
 
-  int classes = l->classes;
-  float jitter = l->jitter;
-
   list* train_img_paths = get_paths(md.TrainFile().c_str());
   char** paths = (char**)ListToArray(train_img_paths);
   int num_train_imgs = train_img_paths->size;
@@ -110,9 +107,9 @@ void TrainDetector(char const* data_file, char const* model_file,
   args.paths = paths;
   args.n = imgs_per_iter;
   args.m = train_img_paths->size;
-  args.classes = classes;
+  args.classes = l->classes;
   args.flip = net->flip;
-  args.jitter = jitter;
+  args.jitter = l->jitter;
   args.num_boxes = l->max_boxes;
   args.d = &buffer;
   args.type = DETECTION_DATA;
@@ -254,9 +251,9 @@ void TrainDetector(char const* data_file, char const* model_file,
         }
       }
 
-      CopyNetWeights(net, &net_map);
+      CopyNetWeights(net, net_map);
 
-      float map = ValidateDetector(&net_map, data_file, 0.5, net->letter_box);
+      float map = ValidateDetector(md, net_map, 0.5, net->letter_box);
 
       map_stack.push_back(map);
       iter_map_stack.push_back(iter_map);
@@ -349,10 +346,11 @@ void TrainDetector(char const* data_file, char const* model_file,
   }
   free(nets);
 
-  if (calc_map)
+  if (net_map != nullptr)
   {
-    net_map.n = 0;
-    FreeNetwork(&net_map);
+    net_map->n = 0;
+    FreeNetwork(net_map);
+    free(net_map);
   }
 }
 
@@ -366,10 +364,8 @@ typedef struct
 } ValBox;
 
 float ValidateDetector(
-    Network* net, char const* data_file, float const iou_thresh, int letter_box)
+    Metadata const& md, Network* net, float const iou_thresh, int letter_box)
 {
-  Metadata md(data_file);
-
   std::vector<std::string> name_list = md.NameList();
 
   layer* l = &net->layers[net->n - 1];

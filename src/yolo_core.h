@@ -652,8 +652,8 @@ LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
 LIB_API void TrainDetector(char const* data_file, char const* model_file,
     char const* weights_file, int num_gpus, bool clear, bool show_imgs,
     bool calc_map, int benchmark_layers);
-LIB_API float ValidateDetector(Network* net, char const* data_file,
-    float const iou_thresh, int letter_box);
+LIB_API float ValidateDetector(
+    Metadata const& md, Network* net, float const iou_thresh, int letter_box);
 
 // layer.h
 LIB_API void free_layer(layer* l, bool keep_cudnn_desc = false);

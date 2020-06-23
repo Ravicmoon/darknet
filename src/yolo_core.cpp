@@ -104,11 +104,12 @@ int main(int argc, char** argv)
 
   if (FLAGS_mode == "valid")
   {
+    Metadata md(FLAGS_data_file);
     Network* net = (Network*)calloc(1, sizeof(Network));
     LoadNetwork(
         net, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);
 
-    ValidateDetector(net, FLAGS_data_file.c_str(), 0.5, 0);
+    ValidateDetector(md, net, 0.5, 0);
 
     FreeNetwork(net);
     free(net);
@@ -124,7 +125,6 @@ int main(int argc, char** argv)
     int num_boxes = 0;
 
     Metadata md(FLAGS_data_file.c_str());
-
     Network* net = (Network*)calloc(1, sizeof(Network));
     LoadNetwork(
         net, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(), 0, 1);

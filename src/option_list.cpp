@@ -14,9 +14,9 @@ class Metadata::MetadataImpl
 {
  public:
   MetadataImpl();
-  MetadataImpl(char const* filename);
+  MetadataImpl(std::string filename);
 
-  void Get(char const* filename);
+  void Get(std::string filename);
 
  public:
   int classes_;
@@ -33,17 +33,17 @@ class Metadata::MetadataImpl
 
 Metadata::MetadataImpl::MetadataImpl() : classes_(0) {}
 
-Metadata::MetadataImpl::MetadataImpl(char const* filename) { Get(filename); }
+Metadata::MetadataImpl::MetadataImpl(std::string filename) { Get(filename); }
 
-void Metadata::MetadataImpl::Get(char const* filename)
+void Metadata::MetadataImpl::Get(std::string filename)
 {
-  list* options = ReadDataCfg(filename);
+  list* options = ReadDataCfg(filename.c_str());
 
   classes_ = FindOptionInt(options, "classes", 2);
 
   train_file_ = FindOptionStr(options, "train", "train.txt");
   val_file_ = FindOptionStr(options, "valid", "valid.txt");
-  name_file_ = FindOptionStr(options, "name", "name.txt");
+  name_file_ = FindOptionStr(options, "names", "name.txt");
   save_dir_ = FindOptionStr(options, "save", "save");
 
   if (Exists(train_file_.c_str()))
@@ -66,11 +66,11 @@ void Metadata::MetadataImpl::Get(char const* filename)
 
 Metadata::Metadata() : impl_(new MetadataImpl()) {}
 
-Metadata::Metadata(char const* filename) : impl_(new MetadataImpl(filename)) {}
+Metadata::Metadata(std::string filename) : impl_(new MetadataImpl(filename)) {}
 
 Metadata::~Metadata() { delete impl_; }
 
-void Metadata::Get(char const* filename) { impl_->Get(filename); }
+void Metadata::Get(std::string filename) { impl_->Get(filename); }
 
 int Metadata::NumClasses() const { return impl_->classes_; }
 
