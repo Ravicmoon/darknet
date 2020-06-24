@@ -946,10 +946,11 @@ void ParseNetOptions(list* options, Network* net)
   net->batches_cycle_mult = FindOptionIntQuiet(options, "sgdr_mult", 2);
   net->momentum = FindOptionFloat(options, "momentum", .9);
   net->decay = FindOptionFloat(options, "decay", .0001);
-  int subdivs = FindOptionInt(options, "subdivisions", 1);
   net->try_fix_nan = FindOptionIntQuiet(options, "try_fix_nan", 0);
-  net->batch /= subdivs;
-  net->subdiv = subdivs;
+
+  int subdiv = FindOptionInt(options, "subdivisions", 1);
+  net->batch /= subdiv;
+  net->subdiv = subdiv;
 
   *net->seen = 0;
   *net->cur_iteration = 0;
@@ -1108,7 +1109,7 @@ void SetTrainOnlyBn(Network* net)
   }
 }
 
-void ParseNetworkCfg(Network* net, char const* filename, int batch)
+void ParseNetworkCfg(Network* net, char const* filename, bool train)
 {
   list* sections = ReadSections(filename);
   node* n = sections->front;
@@ -1119,10 +1120,7 @@ void ParseNetworkCfg(Network* net, char const* filename, int batch)
   net->gpu_index = gpu_index;
 
   SizeParams params;
-  if (batch > 0)
-    params.train = 0;  // allocates memory for Detection only
-  else
-    params.train = 1;  // allocates memory for Detection & Training
+  params.train = train;
 
   Section* s = (Section*)n->val;
   if (!IsNetwork(s))
@@ -1144,8 +1142,6 @@ void ParseNetworkCfg(Network* net, char const* filename, int batch)
   params.w = net->w;
   params.c = net->c;
   params.inputs = net->inputs;
-  if (batch > 0)
-    net->batch = batch;
   if (net->batch < 1)
     net->batch = 1;
   params.batch = net->batch;
@@ -1622,7 +1618,7 @@ void SaveConnectedWeights(layer* l, FILE* fp)
   }
 }
 
-void SaveWeightsUpto(Network* net, char* filename, int cutoff)
+void SaveWeightsUpto(Network* net, char const* filename, int cutoff)
 {
 #ifdef GPU
   if (net->gpu_index >= 0)
@@ -1680,7 +1676,7 @@ void SaveWeightsUpto(Network* net, char* filename, int cutoff)
   fclose(fp);
 }
 
-void SaveWeights(Network* net, char* filename)
+void SaveWeights(Network* net, char const* filename)
 {
   SaveWeightsUpto(net, filename, net->n);
 }
@@ -1900,19 +1896,21 @@ void LoadWeights(Network* net, char const* filename)
 
 // load network & force - set batch size
 void LoadNetwork(Network* net, char const* model_file, char const* weights_file,
-    int clear, int batch)
+    bool train, bool clear)
 {
   printf(" Try to load model: %s, weights: %s, clear = %d \n", model_file,
       weights_file, clear);
 
-  ParseNetworkCfg(net, model_file, batch);
-  if (weights_file && weights_file[0] != 0)
+  ParseNetworkCfg(net, model_file, train);
+  if (weights_file != nullptr)
   {
     printf(" Try to load weights: %s \n", weights_file);
     LoadWeights(net, weights_file);
   }
 
-  FuseConvBatchNorm(net);
+  if (!train)
+    FuseConvBatchNorm(net);
+
   if (clear)
   {
     (*net->seen) = 0;

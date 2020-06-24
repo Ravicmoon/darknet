@@ -663,14 +663,6 @@ void FreeNetwork(Network* net)
 #endif
 }
 
-static float lrelu(float src)
-{
-  const float eps = 0.001;
-  if (src > eps)
-    return src;
-  return eps;
-}
-
 void FuseConvBatchNorm(Network* net)
 {
   for (int j = 0; j < net->n; ++j)
@@ -686,22 +678,18 @@ void FuseConvBatchNorm(Network* net)
       {
         for (int f = 0; f < l->n; ++f)
         {
-          l->biases[f] = l->biases[f] -
-                         (double)l->scales[f] * l->rolling_mean[f] /
-                             (sqrt((double)l->rolling_variance[f] + .00001));
+          float std = sqrt(l->rolling_variance[f] + 0.00001f);
+
+          l->biases[f] -= l->scales[f] * l->rolling_mean[f] / std;
 
           int const filter_size = l->size * l->size * l->c / l->groups;
           for (int i = 0; i < filter_size; ++i)
           {
-            int w_index = f * filter_size + i;
-
-            l->weights[w_index] =
-                (double)l->weights[w_index] * l->scales[f] /
-                (sqrt((double)l->rolling_variance[f] + .00001));
+            l->weights[f * filter_size + i] *= l->scales[f] / std;
           }
         }
 
-        free_convolutional_batchnorm(l);
+        FreeConvBatchnorm(l);
         l->batch_normalize = 0;
 #ifdef GPU
         if (gpu_index >= 0)
@@ -777,25 +765,25 @@ void copy_cudnn_descriptors(layer src, layer* dst)
 #endif  // CUDNN
 }
 
-void CopyNetWeights(Network* net_train, Network* net_map)
+void CopyNetWeights(Network* net_from, Network* net_to)
 {
-  for (int k = 0; k < net_train->n; ++k)
+  for (int k = 0; k < net_from->n; ++k)
   {
-    layer* l = &net_train->layers[k];
+    layer* l = &net_from->layers[k];
     layer tmp_layer;
-    copy_cudnn_descriptors(net_map->layers[k], &tmp_layer);
-    net_map->layers[k] = net_train->layers[k];
-    copy_cudnn_descriptors(tmp_layer, &net_map->layers[k]);
+    copy_cudnn_descriptors(net_to->layers[k], &tmp_layer);
+    net_to->layers[k] = net_from->layers[k];
+    copy_cudnn_descriptors(tmp_layer, &net_to->layers[k]);
 
     if (l->input_layer)  // for AntiAliasing
     {
       layer tmp_input_layer;
-      copy_cudnn_descriptors(*net_map->layers[k].input_layer, &tmp_input_layer);
-      net_map->layers[k].input_layer = net_train->layers[k].input_layer;
-      copy_cudnn_descriptors(tmp_input_layer, net_map->layers[k].input_layer);
+      copy_cudnn_descriptors(*net_to->layers[k].input_layer, &tmp_input_layer);
+      net_to->layers[k].input_layer = net_from->layers[k].input_layer;
+      copy_cudnn_descriptors(tmp_input_layer, net_to->layers[k].input_layer);
     }
 
-    net_map->layers[k].batch = 1;
-    net_map->layers[k].steps = 1;
+    net_to->layers[k].batch = 1;
+    net_to->layers[k].steps = 1;
   }
 }

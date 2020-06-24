@@ -109,21 +109,6 @@ char* BaseCfg(char const* cfg_file)
   return c;
 }
 
-void pm(int M, int N, float* A)
-{
-  int i, j;
-  for (i = 0; i < M; ++i)
-  {
-    printf("%d ", i + 1);
-    for (j = 0; j < N; ++j)
-    {
-      printf("%2.4f, ", A[i * N + j]);
-    }
-    printf("\n");
-  }
-  printf("\n");
-}
-
 std::string ReplaceImage2Label(std::string str)
 {
   size_t idx = str.find_last_of('.');

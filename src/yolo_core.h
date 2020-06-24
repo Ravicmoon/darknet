@@ -634,7 +634,7 @@ typedef struct BoxLabel
 
 // parser.c
 LIB_API void LoadNetwork(Network* net, char const* model_file,
-    char const* weights_file, int clear, int batch);
+    char const* weights_file, bool train = false, bool clear = false);
 LIB_API void FreeNetwork(Network* net);
 
 // network.h
@@ -649,8 +649,8 @@ LIB_API char* Detection2Json(Detection* dets, int nboxes, int classes,
 
 LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
 
-LIB_API void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, int num_gpus, bool clear, bool show_imgs,
+LIB_API void TrainDetector(std::string data_file, std::string model_file,
+    std::string weights_file, int num_gpus, bool clear, bool show_imgs,
     bool calc_map, int benchmark_layers);
 LIB_API float ValidateDetector(
     Metadata const& md, Network* net, float const iou_thresh, int letter_box);

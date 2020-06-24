@@ -23,7 +23,7 @@ void create_convolutional_cudnn_tensors(layer* l);
 void cuda_convert_f32_to_f16(float* input_f32, size_t size, float* output_f16);
 #endif
 #endif
-void free_convolutional_batchnorm(layer* l);
+void FreeConvBatchnorm(layer* l);
 
 size_t GetConvWorkspaceSize(layer* l);
 void FillConvLayer(layer* l, int batch, int steps, int h, int w, int c, int n,

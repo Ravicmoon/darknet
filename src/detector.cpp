@@ -12,8 +12,20 @@
 #include "visualize.h"
 #include "yolo_core.h"
 
-void TrainDetector(char const* data_file, char const* model_file,
-    char const* weights_file, int num_gpus, bool clear, bool show_imgs,
+void SaveWeights(Network* net, std::string save_dir, std::string save_filename,
+    std::string postfix)
+{
+  std::stringstream ss;
+  ss << save_dir << '/' << save_filename;
+  if (!postfix.empty())
+    ss << '_' << postfix;
+  ss << ".weights";
+
+  SaveWeights(net, ss.str().c_str());
+}
+
+void TrainDetector(std::string data_file, std::string model_file,
+    std::string weights_file, int num_gpus, bool clear, bool show_imgs,
     bool calc_map, int benchmark_layers)
 {
   Metadata md(data_file);
@@ -32,11 +44,11 @@ void TrainDetector(char const* data_file, char const* model_file,
   Network* net_map = nullptr;
   if (calc_map)
   {
-    net_map = (Network*)calloc(1, sizeof(Network));
 #ifdef GPU
     cuda_set_device(gpus[0]);
 #endif
-    LoadNetwork(net_map, model_file, nullptr, 0, 1);
+    net_map = (Network*)calloc(1, sizeof(Network));
+    LoadNetwork(net_map, model_file.c_str(), nullptr, false, true);
     for (int i = 0; i < net_map->n; i++)
     {
       free_layer(&net_map->layers[i], true);
@@ -45,43 +57,19 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   srand(time(0));
 
-  char* base = BaseCfg(model_file);
-  printf("%s\n", base);
-
   Network* nets = (Network*)calloc(num_gpus, sizeof(Network));
   for (int k = 0; k < num_gpus; ++k)
   {
 #ifdef GPU
     cuda_set_device(gpus[k]);
 #endif
-    ParseNetworkCfg(nets + k, model_file);
+    LoadNetwork(
+        nets + k, model_file.c_str(), weights_file.c_str(), true, clear);
     nets[k].benchmark_layers = benchmark_layers;
-
-    if (weights_file != nullptr)
-      LoadWeights(nets + k, weights_file);
-
-    if (clear)
-    {
-      *nets[k].seen = 0;
-      *nets[k].cur_iteration = 0;
-    }
     nets[k].learning_rate *= num_gpus;
   }
 
   Network* net = &nets[0];
-
-  int const actual_batch = net->batch * net->subdiv;
-  if (actual_batch == 1)
-  {
-    printf("Error: batch size = 1");
-    return;
-  }
-  else if (actual_batch < 8)
-  {
-    printf("Warning: batch size < 8");
-  }
-
-  int imgs_per_iter = actual_batch * num_gpus;
   printf("Learning rate: %e, Momentum: %g, Decay: %g\n", net->learning_rate,
       net->momentum, net->decay);
 
@@ -93,11 +81,16 @@ void TrainDetector(char const* data_file, char const* model_file,
   char** paths = (char**)ListToArray(train_img_paths);
   int num_train_imgs = train_img_paths->size;
 
+  int const actual_batch = net->batch * net->subdiv;
+  assert(actual_batch > 8);
+
+  int imgs_per_iter = actual_batch * num_gpus;
+  float num_epochs = (float)actual_batch * net->max_batches / num_train_imgs;
+  printf("# of epochs: %f\n", num_epochs);
+
   int const init_w = net->w;
   int const init_h = net->h;
-  int const init_b = net->batch;
   int iter_save = GetCurrentIteration(net);
-  int iter_save_last = GetCurrentIteration(net);
   int iter_map = max_val_cmp(net->burn_in, GetCurrentIteration(net));
 
   load_args args = {0};
@@ -125,10 +118,10 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   args.threads = 6 * num_gpus;
 
+  pthread_t load_thread = load_data(args);
+
   int const max_loss = 20;
   cv::Mat graph_bg = DrawLossGraphBg(net->max_batches, max_loss, 100, 720);
-
-  pthread_t load_thread = load_data(args);
 
   int count = 0;
   double avg_time = -DBL_MAX;
@@ -137,6 +130,9 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   double const alpha_time = 0.01;
   int const map_step = max_val_cmp(100, num_train_imgs / actual_batch);
+
+  int last_idx = model_file.find_last_of(".");
+  std::string save_filename = model_file.substr(0, last_idx);
 
   std::vector<float> avg_loss_stack, map_stack;
   std::vector<int> iter_stack, iter_map_stack;
@@ -155,34 +151,21 @@ void TrainDetector(char const* data_file, char const* model_file,
       int dim_h =
           roundl(scale * init_h / net->resize_step + 1) * net->resize_step;
 
-      if (scale < 1 && (dim_w > init_w || dim_h > init_h))
-      {
-        dim_w = init_w;
-        dim_h = init_h;
-      }
-
       int max_dim_w =
           roundl(rand_coef * init_w / net->resize_step + 1) * net->resize_step;
       int max_dim_h =
           roundl(rand_coef * init_h / net->resize_step + 1) * net->resize_step;
 
-      // at the beginning (check if enough memory) and at the end (calc rolling
-      // mean/variance)
+      // at the beginning (check if enough memory)
+      // at the end (calc rolling mean/variance)
       if (avg_loss < 0 || GetCurrentIteration(net) > net->max_batches - 100)
       {
         dim_w = max_dim_w;
         dim_h = max_dim_h;
       }
 
-      if (dim_w < net->resize_step)
-        dim_w = net->resize_step;
-      if (dim_h < net->resize_step)
-        dim_h = net->resize_step;
-
-      int dim_b = (init_b * max_dim_w * max_dim_h) / (dim_w * dim_h);
-      int new_dim_b = (int)(dim_b * 0.8);
-      if (new_dim_b > init_b)
-        dim_b = new_dim_b;
+      dim_w = std::max(dim_w, net->resize_step);
+      dim_h = std::max(dim_h, net->resize_step);
 
       args.w = dim_w;
       args.h = dim_h;
@@ -261,10 +244,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       if (map > best_map)
       {
         best_map = map;
-
-        char buff[256];
-        sprintf(buff, "%s/%s_best.weights", save_dir, base);
-        SaveWeights(net, buff);
+        SaveWeights(net, save_dir, save_filename, "best");
       }
 
       iter_map = iter + map_step;
@@ -298,21 +278,7 @@ void TrainDetector(char const* data_file, char const* model_file,
       if (num_gpus != 1)
         SyncNetworks(nets, num_gpus, 0);
 #endif
-      char buff[256];
-      sprintf(buff, "%s/%s_%d.weights", save_dir, base, iter);
-      SaveWeights(net, buff);
-    }
-
-    if (iter >= (iter_save_last + 100) || (iter % 100 == 0 && iter > 1))
-    {
-      iter_save_last = iter;
-#ifdef GPU
-      if (num_gpus != 1)
-        SyncNetworks(nets, num_gpus, 0);
-#endif
-      char buff[256];
-      sprintf(buff, "%s/%s_last.weights", save_dir, base);
-      SaveWeights(net, buff);
+      SaveWeights(net, save_dir, save_filename, std::to_string(iter));
     }
 
     free_data(train);
@@ -322,10 +288,7 @@ void TrainDetector(char const* data_file, char const* model_file,
   if (num_gpus != 1)
     SyncNetworks(nets, num_gpus, 0);
 #endif
-
-  char buff[256];
-  sprintf(buff, "%s/%s_final.weights", save_dir, base);
-  SaveWeights(net, buff);
+  SaveWeights(net, save_dir, save_filename, "final");
 
   cv::destroyAllWindows();
 
@@ -335,7 +298,6 @@ void TrainDetector(char const* data_file, char const* model_file,
 
   free_load_threads(&args);
 
-  free(base);
   free(paths);
   FreeListContents(train_img_paths);
   FreeList(train_img_paths);

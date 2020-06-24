@@ -348,7 +348,7 @@ void cudnn_convolutional_setup(
 #endif
 #endif
 
-void free_convolutional_batchnorm(layer* l)
+void FreeConvBatchnorm(layer* l)
 {
   if (!l->share_layer)
   {
