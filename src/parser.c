@@ -154,7 +154,7 @@ typedef struct SizeParams
   int w;
   int c;
   int index;
-  int train;
+  bool train;
   Network* net;
 } SizeParams;
 
@@ -1142,7 +1142,7 @@ void ParseNetworkCfg(Network* net, char const* filename, bool train)
   params.w = net->w;
   params.c = net->c;
   params.inputs = net->inputs;
-  if (net->batch < 1)
+  if (!train || net->batch < 1)
     net->batch = 1;
   params.batch = net->batch;
   params.net = net;
