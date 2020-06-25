@@ -3,7 +3,6 @@ extern "C" {
 #endif
 
 int cuda_debug_sync = 0;
-int gpu_index = 0;
 
 #ifdef __cplusplus
 }
@@ -36,7 +35,6 @@ int gpu_index = 0;
 
 void cuda_set_device(int n)
 {
-  gpu_index = n;
   cudaError_t status = cudaSetDevice(n);
   if (status != cudaSuccess)
     CHECK_CUDA(status);

@@ -1117,7 +1117,7 @@ void ParseNetworkCfg(Network* net, char const* filename, bool train)
     error("Config file has no sections");
 
   AllocateNetwork(net, sections->size - 1);
-  net->gpu_index = gpu_index;
+  net->gpu_index = cuda_get_device();
 
   SizeParams params;
   params.train = train;
@@ -1495,7 +1495,7 @@ void ParseNetworkCfg(Network* net, char const* filename, bool train)
 #ifdef GPU
   get_cuda_stream();
   get_cuda_memcpy_stream();
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
   {
     int size = GetNetworkInputSize(net) * net->batch;
     net->input_state_gpu = cuda_make_array(0, size);
@@ -1550,7 +1550,7 @@ void ParseNetworkCfg(Network* net, char const* filename, bool train)
 void SaveShortcutWeights(layer* l, FILE* fp)
 {
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
   {
     PullShortcutLayer(l);
     printf("\n PullShortcutLayer \n");
@@ -1574,10 +1574,8 @@ void SaveShortcutWeights(layer* l, FILE* fp)
 void SaveConvolutionalWeights(layer* l, FILE* fp)
 {
 #ifdef GPU
-  if (gpu_index >= 0)
-  {
+  if (cuda_get_device() >= 0)
     PullConvolutionalLayer(l);
-  }
 #endif
   int num = l->nweights;
   fwrite(l->biases, sizeof(float), l->n, fp);
@@ -1593,7 +1591,7 @@ void SaveConvolutionalWeights(layer* l, FILE* fp)
 void SaveBatchnormWeights(layer* l, FILE* fp)
 {
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     PullBatchnormLayer(l);
 #endif
   fwrite(l->biases, sizeof(float), l->c, fp);
@@ -1605,7 +1603,7 @@ void SaveBatchnormWeights(layer* l, FILE* fp)
 void SaveConnectedWeights(layer* l, FILE* fp)
 {
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     PullConnectedLayer(l);
 #endif
   fwrite(l->biases, sizeof(float), l->outputs, fp);
@@ -1664,7 +1662,7 @@ void SaveWeightsUpto(Network* net, char const* filename, int cutoff)
     if (l->type == LOCAL)
     {
 #ifdef GPU
-      if (gpu_index >= 0)
+      if (cuda_get_device() >= 0)
         PullLocalLayer(l);
 #endif
       int locations = l->out_w * l->out_h;
@@ -1709,7 +1707,7 @@ void LoadConnectedWeights(layer* l, FILE* fp, int transpose)
     fread(l->rolling_variance, sizeof(float), l->outputs, fp);
   }
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     PushConnectedLayer(l);
 #endif
 }
@@ -1721,7 +1719,7 @@ void LoadBatchnormWeights(layer* l, FILE* fp)
   fread(l->rolling_mean, sizeof(float), l->c, fp);
   fread(l->rolling_variance, sizeof(float), l->c, fp);
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     PushBatchnormLayer(l);
 #endif
 }
@@ -1787,7 +1785,7 @@ void LoadConvolutionalWeights(layer* l, FILE* fp)
         l->index);
 
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     PushConvolutionalLayer(l);
 #endif
 }
@@ -1804,7 +1802,7 @@ void LoadShortcutWeights(layer* l, FILE* fp)
         l->index);
 
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     PushShortcutLayer(l);
 #endif
 }
@@ -1878,7 +1876,7 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
       fread(l->biases, sizeof(float), l->outputs, fp);
       fread(l->weights, sizeof(float), size, fp);
 #ifdef GPU
-      if (gpu_index >= 0)
+      if (cuda_get_device() >= 0)
         PushLocalLayer(l);
 #endif
     }

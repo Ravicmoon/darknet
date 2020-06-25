@@ -165,7 +165,7 @@ void FillMaxpoolLayer(layer* l, int batch, int h, int w, int c, int size,
       l->input_layer->biases[i] = 0;
     }
 #ifdef GPU
-    if (gpu_index >= 0)
+    if (cuda_get_device() >= 0)
     {
       if (l->antialiasing)
         l->input_antialiasing_gpu =

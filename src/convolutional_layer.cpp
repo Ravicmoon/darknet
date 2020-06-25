@@ -97,7 +97,7 @@ int ConvOutWidth(layer* l)
 size_t GetWorkspaceSize32(layer* l)
 {
 #ifdef CUDNN
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
   {
     size_t most = 0;
     size_t s = 0;
@@ -602,7 +602,7 @@ void FillConvLayer(layer* l, int batch, int steps, int h, int w, int c, int n,
   l->backward_gpu = BackwardConvolutionalLayerGpu;
   l->update_gpu = UpdateConvolutionalLayerGpu;
 
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
   {
     if (l->activation == SWISH || l->activation == MISH)
     {
@@ -792,7 +792,7 @@ void FillConvLayer(layer* l, int batch, int steps, int h, int w, int c, int n,
       l->input_layer->biases[i] = 0;
     }
 #ifdef GPU
-    if (gpu_index >= 0)
+    if (cuda_get_device() >= 0)
     {
       l->input_antialiasing_gpu = cuda_make_array(NULL, l->batch * l->outputs);
       PushConvolutionalLayer(l->input_layer);
@@ -1068,7 +1068,7 @@ void binary_align_weights(layer* l)
         align_weights_size);
 
     // if (l->n >= 32)
-    if (gpu_index >= 0)
+    if (cuda_get_device() >= 0)
     {
       // int M = l->n;
       // int N = l->out_w*l->out_h;

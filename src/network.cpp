@@ -136,7 +136,7 @@ void UpdateNetwork(Network* net)
 float* GetNetworkOutput(Network* net)
 {
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     return GetNetworkOutputGpu(net);
 #endif
   int i;
@@ -195,7 +195,7 @@ void BackwardNetwork(Network* net, NetworkState state)
 float TrainNetworkDatum(Network* net, float* x, float* y)
 {
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     return TrainNetworkDatumGpu(net, x, y);
 #endif
   NetworkState state = {0};
@@ -261,7 +261,7 @@ void ResizeNetwork(Network* net, int w, int h)
 {
 #ifdef GPU
   cuda_set_device(net->gpu_index);
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
   {
     cuda_free(net->workspace);
     if (net->input_gpu)
@@ -380,7 +380,7 @@ void ResizeNetwork(Network* net, int w, int h)
   }
 #ifdef GPU
   const int size = GetNetworkInputSize(net) * net->batch;
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
   {
     printf(" try to allocate additional workspace_size = %1.2f MB \n",
         (float)workspace_size / 1000000);
@@ -414,7 +414,7 @@ void ResizeNetwork(Network* net, int w, int h)
 float* NetworkPredict(Network* net, float* input)
 {
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     return NetworkPredictGpu(net, input);
 #endif
 
@@ -623,7 +623,7 @@ void FreeNetwork(Network* net)
   free(net->cur_iteration);
 
 #ifdef GPU
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
     cuda_free(net->workspace);
   else
     free(net->workspace);
@@ -692,7 +692,7 @@ void FuseConvBatchNorm(Network* net)
         FreeConvBatchnorm(l);
         l->batch_normalize = 0;
 #ifdef GPU
-        if (gpu_index >= 0)
+        if (cuda_get_device() >= 0)
           PushConvolutionalLayer(l);
 #endif
       }

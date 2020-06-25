@@ -65,8 +65,6 @@ typedef struct load_args load_args;
 struct data;
 typedef struct data data;
 
-extern int gpu_index;
-
 // activations.h
 typedef enum
 {
