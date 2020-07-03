@@ -135,7 +135,7 @@ size_t GetWorkspaceSize32(layer* l)
 size_t GetWorkspaceSize16(layer* l)
 {
 #if defined(CUDNN) && defined(CUDNN_HALF)
-  if (gpu_index >= 0)
+  if (cuda_get_device() >= 0)
   {
     size_t most = 0;
     size_t s = 0;

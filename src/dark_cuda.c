@@ -586,6 +586,7 @@ void show_cuda_cudnn_info()
 #else  // GPU
 
 #include "yolo_core.h"
+int cuda_get_device() { return -1; }
 void cuda_set_device(int n) {}
 
 #endif  // GPU
