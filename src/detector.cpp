@@ -30,9 +30,9 @@ void TrainDetector(std::string data_file, std::string model_file,
 {
   Metadata md(data_file);
 
-  char const* save_dir = md.SaveDir().c_str();
-  if (!Exists(save_dir))
-    MakeDir(save_dir, 0);
+  std::string save_dir = md.SaveDir();
+  if (!Exists(save_dir.c_str()))
+    MakeDir(save_dir.c_str(), 0);
 
   // make a gpu index array
   std::vector<int> gpus;
@@ -66,32 +66,33 @@ void TrainDetector(std::string data_file, std::string model_file,
     LoadNetwork(
         nets + k, model_file.c_str(), weights_file.c_str(), true, clear);
     nets[k].benchmark_layers = benchmark_layers;
-    nets[k].learning_rate *= num_gpus;
+    nets[k].lr *= num_gpus;
   }
 
   Network* net = &nets[0];
-  printf("Learning rate: %e, Momentum: %g, Decay: %g\n", net->learning_rate,
-      net->momentum, net->decay);
-
-  data train, buffer;
-
-  layer* l = &net->layers[net->n - 1];
+  printf("Learning rate: %e, Momentum: %g, Decay: %g\n", net->lr, net->momentum,
+      net->decay);
 
   list* train_img_paths = get_paths(md.TrainFile().c_str());
   char** paths = (char**)ListToArray(train_img_paths);
   int num_train_imgs = train_img_paths->size;
 
-  int const actual_batch = net->batch * net->subdiv;
-  assert(actual_batch > 8);
+  // set max number of iterations
+  net->max_iter = num_train_imgs * net->max_epochs;
+  printf("Max number of iterations: %d\n", net->max_iter);
 
-  int imgs_per_iter = actual_batch * num_gpus;
-  float num_epochs = (float)actual_batch * net->max_batches / num_train_imgs;
-  printf("# of epochs: %f\n", num_epochs);
+  int const actual_batch = net->batch * net->subdiv;
+  int const imgs_per_iter = actual_batch * num_gpus;
+
+  assert(actual_batch > 8);
 
   int const init_w = net->w;
   int const init_h = net->h;
-  int iter_save = GetCurrentIteration(net);
-  int iter_map = max_val_cmp(net->burn_in, GetCurrentIteration(net));
+  int iter_save = GetCurrIter(net);
+  int iter_map = max_val_cmp(net->burn_in, GetCurrIter(net));
+
+  layer* l = &net->layers[net->n - 1];
+  data train, buffer;
 
   load_args args = {0};
   args.w = net->w;
@@ -99,7 +100,7 @@ void TrainDetector(std::string data_file, std::string model_file,
   args.c = net->c;
   args.paths = paths;
   args.n = imgs_per_iter;
-  args.m = train_img_paths->size;
+  args.m = num_train_imgs;
   args.classes = l->classes;
   args.flip = net->flip;
   args.jitter = l->jitter;
@@ -113,15 +114,14 @@ void TrainDetector(std::string data_file, std::string model_file,
   args.exposure = net->exposure;
   args.saturation = net->saturation;
   args.hue = net->hue;
-  args.letter_box = net->letter_box;
   args.show_imgs = show_imgs;
 
   args.threads = 6 * num_gpus;
 
   pthread_t load_thread = load_data(args);
 
-  int const max_loss = 20;
-  cv::Mat graph_bg = DrawLossGraphBg(net->max_batches, max_loss, 100, 720);
+  int const max_loss = 5;
+  cv::Mat graph_bg = DrawLossGraphBg(net->max_iter, max_loss, 100, 720);
 
   int count = 0;
   double avg_time = -DBL_MAX;
@@ -137,7 +137,7 @@ void TrainDetector(std::string data_file, std::string model_file,
   std::vector<float> avg_loss_stack, map_stack;
   std::vector<int> iter_stack, iter_map_stack;
 
-  while (GetCurrentIteration(net) < net->max_batches)
+  while (GetCurrIter(net) < net->max_iter)
   {
     if (l->random && count++ % 10 == 0)
     {
@@ -158,7 +158,7 @@ void TrainDetector(std::string data_file, std::string model_file,
 
       // at the beginning (check if enough memory)
       // at the end (calc rolling mean/variance)
-      if (avg_loss < 0 || GetCurrentIteration(net) > net->max_batches - 100)
+      if (avg_loss < 0 || GetCurrIter(net) > net->max_iter - 100)
       {
         dim_w = max_dim_w;
         dim_h = max_dim_h;
@@ -204,7 +204,7 @@ void TrainDetector(std::string data_file, std::string model_file,
     avg_loss = avg_loss * 0.9f + loss * 0.1f;
     avg_loss_stack.push_back(avg_loss);
 
-    int const iter = GetCurrentIteration(net);
+    int const iter = GetCurrIter(net);
     iter_stack.push_back(iter);
 
     if (net->cudnn_half)
@@ -216,7 +216,7 @@ void TrainDetector(std::string data_file, std::string model_file,
         printf("Tensor Cores are used\n");
     }
 
-    if (calc_map && (iter >= iter_map || iter == net->max_batches))
+    if (calc_map && (iter >= iter_map || iter == net->max_iter))
     {
       if (l->random)
       {
@@ -236,7 +236,7 @@ void TrainDetector(std::string data_file, std::string model_file,
 
       CopyNetWeights(net, net_map);
 
-      float map = ValidateDetector(md, net_map, 0.5, net->letter_box);
+      float map = ValidateDetector(md, net_map, 0.5);
 
       map_stack.push_back(map);
       iter_map_stack.push_back(iter_map);
@@ -244,7 +244,7 @@ void TrainDetector(std::string data_file, std::string model_file,
       if (map > best_map)
       {
         best_map = map;
-        SaveWeights(net, save_dir, save_filename, "best");
+        SaveWeights(net, save_dir.c_str(), save_filename, "best");
       }
 
       iter_map = iter + map_step;
@@ -254,7 +254,7 @@ void TrainDetector(std::string data_file, std::string model_file,
     }
 
     double end_step = GetTimePoint();
-    double time_remaining = ((net->max_batches - iter) / num_gpus) *
+    double time_remaining = ((net->max_iter - iter) / num_gpus) *
                             (end_step - start_step) / 1e6 / 3600;
 
     if (avg_time < 0)
@@ -265,11 +265,10 @@ void TrainDetector(std::string data_file, std::string model_file,
     printf(
         "[%04d] loss: %.2f, avg loss: %.2f, lr: %e, images: %d, %.2lf hours "
         "left\n",
-        iter, loss, avg_loss, GetCurrentRate(net), iter * imgs_per_iter,
-        avg_time);
+        iter, loss, avg_loss, GetCurrLr(net), iter * imgs_per_iter, avg_time);
 
     DrawLossGraph(graph_bg, iter_stack, avg_loss_stack, iter_map_stack,
-        map_stack, net->max_batches, max_loss, avg_time);
+        map_stack, net->max_iter, max_loss, avg_time);
 
     if (iter >= (iter_save + 1000) || iter % 1000 == 0)
     {
@@ -278,7 +277,7 @@ void TrainDetector(std::string data_file, std::string model_file,
       if (num_gpus != 1)
         SyncNetworks(nets, num_gpus, 0);
 #endif
-      SaveWeights(net, save_dir, save_filename, std::to_string(iter));
+      SaveWeights(net, save_dir.c_str(), save_filename, std::to_string(iter));
     }
 
     free_data(train);
@@ -288,7 +287,7 @@ void TrainDetector(std::string data_file, std::string model_file,
   if (num_gpus != 1)
     SyncNetworks(nets, num_gpus, 0);
 #endif
-  SaveWeights(net, save_dir, save_filename, "final");
+  SaveWeights(net, save_dir.c_str(), save_filename, "final");
 
   cv::destroyAllWindows();
 
@@ -325,8 +324,7 @@ typedef struct
   bool matched;
 } ValBox;
 
-float ValidateDetector(
-    Metadata const& md, Network* net, float const iou_thresh, int letter_box)
+float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
 {
   std::vector<std::string> name_list = md.NameList();
 
@@ -349,10 +347,7 @@ float ValidateDetector(
   args.w = net->w;
   args.h = net->h;
   args.c = net->c;
-  if (letter_box)
-    args.type = LETTERBOX_DATA;
-  else
-    args.type = IMAGE_DATA;
+  args.type = IMAGE_DATA;
   args.im = buff;
   args.resized = buff_resized;
 
@@ -374,19 +369,13 @@ float ValidateDetector(
 
     NetworkPredict(net, buff_resized->data);
 
+    free_image(*buff);
+    free_image(*buff_resized);
+
     int num_boxes = 0;
     float hier_thresh = 0;
-    Detection* dets;
-    if (args.type == LETTERBOX_DATA)
-    {
-      dets = GetNetworkBoxes(net, buff->w, buff->h, thresh, hier_thresh, 0, 1,
-          &num_boxes, letter_box);
-    }
-    else
-    {
-      dets = GetNetworkBoxes(
-          net, 1, 1, thresh, hier_thresh, 0, 0, &num_boxes, letter_box);
-    }
+    Detection* dets =
+        GetNetworkBoxes(net, 1, 1, thresh, hier_thresh, 0, 0, &num_boxes);
 
     if (l->nms_kind == DEFAULT_NMS)
       NmsSort(dets, num_boxes, l->classes, nms);

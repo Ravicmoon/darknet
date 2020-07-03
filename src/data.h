@@ -71,7 +71,7 @@ pthread_t load_data_in_thread(load_args args);
 data load_data_detection(int n, char** paths, int m, int w, int h, int c,
     int boxes, int classes, int use_flip, int gaussian_noise, int use_blur,
     int use_mixup, float jitter, float hue, float saturation, float exposure,
-    int mini_batch, int letter_box, int show_imgs);
+    int mini_batch, int show_imgs);
 
 std::vector<BoxLabel> ReadBoxAnnot(std::string filename);
 

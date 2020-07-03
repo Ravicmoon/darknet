@@ -141,7 +141,7 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
     layer* l = &net->layers[i];
     if (l->stopbackward == 1)
       break;
-    if (l->stopbackward > GetCurrentIteration(net))
+    if (l->stopbackward > GetCurrIter(net))
       break;
     if (i == 0)
     {
@@ -202,35 +202,6 @@ void BackwardNetworkGpu(Network* net, NetworkState state)
     }
   }
 
-  if (net->adversarial && net->attention)
-  {
-    int img_size = net->w * net->h * net->c;
-    float* original_input_cpu = (float*)xcalloc(img_size, sizeof(float));
-    float* original_delta_cpu = (float*)xcalloc(img_size, sizeof(float));
-    cuda_pull_array(original_input, original_input_cpu, img_size);
-    cuda_pull_array(original_delta, original_delta_cpu, img_size);
-
-    Image attention_img = make_attention_image(img_size, original_delta_cpu,
-        original_input_cpu, net->w, net->h, net->c);
-    show_image(attention_img, "attention_img");
-
-    free_image(attention_img);
-
-    free(original_input_cpu);
-    free(original_delta_cpu);
-  }
-  if (net->adversarial)
-  {
-    int x_size = GetNetworkInputSize(net) * net->batch;
-    printf(
-        " x_size = %d, original_delta = %p, original_input = %p, "
-        "net.learning_rate = %f \n",
-        x_size, original_delta, original_input, net->learning_rate);
-    axpy_ongpu(
-        x_size, net->learning_rate, original_delta, 1, original_input, 1);
-    constrain_min_max_ongpu(x_size, 0, 1, original_input, 1);
-  }
-
   if (net->benchmark_layers)
   {
     printf("\n\nSorted by time (backward):\n");
@@ -251,13 +222,13 @@ void UpdateNetworkGpu(Network* net)
   cuda_set_device(net->gpu_index);
 
   int const actual_batch = net->batch * net->subdiv;
-  int const iter = *net->seen / actual_batch;
+  int const iter = GetCurrIter(net);
+  float const lr = GetCurrLr(net);
 
-  float rate = GetCurrentRate(net);
   for (int i = 0; i < net->n; ++i)
   {
     layer* l = &net->layers[i];
-    l->t = GetCurrentBatch(net);
+    l->t = iter;
 
     if (l->burnin_update && (l->burnin_update * net->burn_in > iter))
       continue;
@@ -268,7 +239,7 @@ void UpdateNetworkGpu(Network* net)
     if (l->update_gpu && l->dont_update < iter)
     {
       l->update_gpu(
-          l, actual_batch, rate, net->momentum, net->decay, net->loss_scale);
+          l, actual_batch, lr, net->momentum, net->decay, net->loss_scale);
     }
   }
 }
@@ -294,11 +265,6 @@ void ForwardBackwardNetworkGpu(Network* net, float* x, float* y)
   }
   state.input = *net->input_gpu;
   state.delta = 0;
-  if (net->adversarial)
-  {
-    state.train = 0;
-    state.delta = cuda_make_array(NULL, x_size);
-  }
   state.truth = *net->truth_gpu;
   state.train = 1;
 #if defined(CUDNN_HALF) && defined(CUDNN)
@@ -317,38 +283,12 @@ void ForwardBackwardNetworkGpu(Network* net, float* x, float* y)
 #endif
   ForwardNetworkGpu(net, state);
   BackwardNetworkGpu(net, state);
-
-  if (net->adversarial)
-  {
-    cuda_free(state.delta);
-    cuda_pull_array(*net->input_gpu, x, x_size);
-  }
 }
 
 float TrainNetworkDatumGpu(Network* net, float* x, float* y)
 {
   *net->seen += net->batch;
-  if (net->adversarial_lr && RandInt(0, 1) == 1 &&
-      GetCurrentIteration(net) > net->burn_in)
-  {
-    net->adversarial = 1;
-    float lr_old = net->learning_rate;
-    float scale = 1.0 - (GetCurrentIteration(net) / ((float)net->max_batches));
-    net->learning_rate = net->adversarial_lr * scale;
-    int y_size = GetNetworkOutputSize(net) * net->batch;
-    if (net->layers[net->n - 1].truths)
-      y_size = net->layers[net->n - 1].truths * net->batch;
-    float* truth_cpu = (float*)xcalloc(y_size, sizeof(float));
 
-    printf(
-        "\n adversarial training, adversarial_lr = %f \n", net->adversarial_lr);
-
-    ForwardBackwardNetworkGpu(net, x, truth_cpu);
-
-    free(truth_cpu);
-    net->learning_rate = lr_old;
-    net->adversarial = 0;
-  }
   ForwardBackwardNetworkGpu(net, x, y);
 
   return GetNetworkCost(net);
@@ -543,12 +483,9 @@ float TrainNetworks(Network* nets, int n, data d, int interval)
     sum += errors[i];
   }
   // cudaDeviceSynchronize();
-  *nets[0].cur_iteration += (n - 1);
-  *nets[0].seen =
-      nets[0].batch * nets[0].subdiv *
-      GetCurrentIteration(&nets[0]);  // remove this line, when you will save to
-                                      // weights-file both: seen & cur_iteration
-  if (GetCurrentIteration(&nets[0]) % interval == 0)
+  *nets[0].curr_iter += (n - 1);
+
+  if (GetCurrIter(&nets[0]) % interval == 0)
     SyncNetworks(nets, n, interval);
 
   // cudaDeviceSynchronize();

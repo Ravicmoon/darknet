@@ -24,8 +24,6 @@ DEFINE_bool(show_imgs, false, "");
 DEFINE_bool(calc_map, true, "");
 
 DEFINE_int32(benchmark_layers, 0, "");
-DEFINE_int32(letter_box, 0, "");
-DEFINE_int32(map_points, 0, "");
 DEFINE_int32(width, -1, "");
 DEFINE_int32(height, -1, "");
 DEFINE_int32(num_gpus, 1, "");
@@ -108,7 +106,7 @@ int main(int argc, char** argv)
     Network* net = (Network*)calloc(1, sizeof(Network));
     LoadNetwork(net, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str());
 
-    ValidateDetector(md, net, 0.5, 0);
+    ValidateDetector(md, net, 0.5);
 
     FreeNetwork(net);
     free(net);
@@ -145,7 +143,7 @@ int main(int argc, char** argv)
       NetworkPredict(net, image.data);
 
       dets = GetNetworkBoxes(net, net->w, net->h, FLAGS_thresh,
-          FLAGS_hier_thresh, 0, 1, &num_boxes, 0);
+          FLAGS_hier_thresh, 0, 1, &num_boxes);
 
       if (l->nms_kind == DEFAULT_NMS)
         NmsSort(dets, num_boxes, l->classes, nms);

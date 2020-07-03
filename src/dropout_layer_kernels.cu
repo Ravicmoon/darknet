@@ -138,13 +138,13 @@ void ForwardDropoutLayerGpu(layer* l, NetworkState state)
 {
   if (!state.train)
     return;
-  int iteration_num = GetCurrentIteration(state.net);
+  int iteration_num = GetCurrIter(state.net);
 
   // We gradually increase the block size and the probability of dropout -
   // during the first half of the training
   float multiplier = 1.0;
-  if (iteration_num < (state.net->max_batches * 0.85))
-    multiplier = (iteration_num / (float)(state.net->max_batches * 0.85));
+  if (iteration_num < (state.net->max_iter * 0.85))
+    multiplier = (iteration_num / (float)(state.net->max_iter * 0.85));
 
   // dropblock
   if (l->dropblock)
@@ -214,10 +214,10 @@ void BackwardDropoutLayerGpu(layer* l, NetworkState state)
   // dropblock
   if (l->dropblock)
   {
-    int iteration_num = GetCurrentIteration(state.net);
+    int iteration_num = GetCurrIter(state.net);
     float multiplier = 1.0;
-    if (iteration_num < (state.net->max_batches * 0.85))
-      multiplier = (iteration_num / (float)(state.net->max_batches * 0.85));
+    if (iteration_num < (state.net->max_iter * 0.85))
+      multiplier = (iteration_num / (float)(state.net->max_iter * 0.85));
 
     int block_width = l->dropblock_size_abs * multiplier;
     int block_height = l->dropblock_size_abs * multiplier;

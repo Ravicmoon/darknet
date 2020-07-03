@@ -28,7 +28,6 @@ LIB_API void make_image_red(Image im);
 LIB_API Image make_attention_image(int img_size, float* original_delta_cpu,
     float* original_input_cpu, int w, int h, int c);
 LIB_API Image resize_image(Image im, int w, int h);
-LIB_API Image letterbox_image(Image im, int w, int h);
 LIB_API Image make_image(int w, int h, int c);
 LIB_API Image load_image_color(char* filename, int w, int h);
 LIB_API void free_image(Image m);

@@ -270,17 +270,6 @@ void ForwardBatchnormLayerGpu(layer* l, NetworkState state)
   if (l->type == BATCHNORM)
     simple_copy_ongpu(l->outputs * l->batch, state.input, l->output_gpu);
 
-  if (state.net->adversarial)
-  {
-    normalize_gpu(l->output_gpu, l->rolling_mean_gpu, l->rolling_variance_gpu,
-        l->batch, l->out_c, l->out_h * l->out_w);
-    scale_bias_gpu(
-        l->output_gpu, l->scales_gpu, l->batch, l->out_c, l->out_h * l->out_w);
-    add_bias_gpu(
-        l->output_gpu, l->biases_gpu, l->batch, l->out_c, l->out_w * l->out_h);
-    return;
-  }
-
   if (state.train)
   {
     simple_copy_ongpu(l->outputs * l->batch, l->output_gpu, l->x_gpu);
@@ -299,17 +288,7 @@ void ForwardBatchnormLayerGpu(layer* l, NetworkState state)
         .00001,
         l->mean_gpu,       // output (should be FP32)
         l->variance_gpu);  // output (should be FP32)
-
-    if (state.net->try_fix_nan)
-    {
-      fix_nan_and_inf(l->scales_gpu, l->n);
-      fix_nan_and_inf(l->biases_gpu, l->n);
-      fix_nan_and_inf(l->mean_gpu, l->n);
-      fix_nan_and_inf(l->variance_gpu, l->n);
-      fix_nan_and_inf(l->rolling_mean_gpu, l->n);
-      fix_nan_and_inf(l->rolling_variance_gpu, l->n);
-    }
-#else   // CUDNN
+#else                      // CUDNN
     fast_mean_gpu(
         l->output_gpu, l->batch, l->out_c, l->out_h * l->out_w, l->mean_gpu);
     fast_variance_gpu(l->output_gpu, l->mean_gpu, l->batch, l->out_c,
@@ -329,7 +308,7 @@ void ForwardBatchnormLayerGpu(layer* l, NetworkState state)
         l->output_gpu, l->scales_gpu, l->batch, l->out_c, l->out_h * l->out_w);
     add_bias_gpu(
         l->output_gpu, l->biases_gpu, l->batch, l->out_c, l->out_w * l->out_h);
-#endif  // CUDNN
+#endif                     // CUDNN
   }
   else
   {
@@ -344,18 +323,6 @@ void ForwardBatchnormLayerGpu(layer* l, NetworkState state)
 
 void BackwardBatchnormLayerGpu(layer* l, NetworkState state)
 {
-  if (state.net->adversarial)
-  {
-    inverse_variance_ongpu(
-        l->out_c, l->rolling_variance_gpu, l->variance_gpu, 0.00001);
-
-    scale_bias_gpu(
-        l->delta_gpu, l->variance_gpu, l->batch, l->out_c, l->out_h * l->out_w);
-    scale_bias_gpu(
-        l->delta_gpu, l->scales_gpu, l->batch, l->out_c, l->out_h * l->out_w);
-    return;
-  }
-
   if (!state.train)
   {
     simple_copy_ongpu(l->out_c, l->rolling_mean_gpu, l->mean_gpu);
@@ -404,12 +371,6 @@ void BackwardBatchnormLayerGpu(layer* l, NetworkState state)
 #endif  // CUDNN
   if (l->type == BATCHNORM)
     simple_copy_ongpu(l->outputs * l->batch, l->delta_gpu, state.delta);
-
-  if (state.net->try_fix_nan)
-  {
-    fix_nan_and_inf(l->scale_updates_gpu, l->n);
-    fix_nan_and_inf(l->bias_updates_gpu, l->n);
-  }
 }
 
 void UpdateBatchnormLayerGpu(layer* l, int batch, float learning_rate_init,

@@ -592,26 +592,6 @@ void ForwardGaussianYoloLayer(layer* l, NetworkState state)
           {
             l->delta[obj_index] = 0;
           }
-          else if (state.net->adversarial)
-          {
-            int class_index =
-                EntryGaussianIndex(l, b, n * l->w * l->h + j * l->w + i, 9);
-            int stride = l->w * l->h;
-            float scale = pred.w * pred.h;
-            if (scale > 0)
-              scale = sqrt(scale);
-            l->delta[obj_index] =
-                scale * l->cls_normalizer * (0 - l->output[obj_index]);
-            int cl_id;
-            for (cl_id = 0; cl_id < l->classes; ++cl_id)
-            {
-              if (l->output[class_index + stride * cl_id] *
-                      l->output[obj_index] >
-                  0.25)
-                l->delta[class_index + stride * cl_id] =
-                    scale * (0 - l->output[class_index + stride * cl_id]);
-            }
-          }
           if (best_iou > l->truth_thresh)
           {
             l->delta[obj_index] =
@@ -876,30 +856,12 @@ void BackwardGaussianYoloLayer(layer* l, NetworkState state)
   axpy_cpu(l->batch * l->inputs, 1, l->delta, 1, state.delta, 1);
 }
 
-void CorrectGaussianYoloBoxes(Detection* dets, int n, int w, int h, int netw,
-    int neth, int relative, int letter)
+void CorrectGaussianYoloBoxes(
+    Detection* dets, int n, int w, int h, int netw, int neth, int relative)
 {
   int i;
-  int new_w = 0;
-  int new_h = 0;
-  if (letter)
-  {
-    if (((float)netw / w) < ((float)neth / h))
-    {
-      new_w = netw;
-      new_h = (h * netw) / w;
-    }
-    else
-    {
-      new_h = neth;
-      new_w = (w * neth) / h;
-    }
-  }
-  else
-  {
-    new_w = netw;
-    new_h = neth;
-  }
+  int new_w = netw;
+  int new_h = neth;
   /*
   if (((float)netw/w) < ((float)neth/h)) {
       new_w = netw;
@@ -945,7 +907,7 @@ int GaussianYoloNumDetections(layer const* l, float thresh)
 }
 
 int GetGaussianYoloDetections(layer const* l, int w, int h, int netw, int neth,
-    float thresh, int* map, int relative, Detection* dets, int letter)
+    float thresh, int* map, int relative, Detection* dets)
 {
   float const* predictions = l->output;
   int count = 0;
@@ -996,7 +958,7 @@ int GetGaussianYoloDetections(layer const* l, int w, int h, int netw, int neth,
       }
     }
   }
-  CorrectGaussianYoloBoxes(dets, count, w, h, netw, neth, relative, letter);
+  CorrectGaussianYoloBoxes(dets, count, w, h, netw, neth, relative);
   return count;
 }
 

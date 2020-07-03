@@ -936,30 +936,77 @@ LearningRatePolicy GetPolicy(char* s)
 
 void ParseNetOptions(list* options, Network* net)
 {
-  net->max_batches = FindOptionInt(options, "max_batches", 0);
+  *net->seen = 0;
+  *net->curr_iter = 0;
+
+  net->max_epochs = FindOptionInt(options, "max_epochs", 0);
   net->batch = FindOptionInt(options, "batch", 1);
-  net->learning_rate = FindOptionFloat(options, "learning_rate", .001);
-  net->learning_rate_min =
-      FindOptionFloatQuiet(options, "learning_rate_min", .00001);
-  net->batches_per_cycle =
-      FindOptionIntQuiet(options, "sgdr_cycle", net->max_batches);
-  net->batches_cycle_mult = FindOptionIntQuiet(options, "sgdr_mult", 2);
+  net->subdiv = FindOptionInt(options, "subdivisions", 1);
+  net->batch /= net->subdiv;
+
+  // input size
+  net->h = FindOptionIntQuiet(options, "height", 0);
+  net->w = FindOptionIntQuiet(options, "width", 0);
+  net->c = FindOptionIntQuiet(options, "channels", 0);
+  if (!net->h || !net->w || !net->c)
+    error("No input parameters supplied");
+
+  // learning rate related options
+  net->lr = FindOptionFloat(options, "learning_rate", .001);
+  net->lr_min = FindOptionFloatQuiet(options, "learning_rate_min", .00001);
   net->momentum = FindOptionFloat(options, "momentum", .9);
   net->decay = FindOptionFloat(options, "decay", .0001);
-  net->try_fix_nan = FindOptionIntQuiet(options, "try_fix_nan", 0);
 
-  int subdiv = FindOptionInt(options, "subdivisions", 1);
-  net->batch /= subdiv;
-  net->subdiv = subdiv;
+  char* policy_str = FindOptionStr(options, "policy", "constant");
+  net->policy = GetPolicy(policy_str);
+  net->burn_in = FindOptionIntQuiet(options, "burn_in", 0);
 
-  *net->seen = 0;
-  *net->cur_iteration = 0;
-  net->loss_scale = FindOptionFloatQuiet(options, "loss_scale", 1);
-  net->optimized_memory = FindOptionIntQuiet(options, "optimized_memory", 0);
-  net->workspace_size_limit =
-      (size_t)1024 * 1024 *
-      FindOptionFloatQuiet(options, "workspace_size_limit_MB",
-          1024);  // 1024 MB by default
+  if (net->policy == STEP)
+  {
+    net->step = FindOptionInt(options, "step", 1);
+    net->scale = FindOptionFloat(options, "scale", 1);
+  }
+
+  if (net->policy == STEPS || net->policy == SGDR)
+  {
+    // SGDR options
+    net->sgdr_cycle = FindOptionIntQuiet(options, "sgdr_cycle", net->max_iter);
+    net->sgdr_mult = FindOptionIntQuiet(options, "sgdr_mult", 2);
+
+    // steps and scales
+    char* l = FindOption(options, "steps");
+    char* p = FindOption(options, "scales");
+    if (net->policy == STEPS && (!l || !p))
+      error("STEPS policy must have steps and scales in cfg file");
+
+    int n = 1;
+    for (int i = 0; i < strlen(l); ++i)
+    {
+      if (l[i] == ',')
+        ++n;
+    }
+
+    net->steps = (float*)xcalloc(n, sizeof(float));
+    net->scales = (float*)xcalloc(n, sizeof(float));
+    net->num_steps = n;
+    for (int i = 0; i < n; ++i)
+    {
+      net->steps[i] = atof(l);
+      l = strchr(l, ',') + 1;
+
+      net->scales[i] = atof(p);
+      p = strchr(p, ',') + 1;
+    }
+  }
+
+  if (net->policy == EXP)
+    net->gamma = FindOptionFloat(options, "gamma", 1);
+
+  if (net->policy == SIG)
+  {
+    net->gamma = FindOptionFloat(options, "gamma", 1);
+    net->step = FindOptionInt(options, "step", 1);
+  }
 
   net->adam = FindOptionIntQuiet(options, "adam", 0);
   if (net->adam)
@@ -969,16 +1016,14 @@ void ParseNetOptions(list* options, Network* net)
     net->eps = FindOptionFloat(options, "eps", .000001);
   }
 
-  net->h = FindOptionIntQuiet(options, "height", 0);
-  net->w = FindOptionIntQuiet(options, "width", 0);
-  net->c = FindOptionIntQuiet(options, "channels", 0);
-  net->inputs = FindOptionIntQuiet(options, "inputs", net->h * net->w * net->c);
+  net->loss_scale = FindOptionFloatQuiet(options, "loss_scale", 1);
+
+  // data augmentation
   net->max_crop = FindOptionIntQuiet(options, "max_crop", net->w * 2);
   net->min_crop = FindOptionIntQuiet(options, "min_crop", net->w);
   net->flip = FindOptionIntQuiet(options, "flip", 1);
   net->blur = FindOptionIntQuiet(options, "blur", 0);
   net->gaussian_noise = FindOptionIntQuiet(options, "gaussian_noise", 0);
-  net->mixup = FindOptionIntQuiet(options, "mixup", 0);
   int cutmix = FindOptionIntQuiet(options, "cutmix", 0);
   int mosaic = FindOptionIntQuiet(options, "mosaic", 0);
   if (mosaic && cutmix)
@@ -987,12 +1032,9 @@ void ParseNetOptions(list* options, Network* net)
     net->mixup = 2;
   else if (mosaic)
     net->mixup = 3;
-  net->letter_box = FindOptionIntQuiet(options, "letter_box", 0);
   net->label_smooth_eps =
       FindOptionFloatQuiet(options, "label_smooth_eps", 0.0f);
   net->resize_step = FindOptionFloatQuiet(options, "resize_step", 32);
-  net->attention = FindOptionIntQuiet(options, "attention", 0);
-  net->adversarial_lr = FindOptionFloatQuiet(options, "adversarial_lr", 0);
 
   net->angle = FindOptionFloatQuiet(options, "angle", 0);
   net->aspect = FindOptionFloatQuiet(options, "aspect", 1);
@@ -1001,12 +1043,13 @@ void ParseNetOptions(list* options, Network* net)
   net->hue = FindOptionFloatQuiet(options, "hue", 0);
   net->power = FindOptionFloatQuiet(options, "power", 4);
 
-  if (!net->inputs && !(net->h && net->w && net->c))
-    error("No input parameters supplied");
+  // memory related options
+  net->optimized_memory = FindOptionIntQuiet(options, "optimized_memory", 0);
+  // 1024 MB by default
+  net->workspace_size_limit =
+      (size_t)1024 * 1024 *
+      FindOptionFloatQuiet(options, "workspace_size_limit_MB", 1024);
 
-  char* policy_s = FindOptionStr(options, "policy", "constant");
-  net->policy = GetPolicy(policy_s);
-  net->burn_in = FindOptionIntQuiet(options, "burn_in", 0);
 #ifdef GPU
   if (net->gpu_index >= 0)
   {
@@ -1021,73 +1064,10 @@ void ParseNetOptions(list* options, Network* net)
         compute_capability, net->cudnn_half);
   }
   else
+  {
     fprintf(stderr, " GPU isn't used \n");
+  }
 #endif  // GPU
-  if (net->policy == STEP)
-  {
-    net->step = FindOptionInt(options, "step", 1);
-    net->scale = FindOptionFloat(options, "scale", 1);
-  }
-  else if (net->policy == STEPS || net->policy == SGDR)
-  {
-    char* l = FindOption(options, "steps");
-    char* p = FindOption(options, "scales");
-    char* s = FindOption(options, "seq_scales");
-    if (net->policy == STEPS && (!l || !p))
-      error("STEPS policy must have steps and scales in cfg file");
-
-    if (l)
-    {
-      int len = strlen(l);
-      int n = 1;
-      int i;
-      for (i = 0; i < len; ++i)
-      {
-        if (l[i] == ',')
-          ++n;
-      }
-      int* steps = (int*)xcalloc(n, sizeof(int));
-      float* scales = (float*)xcalloc(n, sizeof(float));
-      float* seq_scales = (float*)xcalloc(n, sizeof(float));
-      for (i = 0; i < n; ++i)
-      {
-        float scale = 1.0;
-        if (p)
-        {
-          scale = atof(p);
-          p = strchr(p, ',') + 1;
-        }
-        float sequence_scale = 1.0;
-        if (s)
-        {
-          sequence_scale = atof(s);
-          s = strchr(s, ',') + 1;
-        }
-        int step = atoi(l);
-        l = strchr(l, ',') + 1;
-        steps[i] = step;
-        scales[i] = scale;
-        seq_scales[i] = sequence_scale;
-      }
-      net->scales = scales;
-      net->steps = steps;
-      net->seq_scales = seq_scales;
-      net->num_steps = n;
-    }
-  }
-  else if (net->policy == EXP)
-  {
-    net->gamma = FindOptionFloat(options, "gamma", 1);
-  }
-  else if (net->policy == SIG)
-  {
-    net->gamma = FindOptionFloat(options, "gamma", 1);
-    net->step = FindOptionInt(options, "step", 1);
-  }
-  else if (net->policy == POLY || net->policy == RANDOM)
-  {
-    // net->power = option_find_float(options, "power", 1);
-  }
 }
 
 int IsNetwork(Section* s)
@@ -1620,10 +1600,9 @@ void SaveWeightsUpto(Network* net, char const* filename, int cutoff)
 {
 #ifdef GPU
   if (net->gpu_index >= 0)
-  {
     cuda_set_device(net->gpu_index);
-  }
 #endif
+
   fprintf(stderr, "Saving weights to %s\n", filename);
   FILE* fp = fopen(filename, "wb");
   if (!fp)
@@ -1635,9 +1614,7 @@ void SaveWeightsUpto(Network* net, char const* filename, int cutoff)
   fwrite(&major, sizeof(int), 1, fp);
   fwrite(&minor, sizeof(int), 1, fp);
   fwrite(&revision, sizeof(int), 1, fp);
-  (*net->seen) = GetCurrentIteration(net) * net->batch *
-                 net->subdiv;  // remove this line, when you will save to
-                               // weights-file both: seen & cur_iteration
+
   fwrite(net->seen, sizeof(uint64_t), 1, fp);
 
   for (int i = 0; i < net->n && i < cutoff; ++i)
@@ -1811,9 +1788,7 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
 {
 #ifdef GPU
   if (net->gpu_index >= 0)
-  {
     cuda_set_device(net->gpu_index);
-  }
 #endif
   fprintf(stderr, "Loading weights from %s...", filename);
   fflush(stdout);
@@ -1827,27 +1802,15 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
   fread(&major, sizeof(int), 1, fp);
   fread(&minor, sizeof(int), 1, fp);
   fread(&revision, sizeof(int), 1, fp);
-  if ((major * 10 + minor) >= 2)
-  {
-    printf("\n seen 64");
-    uint64_t iseen = 0;
-    fread(&iseen, sizeof(uint64_t), 1, fp);
-    *net->seen = iseen;
-  }
-  else
-  {
-    printf("\n seen 32");
-    uint32_t iseen = 0;
-    fread(&iseen, sizeof(uint32_t), 1, fp);
-    *net->seen = iseen;
-  }
-  *net->cur_iteration = GetCurrentBatch(net);
-  printf(", trained: %.0f K-images (%.0f Kilo-batches_64) \n",
-      (float)(*net->seen / 1000), (float)(*net->seen / 64000));
-  int transpose = (major > 1000) || (minor > 1000);
 
-  int i = 0;
-  for (i = 0; i < net->n && i < cutoff; ++i)
+  fread(net->seen, sizeof(uint64_t), 1, fp);
+  *net->curr_iter = *net->seen / (net->batch * net->subdiv);
+
+  printf(", trained: %.0f K-images \n", *net->seen / 1000.f);
+
+  int transpose = (major > 1000) || (minor > 1000);
+  int num_layer = min_val_cmp(net->n, cutoff);
+  for (int i = 0; i < num_layer; ++i)
   {
     layer* l = &net->layers[i];
     if (l->dontload)
@@ -1883,7 +1846,7 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
     if (feof(fp))
       break;
   }
-  fprintf(stderr, "Done! Loaded %d layers from weights-file \n", i);
+  fprintf(stderr, "Done! Loaded %d layers from weights-file \n", num_layer);
   fclose(fp);
 }
 
@@ -1912,6 +1875,6 @@ void LoadNetwork(Network* net, char const* model_file, char const* weights_file,
   if (clear)
   {
     (*net->seen) = 0;
-    (*net->cur_iteration) = 0;
+    (*net->curr_iter) = 0;
   }
 }

@@ -357,7 +357,7 @@ void ForwardConvolutionalLayerGpu(layer* l, NetworkState state)
 #ifdef CUDNN
   float alpha = 1, beta = 0;
 
-  int iteration_num = GetCurrentIteration(state.net);
+  int iteration_num = GetCurrIter(state.net);
   if (state.index != 0 && state.net->cudnn_half && !l->xnor &&
       (!state.train || (iteration_num > 3 * state.net->burn_in) &&
                            state.net->loss_scale != 1) &&
@@ -408,7 +408,7 @@ void ForwardConvolutionalLayerGpu(layer* l, NetworkState state)
 
     if (l->batch_normalize)
     {
-      if (state.train && !state.net->adversarial)  // Training
+      if (state.train)  // Training
       {
         simple_copy_ongpu(l->outputs * l->batch / 2, output16, l->x_gpu);
         float one = 1.0f;
@@ -542,11 +542,6 @@ void ForwardConvolutionalLayerGpu(layer* l, NetworkState state)
   if (l->binary || l->xnor)
     swap_binary(l);
 
-  if (state.net->try_fix_nan)
-  {
-    fix_nan_and_inf(l->output_gpu, l->outputs * l->batch);
-  }
-
   if (l->antialiasing)
   {
     NetworkState s = {0};
@@ -584,9 +579,6 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
         l->outputs * l->batch, l->input_antialiasing_gpu, l->output_gpu);
   }
 
-  if (state.net->try_fix_nan)
-    constrain_ongpu(l->outputs * l->batch, 1, l->delta_gpu, 1);
-
   if (l->activation == SWISH)
     gradient_array_swish_ongpu(l->output_gpu, l->outputs * l->batch,
         l->activation_input_gpu, l->delta_gpu);
@@ -618,7 +610,7 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
   float one = 1.f;
   float alpha = 1, beta = 0;
 
-  int iteration_num = GetCurrentIteration(state.net);
+  int iteration_num = GetCurrIter(state.net);
   if (state.index != 0 && state.net->cudnn_half && !l->xnor &&
       (!state.train || (iteration_num > 3 * state.net->burn_in) &&
                            state.net->loss_scale != 1) &&
@@ -690,7 +682,7 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
     cuda_convert_f32_to_f16(
         l->weight_updates_gpu, l->nweights, l->weight_updates_gpu16);
 
-    if (!state.net->adversarial && !l->train_only_bn)
+    if (!l->train_only_bn)
     {
       CHECK_CUDNN(cudnnConvolutionBackwardFilter(cudnn_handle(), &one,
           l->srcTensorDesc16, input16, l->ddstTensorDesc16, delta16,
@@ -732,7 +724,7 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
       BackwardBatchnormLayerGpu(l, state);
     }
 
-    if (!state.net->adversarial && !l->train_only_bn)
+    if (!l->train_only_bn)
     {
       // calculate conv weight updates
       // if used: beta=1 then loss decreases faster
@@ -783,7 +775,7 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
       float* im =
           state.input + (i * l->groups + j) * l->c / l->groups * l->h * l->w;
 
-      if (!state.net->adversarial && !l->train_only_bn)
+      if (!l->train_only_bn)
       {
         im2col_gpu_ext(im,                               // input
             l->c / l->groups,                            // input channels
@@ -830,16 +822,6 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
     }
   }
 #endif
-  if (state.net->try_fix_nan)
-  {
-    if (state.delta)
-    {
-      reset_nan_and_inf(state.delta, l->inputs * l->batch);
-    }
-    int size = l->nweights;
-    reset_nan_and_inf(l->weight_updates_gpu, size);
-    fix_nan_and_inf(l->weights_gpu, size);
-  }
 }
 
 void PullConvolutionalLayer(layer* l)

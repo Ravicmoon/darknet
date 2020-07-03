@@ -452,34 +452,33 @@ typedef enum
 // network.h
 typedef struct Network
 {
+  int max_epochs;
+  int max_iter;
+
   int n;
   int batch;
+  int subdiv;
   uint64_t* seen;
-  int* cur_iteration;
+  int* curr_iter;
   float loss_scale;
   int* t;
-  float epoch;
-  int subdiv;
   layer* layers;
   float* output;
   LearningRatePolicy policy;
   int benchmark_layers;
 
-  float learning_rate;
-  float learning_rate_min;
-  float learning_rate_max;
-  int batches_per_cycle;
-  int batches_cycle_mult;
+  float lr;
+  float lr_min;
+  int sgdr_cycle;
+  int sgdr_mult;
   float momentum;
   float decay;
   float gamma;
   float scale;
   float power;
   int step;
-  int max_batches;
-  float* seq_scales;
+  float* steps;
   float* scales;
-  int* steps;
   int num_steps;
   int burn_in;
   int cudnn_half;
@@ -506,17 +505,12 @@ typedef struct Network
   int mixup;
   float label_smooth_eps;
   int resize_step;
-  int attention;
-  int adversarial;
-  float adversarial_lr;
-  int letter_box;
   float angle;
   float aspect;
   float exposure;
   float saturation;
   float hue;
   int curr_subdiv;
-  int try_fix_nan;
 
   int gpu_index;
 
@@ -584,10 +578,8 @@ typedef struct data
 // data.h
 typedef enum
 {
-  CLASSIFICATION_DATA,
   DETECTION_DATA,
   IMAGE_DATA,
-  LETTERBOX_DATA,
 } data_type;
 
 // data.h
@@ -605,7 +597,6 @@ typedef struct load_args
   int min, max, size;
   int classes;
   int scale;
-  int letter_box;
   int show_imgs;
   float jitter;
   int flip;
@@ -638,7 +629,7 @@ LIB_API void FreeNetwork(Network* net);
 // network.h
 LIB_API float* NetworkPredict(Network* net, float* input);
 LIB_API Detection* GetNetworkBoxes(Network* net, int w, int h, float thresh,
-    float hier, int* map, int relative, int* num, int letter);
+    float hier, int* map, int relative, int* num);
 LIB_API void FreeDetections(Detection* dets, int n);
 LIB_API void FuseConvBatchNorm(Network* net);
 LIB_API void calculate_binary_weights(Network net);
@@ -651,7 +642,7 @@ LIB_API void TrainDetector(std::string data_file, std::string model_file,
     std::string weights_file, int num_gpus, bool clear, bool show_imgs,
     bool calc_map, int benchmark_layers);
 LIB_API float ValidateDetector(
-    Metadata const& md, Network* net, float const iou_thresh, int letter_box);
+    Metadata const& md, Network* net, float const iou_thresh);
 
 // layer.h
 LIB_API void free_layer(layer* l, bool keep_cudnn_desc = false);

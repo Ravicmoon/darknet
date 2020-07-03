@@ -490,26 +490,6 @@ void ForwardYoloLayer(layer* l, NetworkState state)
           {
             l->delta[obj_index] = 0;
           }
-          else if (state.net->adversarial)
-          {
-            int class_index =
-                EntryIndex(l, b, n * l->w * l->h + j * l->w + i, 4 + 1);
-            int stride = l->w * l->h;
-            float scale = pred.w * pred.h;
-            if (scale > 0)
-              scale = sqrt(scale);
-            l->delta[obj_index] =
-                scale * l->cls_normalizer * (0 - l->output[obj_index]);
-            int cl_id;
-            for (cl_id = 0; cl_id < l->classes; ++cl_id)
-            {
-              if (l->output[class_index + stride * cl_id] *
-                      l->output[obj_index] >
-                  0.25)
-                l->delta[class_index + stride * cl_id] =
-                    scale * (0 - l->output[class_index + stride * cl_id]);
-            }
-          }
           if (best_iou > l->truth_thresh)
           {
             l->delta[obj_index] =
@@ -800,35 +780,14 @@ void BackwardYoloLayer(layer* l, NetworkState state)
 // w,h: image width,height
 // netw,neth: network width,height
 // relative: 1 (all callers seems to pass TRUE)
-void CorrectYoloBoxes(Detection* dets, int n, int w, int h, int netw, int neth,
-    int relative, int letter)
+void CorrectYoloBoxes(
+    Detection* dets, int n, int w, int h, int netw, int neth, int relative)
 {
   int i;
   // network height (or width)
-  int new_w = 0;
+  int new_w = netw;
   // network height (or width)
-  int new_h = 0;
-  // Compute scale given image w,h vs network w,h
-  // I think this "rotates" the image to match network to input image w/h ratio
-  // new_h and new_w are really just network width and height
-  if (letter)
-  {
-    if (((float)netw / w) < ((float)neth / h))
-    {
-      new_w = netw;
-      new_h = (h * netw) / w;
-    }
-    else
-    {
-      new_h = neth;
-      new_w = (w * neth) / h;
-    }
-  }
-  else
-  {
-    new_w = netw;
-    new_h = neth;
-  }
+  int new_h = neth;
   // difference between network width and "rotated" width
   float deltaw = netw - new_w;
   // difference between network height and "rotated" height
@@ -879,7 +838,7 @@ int YoloNumDetections(layer const* l, float thresh)
 }
 
 int GetYoloDetections(layer const* l, int w, int h, int netw, int neth,
-    float thresh, int* map, int relative, Detection* dets, int letter)
+    float thresh, int* map, int relative, Detection* dets)
 {
   float const* predictions = l->output;
 
@@ -909,7 +868,7 @@ int GetYoloDetections(layer const* l, int w, int h, int netw, int neth,
       }
     }
   }
-  CorrectYoloBoxes(dets, count, w, h, netw, neth, relative, letter);
+  CorrectYoloBoxes(dets, count, w, h, netw, neth, relative);
   return count;
 }
 

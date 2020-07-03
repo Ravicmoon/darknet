@@ -420,7 +420,7 @@ void blend_truth_mosaic(float* new_truth, int boxes, float* old_truth, int w,
 data load_data_detection(int n, char** paths, int m, int w, int h, int c,
     int boxes, int classes, int use_flip, int use_gaussian_noise, int use_blur,
     int use_mixup, float jitter, float hue, float saturation, float exposure,
-    int letter_box, int show_imgs)
+    int show_imgs)
 {
   const int random_index = RandGen();
   c = c ? c : 3;
@@ -428,13 +428,6 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
   if (use_mixup == 2)
   {
     printf("\n cutmix=1 - isn't supported for Detector \n");
-    exit(0);
-  }
-  if (use_mixup == 3 && letter_box)
-  {
-    printf(
-        "\n Combination: letter_box=1 & mosaic=1 - isn't supported, use only 1 "
-        "of these parameters \n");
     exit(0);
   }
   if (RandGen() % 2 == 0)
@@ -522,33 +515,6 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
       // %d \n", pleft, pright, ptop, pbot, ow, oh);
 
       // float scale = rand_precalc_random(.25, 2, r_scale); // unused currently
-
-      if (letter_box)
-      {
-        float img_ar = (float)ow / (float)oh;
-        float net_ar = (float)w / (float)h;
-        float result_ar = img_ar / net_ar;
-        // printf(" ow = %d, oh = %d, w = %d, h = %d, img_ar = %f, net_ar = %f,
-        // result_ar = %f \n", ow, oh, w, h, img_ar, net_ar, result_ar);
-        if (result_ar > 1)  // sheight - should be increased
-        {
-          float oh_tmp = ow / net_ar;
-          float delta_h = (oh_tmp - oh) / 2;
-          ptop = ptop - delta_h;
-          pbot = pbot - delta_h;
-          // printf(" result_ar = %f, oh_tmp = %f, delta_h = %d, ptop = %f, pbot
-          // = %f \n", result_ar, oh_tmp, delta_h, ptop, pbot);
-        }
-        else  // swidth - should be increased
-        {
-          float ow_tmp = oh * net_ar;
-          float delta_w = (ow_tmp - ow) / 2;
-          pleft = pleft - delta_w;
-          pright = pright - delta_w;
-          // printf(" result_ar = %f, ow_tmp = %f, delta_w = %d, pleft = %f,
-          // pright = %f \n", result_ar, ow_tmp, delta_w, pleft, pright);
-        }
-      }
 
       int swidth = ow - pleft - pright;
       int sheight = oh - ptop - pbot;
@@ -711,33 +677,29 @@ data load_data_detection(int n, char** paths, int m, int w, int h, int c,
 
 void* load_thread(void* ptr)
 {
-  load_args a = *(struct load_args*)ptr;
-  if (a.exposure == 0)
-    a.exposure = 1;
-  if (a.saturation == 0)
-    a.saturation = 1;
-  if (a.aspect == 0)
-    a.aspect = 1;
+  load_args* args = (load_args*)ptr;
+  if (args->exposure == 0)
+    args->exposure = 1;
+  if (args->saturation == 0)
+    args->saturation = 1;
+  if (args->aspect == 0)
+    args->aspect = 1;
 
-  if (a.type == DETECTION_DATA)
+  if (args->type == DETECTION_DATA)
   {
-    *a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.c, a.num_boxes,
-        a.classes, a.flip, a.gaussian_noise, a.blur, a.mixup, a.jitter, a.hue,
-        a.saturation, a.exposure, a.letter_box, a.show_imgs);
+    *args->d = load_data_detection(args->n, args->paths, args->m, args->w,
+        args->h, args->c, args->num_boxes, args->classes, args->flip,
+        args->gaussian_noise, args->blur, args->mixup, args->jitter, args->hue,
+        args->saturation, args->exposure, args->show_imgs);
   }
-  if (a.type == IMAGE_DATA)
+  if (args->type == IMAGE_DATA)
   {
-    *(a.im) = load_image(a.path, 0, 0, a.c);
-    *(a.resized) = resize_image(*(a.im), a.w, a.h);
-  }
-  if (a.type == LETTERBOX_DATA)
-  {
-    *(a.im) = load_image(a.path, 0, 0, a.c);
-    *(a.resized) = letterbox_image(*(a.im), a.w, a.h);
+    *(args->im) = load_image(args->path, 0, 0, args->c);
+    *(args->resized) = resize_image(*(args->im), args->w, args->h);
   }
 
   free(ptr);
-  return 0;
+  return nullptr;
 }
 
 pthread_t load_data_in_thread(load_args args)

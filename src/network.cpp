@@ -27,65 +27,60 @@
 #include "utils.h"
 #include "yolo_layer.h"
 
-int64_t GetCurrentIteration(Network* net) { return *net->cur_iteration; }
+int64_t GetCurrIter(Network* net) { return *net->curr_iter; }
 
-int GetCurrentBatch(Network* net)
+float GetCurrLr(Network* net)
 {
-  return (*net->seen) / (net->batch * net->subdiv);
-}
+  int64_t iter = GetCurrIter(net);
+  if (iter < net->burn_in)
+    return net->lr * pow((float)iter / net->burn_in, net->power);
 
-float GetCurrentRate(Network* net)
-{
-  int batch_num = GetCurrentBatch(net);
-  int i;
-  float rate;
-  if (batch_num < net->burn_in)
-    return net->learning_rate *
-           pow((float)batch_num / net->burn_in, net->power);
-  switch (net->policy)
+  if (net->policy == CONSTANT)
+    return net->lr;
+
+  if (net->policy == STEP)
+    return net->lr * pow(net->scale, iter / net->step);
+
+  if (net->policy == STEPS)
   {
-    case CONSTANT:
-      return net->learning_rate;
-    case STEP:
-      return net->learning_rate * pow(net->scale, batch_num / net->step);
-    case STEPS:
-      rate = net->learning_rate;
-      for (i = 0; i < net->num_steps; ++i)
-      {
-        if (net->steps[i] > batch_num)
-          return rate;
-        rate *= net->scales[i];
-      }
-      return rate;
-    case EXP:
-      return net->learning_rate * pow(net->gamma, batch_num);
-    case POLY:
-      return net->learning_rate *
-             pow(1 - (float)batch_num / net->max_batches, net->power);
-    case RANDOM:
-      return net->learning_rate * pow(RandUniform(0, 1), net->power);
-    case SIG:
-      return net->learning_rate *
-             (1. / (1. + exp(net->gamma * (batch_num - net->step))));
-    case SGDR: {
-      int last_iteration_start = 0;
-      int cycle_size = net->batches_per_cycle;
-      while ((last_iteration_start + cycle_size) < batch_num)
-      {
-        last_iteration_start += cycle_size;
-        cycle_size *= net->batches_cycle_mult;
-      }
-      rate = net->learning_rate_min +
-             0.5 * (net->learning_rate - net->learning_rate_min) *
-                 (1. + cos((float)(batch_num - last_iteration_start) *
-                           3.14159265 / cycle_size));
-
-      return rate;
+    float lr = net->lr;
+    for (int i = 0; i < net->num_steps; ++i)
+    {
+      if (net->max_iter * net->steps[i] > iter)
+        return lr;
+      lr *= net->scales[i];
     }
-    default:
-      fprintf(stderr, "Policy is weird!\n");
-      return net->learning_rate;
+    return lr;
   }
+
+  if (net->policy == EXP)
+    return net->lr * pow(net->gamma, iter);
+
+  if (net->policy == POLY)
+    return net->lr * pow(1 - (float)iter / net->max_iter, net->power);
+
+  if (net->policy == RANDOM)
+    return net->lr * pow(RandUniform(0, 1), net->power);
+
+  if (net->policy == SIG)
+    return net->lr * (1. / (1. + exp(net->gamma * (iter - net->step))));
+
+  if (net->policy == SGDR)
+  {
+    int last_iter = 0;
+    int cycle = net->sgdr_cycle;
+    while (last_iter + cycle < iter)
+    {
+      last_iter += cycle;
+      cycle *= net->sgdr_mult;
+    }
+    return net->lr_min +
+           0.5f * (net->lr - net->lr_min) *
+               (1.0f + cos((float)(iter - last_iter) * M_PI / cycle));
+  }
+
+  printf("Invalid policy\n");
+  return net->lr;
 }
 
 void AllocateNetwork(Network* net, int n)
@@ -93,7 +88,7 @@ void AllocateNetwork(Network* net, int n)
   net->n = n;
   net->layers = (layer*)xcalloc(net->n, sizeof(layer));
   net->seen = (uint64_t*)xcalloc(1, sizeof(uint64_t));
-  net->cur_iteration = (int*)xcalloc(1, sizeof(int));
+  net->curr_iter = (int*)xcalloc(1, sizeof(int));
 #ifdef GPU
   net->input_gpu = (float**)xcalloc(1, sizeof(float*));
   net->truth_gpu = (float**)xcalloc(1, sizeof(float*));
@@ -122,14 +117,14 @@ void ForwardNetwork(Network* net, NetworkState state)
 
 void UpdateNetwork(Network* net)
 {
-  int actual_batch = net->batch * net->subdiv;
+  int const actual_batch = net->batch * net->subdiv;
+  float const lr = GetCurrLr(net);
 
-  float rate = GetCurrentRate(net);
   for (int i = 0; i < net->n; ++i)
   {
     layer* l = &net->layers[i];
     if (l->update)
-      l->update(l, actual_batch, rate, net->momentum, net->decay);
+      l->update(l, actual_batch, lr, net->momentum, net->decay);
   }
 }
 
@@ -198,6 +193,7 @@ float TrainNetworkDatum(Network* net, float* x, float* y)
   if (cuda_get_device() >= 0)
     return TrainNetworkDatumGpu(net, x, y);
 #endif
+
   NetworkState state = {0};
   *net->seen += net->batch;
   state.index = 0;
@@ -229,7 +225,7 @@ float TrainNetwork(Network* net, data d)
     net->curr_subdiv = i;
     sum += TrainNetworkDatum(net, X, y);
   }
-  (*net->cur_iteration) += 1;
+  (*net->curr_iter) += 1;
 
 #ifdef GPU
   UpdateNetworkGpu(net);
@@ -267,13 +263,14 @@ void ResizeNetwork(Network* net, int w, int h)
     if (net->input_gpu)
     {
       cuda_free(*net->input_gpu);
-      *net->input_gpu = 0;
       cuda_free(*net->truth_gpu);
-      *net->truth_gpu = 0;
+      *net->input_gpu = nullptr;
+      *net->truth_gpu = nullptr;
     }
 
     if (net->input_state_gpu)
       cuda_free(net->input_state_gpu);
+
     if (net->input_pinned_cpu)
     {
       if (net->input_pinned_cpu_flag)
@@ -379,7 +376,7 @@ void ResizeNetwork(Network* net, int w, int h)
     h = l->out_h;
   }
 #ifdef GPU
-  const int size = GetNetworkInputSize(net) * net->batch;
+  int const size = GetNetworkInputSize(net) * net->batch;
   if (cuda_get_device() >= 0)
   {
     printf(" try to allocate additional workspace_size = %1.2f MB \n",
@@ -388,7 +385,9 @@ void ResizeNetwork(Network* net, int w, int h)
     net->input_state_gpu = cuda_make_array(0, size);
     if (cudaSuccess == cudaHostAlloc(&net->input_pinned_cpu,
                            size * sizeof(float), cudaHostRegisterMapped))
+    {
       net->input_pinned_cpu_flag = 1;
+    }
     else
     {
       cudaGetLastError();  // reset CUDA-error
@@ -473,7 +472,7 @@ Detection* MakeNetworkBoxes(Network* net, float thresh, int* num)
 }
 
 void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
-    int* map, int relative, Detection* dets, int letter)
+    int* map, int relative, Detection* dets)
 {
   int prev_classes = -1;
   for (int i = 0; i < net->n; ++i)
@@ -482,7 +481,7 @@ void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
     if (l->type == YOLO)
     {
       int count = GetYoloDetections(
-          l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
+          l, w, h, net->w, net->h, thresh, map, relative, dets);
       dets += count;
       if (prev_classes < 0)
         prev_classes = l->classes;
@@ -498,7 +497,7 @@ void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
     if (l->type == GAUSSIAN_YOLO)
     {
       int count = GetGaussianYoloDetections(
-          l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
+          l, w, h, net->w, net->h, thresh, map, relative, dets);
       dets += count;
     }
 
@@ -511,10 +510,10 @@ void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
 }
 
 Detection* GetNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
-    int* map, int relative, int* num, int letter)
+    int* map, int relative, int* num)
 {
   Detection* dets = MakeNetworkBoxes(net, thresh, num);
-  FillNetworkBoxes(net, w, h, thresh, hier, map, relative, dets, letter);
+  FillNetworkBoxes(net, w, h, thresh, hier, map, relative, dets);
   return dets;
 }
 
@@ -616,11 +615,10 @@ void FreeNetwork(Network* net)
   }
   free(net->layers);
 
-  free(net->seq_scales);
   free(net->scales);
   free(net->steps);
   free(net->seen);
-  free(net->cur_iteration);
+  free(net->curr_iter);
 
 #ifdef GPU
   if (cuda_get_device() >= 0)
