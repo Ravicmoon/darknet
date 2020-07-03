@@ -10,6 +10,8 @@
 LIB_API void Mat2Image(cv::Mat const& mat, Image* image);
 LIB_API void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
     float thresh, Metadata const& md);
+LIB_API void DrawProcTime(cv::Mat& img, int64_t millisec);
+LIB_API void DrawFrameInfo(cv::Mat& img, int64_t curr_frame, int64_t max_frame);
 
 LIB_API cv::Mat DrawLossGraphBg(
     int max_iter, float max_loss, int num_lines, int img_size);

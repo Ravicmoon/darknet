@@ -360,14 +360,14 @@ Box::AbsBox::AbsBox(Box const& b1, Box const& b2)
 
 int NmsComparator(const void* pa, const void* pb)
 {
-  Detection a = *(Detection*)pa;
-  Detection b = *(Detection*)pb;
+  Detection* a = (Detection*)pa;
+  Detection* b = (Detection*)pb;
 
   float diff = 0;
-  if (b.sort_class >= 0)
-    diff = a.prob[b.sort_class] - b.prob[b.sort_class];
+  if (b->sort_class >= 0)
+    diff = a->prob[b->sort_class] - b->prob[b->sort_class];
   else
-    diff = a.objectness - b.objectness;
+    diff = a->objectness - b->objectness;
 
   if (diff < 0)
     return 1;
@@ -379,9 +379,8 @@ int NmsComparator(const void* pa, const void* pb)
 
 void NmsSort(Detection* dets, int total, int classes, float thresh)
 {
-  int i, j, k;
-  k = total - 1;
-  for (i = 0; i <= k; ++i)
+  int k = total - 1;
+  for (int i = 0; i <= k; ++i)
   {
     if (abs(dets[i].objectness) < FLT_EPSILON)
     {
@@ -396,18 +395,18 @@ void NmsSort(Detection* dets, int total, int classes, float thresh)
 
   for (k = 0; k < classes; ++k)
   {
-    for (i = 0; i < total; ++i)
+    for (int i = 0; i < total; ++i)
     {
       dets[i].sort_class = k;
     }
     qsort(dets, total, sizeof(Detection), NmsComparator);
-    for (i = 0; i < total; ++i)
+    for (int i = 0; i < total; ++i)
     {
       if (abs(dets[i].prob[k]) < FLT_EPSILON)
         continue;
 
       Box a = dets[i].bbox;
-      for (j = i + 1; j < total; ++j)
+      for (int j = i + 1; j < total; ++j)
       {
         Box b = dets[j].bbox;
         if (Box::Iou(a, b) > thresh)
@@ -422,9 +421,8 @@ void NmsSort(Detection* dets, int total, int classes, float thresh)
 void DiouNmsSort(Detection* dets, int total, int classes, float thresh,
     NMS_KIND nms_kind, float beta)
 {
-  int i, j, k;
-  k = total - 1;
-  for (i = 0; i <= k; ++i)
+  int k = total - 1;
+  for (int i = 0; i <= k; ++i)
   {
     if (dets[i].objectness == 0)
     {
@@ -439,18 +437,18 @@ void DiouNmsSort(Detection* dets, int total, int classes, float thresh,
 
   for (k = 0; k < classes; ++k)
   {
-    for (i = 0; i < total; ++i)
+    for (int i = 0; i < total; ++i)
     {
       dets[i].sort_class = k;
     }
     qsort(dets, total, sizeof(Detection), NmsComparator);
-    for (i = 0; i < total; ++i)
+    for (int i = 0; i < total; ++i)
     {
       if (abs(dets[i].prob[k]) < FLT_EPSILON)
         continue;
 
       Box a = dets[i].bbox;
-      for (j = i + 1; j < total; ++j)
+      for (int j = i + 1; j < total; ++j)
       {
         Box b = dets[j].bbox;
         if (Box::Iou(a, b) > thresh && nms_kind == CORNERS_NMS)

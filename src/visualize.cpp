@@ -115,6 +115,26 @@ void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
   }
 }
 
+void DrawProcTime(cv::Mat& img, int64_t millisec)
+{
+  std::stringstream ss;
+  ss << "Proc time: " << millisec << " ms";
+  cv::putText(img, ss.str(), cv::Point(10, 25), cv::FONT_HERSHEY_COMPLEX_SMALL,
+      1.0, CV_RGB(255, 255, 255), 4);
+  cv::putText(img, ss.str(), cv::Point(10, 25), cv::FONT_HERSHEY_COMPLEX_SMALL,
+      1.0, CV_RGB(255, 0, 0), 1);
+}
+
+void DrawFrameInfo(cv::Mat& img, int64_t curr_frame, int64_t max_frame)
+{
+  std::stringstream ss;
+  ss << "Frame: " << curr_frame << '/' << max_frame;
+  cv::putText(img, ss.str(), cv::Point(10, 50), cv::FONT_HERSHEY_COMPLEX_SMALL,
+      1.0, CV_RGB(255, 255, 255), 4);
+  cv::putText(img, ss.str(), cv::Point(10, 50), cv::FONT_HERSHEY_COMPLEX_SMALL,
+      1.0, CV_RGB(255, 0, 0), 1);
+}
+
 int const kMargin = 60;
 int const kFont = cv::FONT_HERSHEY_COMPLEX_SMALL;
 float const kFontSz = 0.7;

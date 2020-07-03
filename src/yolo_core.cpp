@@ -21,6 +21,7 @@
 
 DEFINE_bool(clear, false, "");
 DEFINE_bool(show_imgs, false, "");
+DEFINE_bool(save_output, false, "");
 DEFINE_bool(calc_map, true, "");
 
 DEFINE_int32(benchmark_layers, 0, "");
@@ -121,13 +122,12 @@ int main(int argc, char** argv)
     float const nms = 0.45f;
     int num_boxes = 0;
 
-    Metadata md(FLAGS_data_file.c_str());
+    Metadata md(FLAGS_data_file);
     Network* net = (Network*)calloc(1, sizeof(Network));
     LoadNetwork(net, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str());
 
     layer* l = &net->layers[net->n - 1];
     Image image = {0, 0, 0, nullptr};
-    Detection* dets = nullptr;
 
     net->benchmark_layers = FLAGS_benchmark_layers;
 
@@ -135,14 +135,34 @@ int main(int argc, char** argv)
 
     cv::Mat input, resize;
     cv::VideoCapture video_capture(FLAGS_input_file);
+    cv::VideoWriter writer;
+    if (FLAGS_save_output)
+    {
+      int idx = FLAGS_input_file.find_last_of('.');
+      std::string output_file = FLAGS_input_file.substr(0, idx) + "_out.avi";
+
+      int width = (int)video_capture.get(cv::CAP_PROP_FRAME_WIDTH);
+      int height = (int)video_capture.get(cv::CAP_PROP_FRAME_HEIGHT);
+      double fps = video_capture.get(cv::CAP_PROP_FPS);
+
+      writer.open(output_file, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), fps,
+          cv::Size(width, height));
+    }
+
+    int64_t curr_frame = 0;
+    int64_t max_frame = video_capture.get(cv::CAP_PROP_FRAME_COUNT);
+
     while (video_capture.isOpened() && video_capture.read(input))
     {
+      using namespace std::chrono;
+      auto start = system_clock::now();
+      ///
       cv::resize(input, resize, cv::Size(net->w, net->h));
       cv::cvtColor(resize, resize, cv::COLOR_RGB2BGR);
       Mat2Image(resize, &image);
       NetworkPredict(net, image.data);
 
-      dets = GetNetworkBoxes(net, net->w, net->h, FLAGS_thresh,
+      Detection* dets = GetNetworkBoxes(net, net->w, net->h, FLAGS_thresh,
           FLAGS_hier_thresh, 0, 1, &num_boxes);
 
       if (l->nms_kind == DEFAULT_NMS)
@@ -153,6 +173,14 @@ int main(int argc, char** argv)
       DrawYoloDetections(input, dets, num_boxes, FLAGS_thresh, md);
 
       FreeDetections(dets, num_boxes);
+      ///
+      auto end = system_clock::now();
+
+      if (FLAGS_save_output)
+        writer << input;
+
+      DrawProcTime(input, duration_cast<milliseconds>(end - start).count());
+      DrawFrameInfo(input, ++curr_frame, max_frame);
 
       cv::imshow("demo", input);
       if (cv::waitKey(1) == 27)
