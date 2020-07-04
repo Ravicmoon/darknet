@@ -1097,7 +1097,9 @@ void ParseNetworkCfg(Network* net, char const* filename, bool train)
     error("Config file has no sections");
 
   AllocateNetwork(net, sections->size - 1);
+#ifdef GPU
   net->gpu_index = cuda_get_device();
+#endif
 
   SizeParams params;
   params.train = train;

@@ -1067,6 +1067,7 @@ void binary_align_weights(layer* l)
     float_to_bit(align_weights, (unsigned char*)l->align_bit_weights,
         align_weights_size);
 
+#ifdef GPU
     // if (l->n >= 32)
     if (cuda_get_device() >= 0)
     {
@@ -1078,6 +1079,7 @@ void binary_align_weights(layer* l)
       for (size_t i = 0; i < align_weights_size / 8; ++i)
         l->align_bit_weights[i] = ~(l->align_bit_weights[i]);
     }
+#endif
 
     get_mean_array(l->binary_weights, m * k, l->n, l->mean_arr);
     // get_mean_array(l->binary_weights, m*new_lda, l->n, l->mean_arr);
