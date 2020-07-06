@@ -153,6 +153,13 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
+
+      - name: 'Install CUDA'
+        run: |
+          choco install cuda -y
+          $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          refreshenv
       
       - uses: lukka/get-cmake@latest
 
