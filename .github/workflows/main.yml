@@ -23,6 +23,9 @@ jobs:
       
       - uses: lukka/get-cmake@latest
       
+      - name: vcpkg only for release
+        run: echo "set(VCPKG_BUILD_TYPE release)" >> "${{ github.workspace }}/vcpkg/triplets/x64-linux.cmake"
+      
       - name: Restore from cache and run vcpkg
         env:
           vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_linux.diff
@@ -30,7 +33,6 @@ jobs:
         with:
           vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
           vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-          vcpkgGitCommitId: 'aa0b9d7ca9e1b98e7bb18538f04dd39e7a41d3ff'
           appendedCacheKey: ${{ hashFiles(env.vcpkgResponseFile) }}
       
       - name: Build with CMake and Ninja
@@ -73,6 +75,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends libcudnn7-dev
           sudo ln -s /usr/local/cuda-10.2/lib64/stubs/libcuda.so /usr/local/cuda-10.2/lib64/stubs/libcuda.so.1
       
+      - name: vcpkg only for release
+        run: echo "set(VCPKG_BUILD_TYPE release)" >> "${{ github.workspace }}/vcpkg/triplets/x64-linux.cmake"
+
       - name: Restore from cache and run vcpkg
         env:
           vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_linux.diff
@@ -80,7 +85,6 @@ jobs:
         with:
           vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
           vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-          vcpkgGitCommitId: 'aa0b9d7ca9e1b98e7bb18538f04dd39e7a41d3ff'
           appendedCacheKey: ${{ hashFiles(env.vcpkgResponseFile) }}
       
       - name: Build with CMake and Ninja
@@ -110,6 +114,9 @@ jobs:
       
       - uses: lukka/get-cmake@latest
       
+      - name: vcpkg only for release
+        run: echo "set(VCPKG_BUILD_TYPE release)" >> "${{ github.workspace }}/vcpkg/triplets/x64-windows.cmake"
+
       - name: Restore from cache and run vcpkg
         env:
           vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_windows.diff
@@ -117,7 +124,6 @@ jobs:
         with:
           vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
           vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-          vcpkgGitCommitId: 'aa0b9d7ca9e1b98e7bb18538f04dd39e7a41d3ff'
           appendedCacheKey: ${{ hashFiles(env.vcpkgResponseFile) }}
       
       - name: Build with CMake and Ninja
@@ -139,36 +145,22 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-
-      - name: 'Install CUDA'
-        run: |
-          choco install cuda -y
-          $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."
-          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-          refreshenv
       
       - uses: lukka/get-cmake@latest
+
+      - name: vcpkg only for release
+        run: echo "set(VCPKG_BUILD_TYPE release)" >> "${{ github.workspace }}/vcpkg/triplets/x64-windows.cmake"
       
       - name: Restore from cache and run vcpkg
         env:
-          vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_windows.diff  
-          CUDA_PATH: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDA_PATH_V10_2: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDA_TOOLKIT_ROOT_DIR: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDACXX: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\bin\\nvcc.exe"
+          vcpkgResponseFile: ${{ github.workspace }}/cmake/vcpkg_windows_cuda.diff  
         uses: lukka/run-vcpkg@v2
         with:
           vcpkgArguments: '@${{ env.vcpkgResponseFile }}'
           vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-          vcpkgGitCommitId: 'aa0b9d7ca9e1b98e7bb18538f04dd39e7a41d3ff'
           appendedCacheKey: ${{ hashFiles(env.vcpkgResponseFile) }}
       
-      - name: Build with CMake and Ninja      
-        env:
-          CUDA_PATH: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDA_PATH_V10_2: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDA_TOOLKIT_ROOT_DIR: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2"
-          CUDACXX: "C:\\Program\ Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v10.2\\bin\\nvcc.exe"
+      - name: Build with CMake and Ninja
         uses: lukka/run-cmake@v2
         with:
           cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
