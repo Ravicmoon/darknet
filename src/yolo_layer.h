@@ -9,7 +9,7 @@ void BackwardYoloLayer(layer* l, NetworkState state);
 void ResizeYoloLayer(layer* l, int w, int h);
 int YoloNumDetections(layer const* l, float thresh);
 int GetYoloDetections(layer const* l, int w, int h, int netw, int neth,
-    float thresh, int* map, int relative, Detection* dets);
+    float thresh, int relative, Detection* dets);
 void CorrectYoloBoxes(
     Detection* dets, int n, int w, int h, int netw, int neth, int relative);
 

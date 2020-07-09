@@ -90,27 +90,26 @@ void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
       float top = b.top * img.rows;
       float bottom = b.bottom * img.rows;
 
-      int font_face = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
-      cv::Size text_size = cv::getTextSize(label, font_face, 1, 1, 0);
+      int font = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
+      int baseline = 0;
+      cv::Size text_size = cv::getTextSize(label, font, 1, 1, &baseline);
 
       cv::Point2f pt1(left, top);
       cv::Point2f pt2(right, bottom);
-      cv::Point2f pt_text(left, top - 4);
-      cv::Point2f pt_text_bg1(left, top - 21);
-      cv::Point2f pt_text_bg2(right, top);
-      if (right - left < text_size.width)
-        pt_text_bg2.x = left + text_size.width;
+      cv::Point2f pt_text(left, top - baseline / 2);
+      cv::Point2f pt_text_bg1(left, top - baseline - text_size.height);
+      cv::Point2f pt_text_bg2(left + text_size.width, top);
 
       int offset = class_id * 123457 % md.NumClasses();
       cv::Scalar color = GetRandColor(offset, md.NumClasses());
 
-      int width = (int)std::max(1.0f, img.rows * 0.002f);
+      int width = std::max(1, img.cols / 640);
 
-      cv::rectangle(img, pt1, pt2, color, width, 8, 0);
-      cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
-      cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1, 8, 0);
+      cv::rectangle(img, pt1, pt2, color, width);
+      cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1);
+      cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width);
       cv::putText(
-          img, label, pt_text, font_face, 1, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
+          img, label, pt_text, font, 1, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
     }
   }
 }

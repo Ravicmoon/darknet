@@ -471,8 +471,8 @@ Detection* MakeNetworkBoxes(Network* net, float thresh, int* num)
   return dets;
 }
 
-void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
-    int* map, int relative, Detection* dets)
+void FillNetworkBoxes(
+    Network* net, int w, int h, float thresh, int relative, Detection* dets)
 {
   int prev_classes = -1;
   for (int i = 0; i < net->n; ++i)
@@ -480,8 +480,8 @@ void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
     layer* l = &net->layers[i];
     if (l->type == YOLO)
     {
-      int count = GetYoloDetections(
-          l, w, h, net->w, net->h, thresh, map, relative, dets);
+      int count =
+          GetYoloDetections(l, w, h, net->w, net->h, thresh, relative, dets);
       dets += count;
       if (prev_classes < 0)
         prev_classes = l->classes;
@@ -497,7 +497,7 @@ void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
     if (l->type == GAUSSIAN_YOLO)
     {
       int count = GetGaussianYoloDetections(
-          l, w, h, net->w, net->h, thresh, map, relative, dets);
+          l, w, h, net->w, net->h, thresh, relative, dets);
       dets += count;
     }
 
@@ -509,11 +509,11 @@ void FillNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
   }
 }
 
-Detection* GetNetworkBoxes(Network* net, int w, int h, float thresh, float hier,
-    int* map, int relative, int* num)
+Detection* GetNetworkBoxes(
+    Network* net, int w, int h, float thresh, int relative, int* num)
 {
   Detection* dets = MakeNetworkBoxes(net, thresh, num);
-  FillNetworkBoxes(net, w, h, thresh, hier, map, relative, dets);
+  FillNetworkBoxes(net, w, h, thresh, relative, dets);
   return dets;
 }
 

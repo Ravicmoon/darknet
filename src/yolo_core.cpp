@@ -19,26 +19,23 @@
 
 #include <opencv2/opencv.hpp>
 
-DEFINE_bool(clear, false, "");
+DEFINE_bool(clear, false, "Clear weights in model");
 DEFINE_bool(show_imgs, false, "");
-DEFINE_bool(save_output, false, "");
-DEFINE_bool(calc_map, true, "");
+DEFINE_bool(save_output, false, "Save output to image or video");
+DEFINE_bool(calc_map, true, "Calculate mAP during training");
 
-DEFINE_int32(benchmark_layers, 0, "");
-DEFINE_int32(width, -1, "");
-DEFINE_int32(height, -1, "");
-DEFINE_int32(num_gpus, 1, "");
+DEFINE_int32(benchmark_layers, 0, "Indexes of layers to be benchmarked");
+DEFINE_int32(num_gpus, 1, "Number of GPUs");
 DEFINE_int32(cuda_dbg_sync, 0, "");
 
-DEFINE_double(thresh, 0.25, "");
-DEFINE_double(iou_thresh, 0.5, "");
-DEFINE_double(hier_thresh, 0.5, "");
+DEFINE_double(thresh, 0.25, "Threshold for object's confidence");
+DEFINE_double(nms_thresh, 0.45, "Threshold for non-maxima suppression");
 
-DEFINE_string(mode, "video", "");
-DEFINE_string(data_file, "yolo.data", "");
-DEFINE_string(model_file, "yolo.cfg", "");
-DEFINE_string(weights_file, "yolo.weights", "");
-DEFINE_string(input_file, "test.avi", "");
+DEFINE_string(mode, "video", "Either train/valid/image/video");
+DEFINE_string(data_file, "yolo.data", "Data file path");
+DEFINE_string(model_file, "yolo.cfg", "Model file path");
+DEFINE_string(weights_file, "yolo.weights", "Weights file path");
+DEFINE_string(input_file, "test.avi", "Input file path for image/video modes");
 
 #ifdef GPU
 #define CUDA_ASSERT(x) CudaAssert((x), __FILE__, __LINE__)
@@ -81,6 +78,35 @@ void ShowCudaCudnnInfo()
 }
 #endif
 
+cv::Mat ProcImage(Metadata const& md, Network* net, cv::Mat const& input)
+{
+  cv::Mat resize, display;
+  Image image = {0, 0, 0, nullptr};
+
+  cv::resize(input, resize, cv::Size(net->w, net->h));
+  cv::resize(input, display, input.size() / 2);
+  cv::cvtColor(resize, resize, cv::COLOR_RGB2BGR);
+  Mat2Image(resize, &image);
+  NetworkPredict(net, image.data);
+
+  int num_boxes = 0;
+  Detection* dets =
+      GetNetworkBoxes(net, net->w, net->h, FLAGS_thresh, 1, &num_boxes);
+
+  layer* l = &net->layers[net->n - 1];
+  if (l->nms_kind == DEFAULT_NMS)
+    NmsSort(dets, num_boxes, l->classes, FLAGS_nms_thresh);
+  else
+    DiouNmsSort(dets, num_boxes, l->classes, FLAGS_nms_thresh, l->nms_kind,
+        l->beta_nms);
+
+  DrawYoloDetections(display, dets, num_boxes, FLAGS_thresh, md);
+
+  FreeDetections(dets, num_boxes);
+
+  return display;
+}
+
 int main(int argc, char** argv)
 {
 #ifdef _DEBUG
@@ -96,95 +122,86 @@ int main(int argc, char** argv)
   ShowCudaCudnnInfo();
 #endif  // GPU
 
+  Metadata md(FLAGS_data_file);
+
   if (FLAGS_mode == "train")
-    TrainDetector(FLAGS_data_file.c_str(), FLAGS_model_file.c_str(),
-        FLAGS_weights_file.c_str(), FLAGS_num_gpus, FLAGS_clear,
-        FLAGS_show_imgs, FLAGS_calc_map, FLAGS_benchmark_layers);
-
-  if (FLAGS_mode == "valid")
   {
-    Metadata md(FLAGS_data_file);
+    TrainDetector(md, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str(),
+        FLAGS_num_gpus, FLAGS_clear, FLAGS_show_imgs, FLAGS_calc_map,
+        FLAGS_benchmark_layers);
+  }
+  else
+  {
     Network* net = (Network*)calloc(1, sizeof(Network));
     LoadNetwork(net, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str());
 
-    ValidateDetector(md, net, 0.5);
+    // calculate mAP@0.5
+    if (FLAGS_mode == "valid")
+      ValidateDetector(md, net, 0.5);
 
-    FreeNetwork(net);
-    free(net);
-  }
-
-  if (FLAGS_mode == "test")
-  {
-  }
-
-  if (FLAGS_mode == "video")
-  {
-    float const nms = 0.45f;
-    int num_boxes = 0;
-
-    Metadata md(FLAGS_data_file);
-    Network* net = (Network*)calloc(1, sizeof(Network));
-    LoadNetwork(net, FLAGS_model_file.c_str(), FLAGS_weights_file.c_str());
-
-    layer* l = &net->layers[net->n - 1];
-    Image image = {0, 0, 0, nullptr};
-
-    net->benchmark_layers = FLAGS_benchmark_layers;
-
-    srand(2222222);
-
-    cv::Mat input, resize;
-    cv::VideoCapture video_capture(FLAGS_input_file);
-    cv::VideoWriter writer;
-    if (FLAGS_save_output)
+    // processing a single image
+    if (FLAGS_mode == "image")
     {
-      int idx = FLAGS_input_file.find_last_of('.');
-      std::string output_file = FLAGS_input_file.substr(0, idx) + "_out.avi";
+      cv::Mat input = cv::imread(FLAGS_input_file);
 
-      int width = (int)video_capture.get(cv::CAP_PROP_FRAME_WIDTH);
-      int height = (int)video_capture.get(cv::CAP_PROP_FRAME_HEIGHT);
-      double fps = video_capture.get(cv::CAP_PROP_FPS);
-
-      writer.open(output_file, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), fps,
-          cv::Size(width, height));
-    }
-
-    int64_t curr_frame = 0;
-    int64_t max_frame = video_capture.get(cv::CAP_PROP_FRAME_COUNT);
-
-    while (video_capture.isOpened() && video_capture.read(input))
-    {
       using namespace std::chrono;
       auto start = system_clock::now();
       ///
-      cv::resize(input, resize, cv::Size(net->w, net->h));
-      cv::cvtColor(resize, resize, cv::COLOR_RGB2BGR);
-      Mat2Image(resize, &image);
-      NetworkPredict(net, image.data);
-
-      Detection* dets = GetNetworkBoxes(net, net->w, net->h, FLAGS_thresh,
-          FLAGS_hier_thresh, 0, 1, &num_boxes);
-
-      if (l->nms_kind == DEFAULT_NMS)
-        NmsSort(dets, num_boxes, l->classes, nms);
-      else
-        DiouNmsSort(dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
-
-      DrawYoloDetections(input, dets, num_boxes, FLAGS_thresh, md);
-
-      FreeDetections(dets, num_boxes);
+      cv::Mat display = ProcImage(md, net, input);
       ///
       auto end = system_clock::now();
 
+      DrawProcTime(display, duration_cast<milliseconds>(end - start).count());
+
+      cv::imshow(FLAGS_mode, display);
+      cv::waitKey(0);
+    }
+
+    // processing video stream
+    if (FLAGS_mode == "video")
+    {
+      net->benchmark_layers = FLAGS_benchmark_layers;
+
+      cv::VideoCapture video_capture(FLAGS_input_file);
+      cv::VideoWriter writer;
+      cv::Size display_size(1920 / 2, 1080 / 2);
       if (FLAGS_save_output)
-        writer << input;
+      {
+        int idx = FLAGS_input_file.find_last_of('.');
+        std::string output_file = FLAGS_input_file.substr(0, idx) + "_out.avi";
 
-      DrawProcTime(input, duration_cast<milliseconds>(end - start).count());
-      DrawFrameInfo(input, ++curr_frame, max_frame);
+        double fps = video_capture.get(cv::CAP_PROP_FPS);
 
-      cv::imshow("demo", input);
-      if (cv::waitKey(1) == 27)
-        break;
+        writer.open(output_file, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+            fps, display_size);
+      }
+
+      int64_t curr_frame = 0;
+      int64_t max_frame = video_capture.get(cv::CAP_PROP_FRAME_COUNT);
+
+      cv::Mat input;
+      while (video_capture.isOpened() && video_capture.read(input))
+      {
+        if (curr_frame++ % 3 != 0)
+          continue;
+
+        using namespace std::chrono;
+        auto start = system_clock::now();
+        ///
+        cv::Mat display = ProcImage(md, net, input);
+        ///
+        auto end = system_clock::now();
+
+        if (FLAGS_save_output)
+          writer << display;
+
+        DrawProcTime(display, duration_cast<milliseconds>(end - start).count());
+        DrawFrameInfo(display, curr_frame, max_frame);
+
+        cv::imshow(FLAGS_mode, display);
+        if (cv::waitKey(1) == 27)
+          break;
+      }
     }
 
     FreeNetwork(net);

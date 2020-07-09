@@ -838,7 +838,7 @@ int YoloNumDetections(layer const* l, float thresh)
 }
 
 int GetYoloDetections(layer const* l, int w, int h, int netw, int neth,
-    float thresh, int* map, int relative, Detection* dets)
+    float thresh, int relative, Detection* dets)
 {
   float const* predictions = l->output;
 

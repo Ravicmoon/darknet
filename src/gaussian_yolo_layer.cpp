@@ -907,7 +907,7 @@ int GaussianYoloNumDetections(layer const* l, float thresh)
 }
 
 int GetGaussianYoloDetections(layer const* l, int w, int h, int netw, int neth,
-    float thresh, int* map, int relative, Detection* dets)
+    float thresh, int relative, Detection* dets)
 {
   float const* predictions = l->output;
   int count = 0;

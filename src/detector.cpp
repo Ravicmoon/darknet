@@ -24,12 +24,10 @@ void SaveWeights(Network* net, std::string save_dir, std::string save_filename,
   SaveWeights(net, ss.str().c_str());
 }
 
-void TrainDetector(std::string data_file, std::string model_file,
+void TrainDetector(Metadata const& md, std::string model_file,
     std::string weights_file, int num_gpus, bool clear, bool show_imgs,
     bool calc_map, int benchmark_layers)
 {
-  Metadata md(data_file);
-
   std::string save_dir = md.SaveDir();
   if (!Exists(save_dir.c_str()))
     MakeDir(save_dir.c_str(), 0);
@@ -373,9 +371,7 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
     free_image(*buff_resized);
 
     int num_boxes = 0;
-    float hier_thresh = 0;
-    Detection* dets =
-        GetNetworkBoxes(net, 1, 1, thresh, hier_thresh, 0, 0, &num_boxes);
+    Detection* dets = GetNetworkBoxes(net, 1, 1, thresh, 0, &num_boxes);
 
     if (l->nms_kind == DEFAULT_NMS)
       NmsSort(dets, num_boxes, l->classes, nms);

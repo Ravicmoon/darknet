@@ -628,8 +628,8 @@ LIB_API void FreeNetwork(Network* net);
 
 // network.h
 LIB_API float* NetworkPredict(Network* net, float* input);
-LIB_API Detection* GetNetworkBoxes(Network* net, int w, int h, float thresh,
-    float hier, int* map, int relative, int* num);
+LIB_API Detection* GetNetworkBoxes(
+    Network* net, int w, int h, float thresh, int relative, int* num);
 LIB_API void FreeDetections(Detection* dets, int n);
 LIB_API void FuseConvBatchNorm(Network* net);
 LIB_API void calculate_binary_weights(Network net);
@@ -638,7 +638,7 @@ LIB_API char* Detection2Json(Detection* dets, int nboxes, int classes,
 
 LIB_API Detection* MakeNetworkBoxes(Network* net, float thresh, int* num);
 
-LIB_API void TrainDetector(std::string data_file, std::string model_file,
+LIB_API void TrainDetector(Metadata const& md, std::string model_file,
     std::string weights_file, int num_gpus, bool clear, bool show_imgs,
     bool calc_map, int benchmark_layers);
 LIB_API float ValidateDetector(
