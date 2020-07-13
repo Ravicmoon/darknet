@@ -73,16 +73,17 @@ void TrainDetector(Metadata const& md, std::string model_file,
 
   list* train_img_paths = get_paths(md.TrainFile().c_str());
   char** paths = (char**)ListToArray(train_img_paths);
-  int num_train_imgs = train_img_paths->size;
-
-  // set max number of iterations
-  net->max_iter = num_train_imgs * net->max_epochs;
-  printf("Max number of iterations: %d\n", net->max_iter);
+  int const num_train_imgs = train_img_paths->size;
 
   int const actual_batch = net->batch * net->subdiv;
   int const imgs_per_iter = actual_batch * num_gpus;
 
   assert(actual_batch > 8);
+
+  // set max number of iterations
+  net->max_iter =
+      (int)((float)num_train_imgs * net->max_epochs / actual_batch + 0.5f);
+  printf("Max number of iterations: %d\n", net->max_iter);
 
   int const init_w = net->w;
   int const init_h = net->h;
