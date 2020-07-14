@@ -6,8 +6,8 @@
 #include "yolo_core.h"
 
 #ifdef GPU
-float TrainNetworks(Network* nets, int n, data d, int interval);
-void SyncNetworks(Network* nets, int n, int interval);
+float TrainNetworks(Network* nets, int num_gpus, data d, int sync_interval);
+void SyncNetworks(Network* nets, int num_gpus, int sync_interval);
 float TrainNetworkDatumGpu(Network* net, float* x, float* y);
 float* NetworkPredictGpu(Network* net, float* input);
 float* GetNetworkOutputGpu(Network* net);

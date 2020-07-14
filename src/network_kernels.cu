@@ -439,19 +439,21 @@ pthread_t sync_layer_in_thread(Network* nets, int n, int j)
   return thread;
 }
 
-void SyncNetworks(Network* nets, int n, int interval)
+void SyncNetworks(Network* nets, int num_gpus, int sync_interval)
 {
   int layers = nets[0].n;
-  pthread_t* threads = (pthread_t*)calloc(layers, sizeof(pthread_t));
+  int actual_batch = nets[0].batch * nets[0].subdiv;
 
-  *nets[0].seen += interval * (n - 1) * nets[0].batch * nets[0].subdiv;
-  for (int j = 0; j < n; ++j)
+  *nets[0].seen += sync_interval * (num_gpus - 1) * actual_batch;
+  for (int j = 1; j < num_gpus; ++j)
   {
     *nets[j].seen = *nets[0].seen;
   }
+
+  pthread_t* threads = (pthread_t*)calloc(layers, sizeof(pthread_t));
   for (int j = 0; j < layers; ++j)
   {
-    threads[j] = sync_layer_in_thread(nets, n, j);
+    threads[j] = sync_layer_in_thread(nets, num_gpus, j);
   }
   for (int j = 0; j < layers; ++j)
   {
@@ -460,39 +462,38 @@ void SyncNetworks(Network* nets, int n, int interval)
   free(threads);
 }
 
-float TrainNetworks(Network* nets, int n, data d, int interval)
+float TrainNetworks(Network* nets, int num_gpus, data d, int sync_interval)
 {
 #ifdef _DEBUG
-  int batch = nets[0].batch;
-  int subdivisions = nets[0].subdiv;
-  assert(batch * subdivisions * n == d.X.rows);
+  int img_per_step = nets[0].batch * nets[0].subdiv * num_gpus;
+  assert(img_per_step == d.X.rows);
 #endif
 
-  pthread_t* threads = (pthread_t*)calloc(n, sizeof(pthread_t));
-  float* errors = (float*)calloc(n, sizeof(float));
-  float sum = 0;
-  for (int i = 0; i < n; ++i)
+  pthread_t* threads = (pthread_t*)calloc(num_gpus, sizeof(pthread_t));
+  float* errors = (float*)calloc(num_gpus, sizeof(float));
+  for (int i = 0; i < num_gpus; ++i)
   {
-    data p = get_data_part(d, i, n);
+    data p = get_data_part(d, i, num_gpus);
     threads[i] = train_network_in_thread(nets[i], p, errors + i);
   }
-  for (int i = 0; i < n; ++i)
+
+  float sum = 0;
+  for (int i = 0; i < num_gpus; ++i)
   {
     pthread_join(threads[i], 0);
-    // printf("%f\n", errors[i]);
     sum += errors[i];
   }
   // cudaDeviceSynchronize();
-  *nets[0].curr_iter += (n - 1);
+  *nets[0].curr_iter += (num_gpus - 1);
 
-  if (GetCurrIter(&nets[0]) % interval == 0)
-    SyncNetworks(nets, n, interval);
+  if (GetCurrIter(&nets[0]) % sync_interval == 0)
+    SyncNetworks(nets, num_gpus, sync_interval);
 
   // cudaDeviceSynchronize();
   free(threads);
   free(errors);
 
-  return (float)sum / n;
+  return (float)sum / num_gpus;
 }
 
 float* GetNetworkOutputLayerGpu(Network* net, int i)

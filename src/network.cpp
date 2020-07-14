@@ -212,14 +212,15 @@ float TrainNetworkDatum(Network* net, float* x, float* y)
 float TrainNetwork(Network* net, data d)
 {
   assert(d.X.rows % net->batch == 0);
+  assert(d.X.rows / net->batch == net->subdiv);
 
   int batch = net->batch;
-  int n = d.X.rows / batch;
+  int subdiv = net->subdiv;
   float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
   float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
 
   float sum = 0;
-  for (int i = 0; i < n; ++i)
+  for (int i = 0; i < subdiv; ++i)
   {
     get_next_batch(d, batch, i * batch, X, y);
     net->curr_subdiv = i;
@@ -236,7 +237,7 @@ float TrainNetwork(Network* net, data d)
   free(X);
   free(y);
 
-  return (float)sum / (n * batch);
+  return (float)sum / (batch * subdiv);
 }
 
 int GetNetworkInputSize(Network* net) { return net->layers[0].inputs; }
