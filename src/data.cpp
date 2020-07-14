@@ -887,15 +887,15 @@ void get_next_batch(data d, int n, int offset, float* X, float* y)
   }
 }
 
-data get_data_part(data d, int part, int total)
+data GetPartialData(data d, int idx, int num_split)
 {
   data p = {0};
   p.shallow = 1;
-  p.X.rows = d.X.rows * (part + 1) / total - d.X.rows * part / total;
-  p.y.rows = d.y.rows * (part + 1) / total - d.y.rows * part / total;
+  p.X.rows = d.X.rows / num_split;
+  p.y.rows = d.y.rows / num_split;
   p.X.cols = d.X.cols;
   p.y.cols = d.y.cols;
-  p.X.vals = d.X.vals + d.X.rows * part / total;
-  p.y.vals = d.y.vals + d.y.rows * part / total;
+  p.X.vals = d.X.vals + d.X.rows * idx / num_split;
+  p.y.vals = d.y.vals + d.y.rows * idx / num_split;
   return p;
 }

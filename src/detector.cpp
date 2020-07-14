@@ -262,7 +262,7 @@ void TrainDetector(Metadata const& md, std::string model_file,
       avg_time = alpha_time * time_remaining + (1 - alpha_time) * avg_time;
 
     printf(
-        "[%04d] loss: %.2f, avg loss: %.2f, lr: %e, images: %d, %.2lf hours "
+        "[%04d] loss: %.2f, avg loss: %.2f, lr: %e, images: %lld, %.2lf hours "
         "left\n",
         iter, loss, avg_loss, GetCurrLr(net), net->seen, avg_time);
 

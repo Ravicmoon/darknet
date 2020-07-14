@@ -473,7 +473,7 @@ float TrainNetworks(Network* nets, int num_gpus, data d, int sync_interval)
   float* errors = (float*)calloc(num_gpus, sizeof(float));
   for (int i = 0; i < num_gpus; ++i)
   {
-    data p = get_data_part(d, i, num_gpus);
+    data p = GetPartialData(d, i, num_gpus);
     threads[i] = train_network_in_thread(nets[i], p, errors + i);
   }
 
