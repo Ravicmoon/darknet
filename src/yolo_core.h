@@ -452,7 +452,7 @@ typedef enum
 // network.h
 typedef struct Network
 {
-  int max_epochs;
+  int max_epoch;
   int max_iter;
 
   int n;

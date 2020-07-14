@@ -939,7 +939,7 @@ void ParseNetOptions(list* options, Network* net)
   *net->seen = 0;
   *net->curr_iter = 0;
 
-  net->max_epochs = FindOptionInt(options, "max_epochs", 0);
+  net->max_epoch = FindOptionInt(options, "max_epoch", 0);
   net->batch = FindOptionInt(options, "batch", 1);
   net->subdiv = FindOptionInt(options, "subdivisions", 1);
   net->batch /= net->subdiv;
