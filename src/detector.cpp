@@ -76,8 +76,8 @@ void TrainDetector(Metadata const& md, std::string model_file,
   int const num_train_imgs = train_img_paths->size;
 
   int const actual_batch = net->batch * net->subdiv;
-  int const img_per_iter = actual_batch * num_gpus;
-  int const iter_per_epoch = (int)((float)num_train_imgs / img_per_iter + 0.5f);
+  int const img_per_step = actual_batch * num_gpus;
+  int const iter_per_epoch = (int)((float)num_train_imgs / actual_batch + 0.5f);
 
   assert(actual_batch > 8);
 
@@ -98,7 +98,7 @@ void TrainDetector(Metadata const& md, std::string model_file,
   args.h = net->h;
   args.c = net->c;
   args.paths = paths;
-  args.n = img_per_iter;
+  args.n = img_per_step;
   args.m = num_train_imgs;
   args.classes = l->classes;
   args.flip = net->flip;
@@ -264,7 +264,7 @@ void TrainDetector(Metadata const& md, std::string model_file,
     printf(
         "[%04d] loss: %.2f, avg loss: %.2f, lr: %e, images: %d, %.2lf hours "
         "left\n",
-        iter, loss, avg_loss, GetCurrLr(net), iter * img_per_iter, avg_time);
+        iter, loss, avg_loss, GetCurrLr(net), net->seen, avg_time);
 
     DrawLossGraph(graph_bg, iter_stack, avg_loss_stack, iter_map_stack,
         map_stack, net->max_iter, max_loss, avg_time);
