@@ -458,8 +458,8 @@ typedef struct Network
   int n;
   int batch;
   int subdiv;
-  uint64_t* seen;
-  int* curr_iter;
+  uint64_t seen;
+  int curr_iter;
   float loss_scale;
   int* t;
   layer* layers;

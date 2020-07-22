@@ -262,9 +262,9 @@ void TrainDetector(Metadata const& md, std::string model_file,
       avg_time = alpha_time * time_remaining + (1 - alpha_time) * avg_time;
 
     printf(
-        "[%04d] loss: %.2f, avg loss: %.2f, lr: %e, images: %lld, %.2lf hours "
+        "[%04d] loss: %.2f, avg loss: %.2f, lr: %e, images: %d, %.2lf hours "
         "left\n",
-        iter, loss, avg_loss, GetCurrLr(net), net->seen, avg_time);
+        iter, loss, avg_loss, GetCurrLr(net), iter * actual_batch, avg_time);
 
     DrawLossGraph(graph_bg, iter_stack, avg_loss_stack, iter_map_stack,
         map_stack, net->max_iter, max_loss, avg_time);
@@ -274,7 +274,7 @@ void TrainDetector(Metadata const& md, std::string model_file,
       iter_save = iter;
 #ifdef GPU
       if (num_gpus != 1)
-        SyncNetworks(nets, num_gpus, 0);
+        SyncNetworks(nets, num_gpus);
 #endif
       SaveWeights(net, save_dir.c_str(), save_filename, std::to_string(iter));
     }
@@ -284,7 +284,7 @@ void TrainDetector(Metadata const& md, std::string model_file,
 
 #ifdef GPU
   if (num_gpus != 1)
-    SyncNetworks(nets, num_gpus, 0);
+    SyncNetworks(nets, num_gpus);
 #endif
   SaveWeights(net, save_dir.c_str(), save_filename, "final");
 

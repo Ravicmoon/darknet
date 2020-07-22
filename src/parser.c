@@ -936,8 +936,8 @@ LearningRatePolicy GetPolicy(char* s)
 
 void ParseNetOptions(list* options, Network* net)
 {
-  *net->seen = 0;
-  *net->curr_iter = 0;
+  net->seen = 0;
+  net->curr_iter = 0;
 
   net->max_epoch = FindOptionInt(options, "max_epoch", 0);
   net->batch = FindOptionInt(options, "batch", 1);
@@ -1617,7 +1617,7 @@ void SaveWeightsUpto(Network* net, char const* filename, int cutoff)
   fwrite(&minor, sizeof(int), 1, fp);
   fwrite(&revision, sizeof(int), 1, fp);
 
-  fwrite(net->seen, sizeof(uint64_t), 1, fp);
+  fwrite(&net->seen, sizeof(uint64_t), 1, fp);
 
   for (int i = 0; i < net->n && i < cutoff; ++i)
   {
@@ -1805,10 +1805,10 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
   fread(&minor, sizeof(int), 1, fp);
   fread(&revision, sizeof(int), 1, fp);
 
-  fread(net->seen, sizeof(uint64_t), 1, fp);
-  *net->curr_iter = *net->seen / (net->batch * net->subdiv);
+  fread(&net->seen, sizeof(uint64_t), 1, fp);
+  net->curr_iter = net->seen / (net->batch * net->subdiv);
 
-  printf(", trained: %.0f K-images \n", *net->seen / 1000.f);
+  printf(", trained: %.0f K-images \n", net->seen / 1000.f);
 
   int transpose = (major > 1000) || (minor > 1000);
   int num_layer = min_val_cmp(net->n, cutoff);
@@ -1876,7 +1876,7 @@ void LoadNetwork(Network* net, char const* model_file, char const* weights_file,
 
   if (clear)
   {
-    (*net->seen) = 0;
-    (*net->curr_iter) = 0;
+    net->seen = 0;
+    net->curr_iter = 0;
   }
 }

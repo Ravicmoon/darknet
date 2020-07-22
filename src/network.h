@@ -7,7 +7,7 @@
 
 #ifdef GPU
 float TrainNetworks(Network* nets, int num_gpus, data d, int sync_interval);
-void SyncNetworks(Network* nets, int num_gpus, int sync_interval);
+void SyncNetworks(Network* nets, int num_gpus);
 float TrainNetworkDatumGpu(Network* net, float* x, float* y);
 float* NetworkPredictGpu(Network* net, float* input);
 float* GetNetworkOutputGpu(Network* net);

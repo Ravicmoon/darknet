@@ -27,7 +27,7 @@
 #include "utils.h"
 #include "yolo_layer.h"
 
-int64_t GetCurrIter(Network* net) { return *net->curr_iter; }
+int64_t GetCurrIter(Network* net) { return net->curr_iter; }
 
 float GetCurrLr(Network* net)
 {
@@ -87,8 +87,6 @@ void AllocateNetwork(Network* net, int n)
 {
   net->n = n;
   net->layers = (layer*)xcalloc(net->n, sizeof(layer));
-  net->seen = (uint64_t*)xcalloc(1, sizeof(uint64_t));
-  net->curr_iter = (int*)xcalloc(1, sizeof(int));
 #ifdef GPU
   net->input_gpu = (float**)xcalloc(1, sizeof(float*));
   net->truth_gpu = (float**)xcalloc(1, sizeof(float*));
@@ -195,7 +193,7 @@ float TrainNetworkDatum(Network* net, float* x, float* y)
 #endif
 
   NetworkState state = {0};
-  *net->seen += net->batch;
+  net->seen += net->batch;
   state.index = 0;
   state.net = net;
   state.input = x;
@@ -226,7 +224,7 @@ float TrainNetwork(Network* net, data d)
     net->curr_subdiv = i;
     sum += TrainNetworkDatum(net, X, y);
   }
-  (*net->curr_iter) += 1;
+  net->curr_iter++;
 
 #ifdef GPU
   UpdateNetworkGpu(net);
@@ -618,8 +616,6 @@ void FreeNetwork(Network* net)
 
   free(net->scales);
   free(net->steps);
-  free(net->seen);
-  free(net->curr_iter);
 
 #ifdef GPU
   if (cuda_get_device() >= 0)

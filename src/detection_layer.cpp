@@ -149,7 +149,7 @@ void ForwardDetectionLayer(layer* l, NetworkState state)
             best_index = 0;
           }
         }
-        if (l->random && *(state.net->seen) < 64000)
+        if (l->random && state.net->seen < 64000)
         {
           best_index = rand() % l->n;
         }

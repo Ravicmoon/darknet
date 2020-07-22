@@ -24,8 +24,6 @@
 #include "shortcut_layer.h"
 #include "utils.h"
 
-float* GetNetworkOutputGpu(Network* net);
-
 typedef struct time_benchmark_layers
 {
   float time;
@@ -287,51 +285,21 @@ void ForwardBackwardNetworkGpu(Network* net, float* x, float* y)
 
 float TrainNetworkDatumGpu(Network* net, float* x, float* y)
 {
-  *net->seen += net->batch;
+  net->seen += net->batch;
 
   ForwardBackwardNetworkGpu(net, x, y);
 
   return GetNetworkCost(net);
 }
 
-typedef struct
-{
-  Network net;
-  data d;
-  float* err;
-} train_args;
-
-void* train_thread(void* ptr)
-{
-  train_args args = *(train_args*)ptr;
-  free(ptr);
-  cuda_set_device(args.net.gpu_index);
-  *args.err = TrainNetwork(&args.net, args.d);
-  return 0;
-}
-
-pthread_t train_network_in_thread(Network net, data d, float* err)
-{
-  pthread_t thread;
-  train_args* ptr = (train_args*)calloc(1, sizeof(train_args));
-  ptr->net = net;
-  ptr->d = d;
-  ptr->err = err;
-  if (pthread_create(&thread, 0, train_thread, ptr))
-    error("Thread creation failed");
-  return thread;
-}
-
-void merge_weights(layer* l, layer* base)
+void MergeWeights(layer* l, layer* base)
 {
   if (l->type == CONVOLUTIONAL)
   {
     axpy_cpu(l->n, 1, l->biases, 1, base->biases, 1);
     axpy_cpu(l->nweights, 1, l->weights, 1, base->weights, 1);
     if (l->scales)
-    {
       axpy_cpu(l->n, 1, l->scales, 1, base->scales, 1);
-    }
   }
   else if (l->type == CONNECTED)
   {
@@ -340,7 +308,7 @@ void merge_weights(layer* l, layer* base)
   }
 }
 
-void scale_weights(layer* l, float s)
+void ScaleWeights(layer* l, float s)
 {
   if (l->type == CONVOLUTIONAL)
   {
@@ -356,7 +324,7 @@ void scale_weights(layer* l, float s)
   }
 }
 
-void pull_weights(layer* l)
+void PullWeights(layer* l)
 {
   if (l->type == CONVOLUTIONAL)
   {
@@ -372,7 +340,7 @@ void pull_weights(layer* l)
   }
 }
 
-void distribute_weights(layer* l, layer* base)
+void PushWeights(layer* l, layer* base)
 {
   if (l->type == CONVOLUTIONAL)
   {
@@ -388,78 +356,91 @@ void distribute_weights(layer* l, layer* base)
   }
 }
 
-void sync_layer(Network* nets, int n, int j)
-{
-  // printf("Syncing layer %d\n", j);
-  Network net = nets[0];
-  layer* base = &net.layers[j];
-  cuda_set_device(net.gpu_index);
-  pull_weights(base);
-  for (int i = 1; i < n; ++i)
-  {
-    cuda_set_device(nets[i].gpu_index);
-    layer* l = &nets[i].layers[j];
-    pull_weights(l);
-    merge_weights(l, base);
-  }
-  scale_weights(base, 1. / n);
-  for (int i = 0; i < n; ++i)
-  {
-    cuda_set_device(nets[i].gpu_index);
-    layer* l = &nets[i].layers[j];
-    distribute_weights(l, base);
-  }
-  // printf("Done syncing layer %d\n", j);
-}
-
 typedef struct
 {
   Network* nets;
-  int n;
-  int j;
-} sync_args;
+  int num_gpus;
+  int j;  // layer index
+} SyncArgs;
 
-void* sync_layer_thread(void* ptr)
+void* SyncLayerThread(void* ptr)
 {
-  sync_args args = *(sync_args*)ptr;
-  sync_layer(args.nets, args.n, args.j);
-  free(ptr);
-  return 0;
+  SyncArgs* args = (SyncArgs*)ptr;
+
+  Network* nets = args->nets;
+  int num_gpus = args->num_gpus;
+  int j = args->j;
+
+  layer* base = &nets[0].layers[j];
+  cuda_set_device(nets[0].gpu_index);
+  PullWeights(base);
+
+  for (int i = 1; i < num_gpus; ++i)
+  {
+    layer* l = &nets[i].layers[j];
+    cuda_set_device(nets[i].gpu_index);
+    PullWeights(l);
+    MergeWeights(l, base);
+  }
+
+  ScaleWeights(base, 1.0f / num_gpus);
+
+  for (int i = 0; i < num_gpus; ++i)
+  {
+    layer* l = &nets[i].layers[j];
+    cuda_set_device(nets[i].gpu_index);
+    PushWeights(l, base);
+  }
+
+  return nullptr;
 }
 
-pthread_t sync_layer_in_thread(Network* nets, int n, int j)
+void SyncNetworks(Network* nets, int num_gpus)
 {
-  pthread_t thread;
-  sync_args* ptr = (sync_args*)calloc(1, sizeof(sync_args));
-  ptr->nets = nets;
-  ptr->n = n;
-  ptr->j = j;
-  if (pthread_create(&thread, 0, sync_layer_thread, ptr))
-    error("Thread creation failed");
-  return thread;
-}
-
-void SyncNetworks(Network* nets, int num_gpus, int sync_interval)
-{
-  int layers = nets[0].n;
-  int actual_batch = nets[0].batch * nets[0].subdiv;
-
-  *nets[0].seen += sync_interval * (num_gpus - 1) * actual_batch;
   for (int j = 1; j < num_gpus; ++j)
   {
-    *nets[j].seen = *nets[0].seen;
+    nets[0].seen += nets[j].seen;
+    nets[j].seen = 0;
   }
 
+  int layers = nets[0].n;
   pthread_t* threads = (pthread_t*)calloc(layers, sizeof(pthread_t));
+  SyncArgs* args = (SyncArgs*)calloc(layers, sizeof(SyncArgs));
+
   for (int j = 0; j < layers; ++j)
   {
-    threads[j] = sync_layer_in_thread(nets, num_gpus, j);
+    args[j].nets = nets;
+    args[j].num_gpus = num_gpus;
+    args[j].j = j;
+
+    if (pthread_create(threads + j, 0, SyncLayerThread, args + j))
+      error("Thread creation failed");
   }
+
   for (int j = 0; j < layers; ++j)
   {
     pthread_join(threads[j], 0);
   }
+
+  free(args);
   free(threads);
+}
+
+typedef struct
+{
+  Network* net;
+  data d;
+  float* err;
+} TrainArgs;
+
+void* TrainThread(void* ptr)
+{
+  TrainArgs* args = (TrainArgs*)ptr;
+
+  cuda_set_device(args->net->gpu_index);
+  *args->err = TrainNetwork(args->net, args->d);
+
+  return nullptr;
 }
 
 float TrainNetworks(Network* nets, int num_gpus, data d, int sync_interval)
@@ -470,11 +451,16 @@ float TrainNetworks(Network* nets, int num_gpus, data d, int sync_interval)
 #endif
 
   pthread_t* threads = (pthread_t*)calloc(num_gpus, sizeof(pthread_t));
+  TrainArgs* args = (TrainArgs*)calloc(num_gpus, sizeof(TrainArgs));
   float* errors = (float*)calloc(num_gpus, sizeof(float));
+
   for (int i = 0; i < num_gpus; ++i)
   {
-    data p = GetPartialData(d, i, num_gpus);
-    threads[i] = train_network_in_thread(nets[i], p, errors + i);
+    args[i].net = nets + i;
+    args[i].d = GetPartialData(d, i, num_gpus);
+    args[i].err = errors + i;
+    if (pthread_create(threads + i, 0, TrainThread, args + i))
+      error("Thread creation failed");
   }
 
   float sum = 0;
@@ -484,28 +470,22 @@ float TrainNetworks(Network* nets, int num_gpus, data d, int sync_interval)
     sum += errors[i];
   }
   // cudaDeviceSynchronize();
-  *nets[0].curr_iter += (num_gpus - 1);
+  nets[0].curr_iter += (num_gpus - 1);
 
   if (GetCurrIter(&nets[0]) % sync_interval == 0)
-    SyncNetworks(nets, num_gpus, sync_interval);
+    SyncNetworks(nets, num_gpus);
 
   // cudaDeviceSynchronize();
-  free(threads);
   free(errors);
+  free(args);
+  free(threads);
 
   return (float)sum / num_gpus;
 }
 
-float* GetNetworkOutputLayerGpu(Network* net, int i)
-{
-  layer* l = &net->layers[i];
-  cuda_pull_array(l->output_gpu, l->output, l->outputs * l->batch);
-
-  return l->output;
-}
-
 float* GetNetworkOutputGpu(Network* net)
 {
+  // finding a non-cost layer from bottom to top
   int i;
   for (i = net->n - 1; i > 0; --i)
   {
@@ -513,13 +493,17 @@ float* GetNetworkOutputGpu(Network* net)
       break;
   }
 
-  return GetNetworkOutputLayerGpu(net, i);
+  layer* l = &net->layers[i];
+  cuda_pull_array(l->output_gpu, l->output, l->outputs * l->batch);
+
+  return l->output;
 }
 
 float* NetworkPredictGpu(Network* net, float* input)
 {
   if (net->gpu_index != cuda_get_device())
     cuda_set_device(net->gpu_index);
+
   int size = GetNetworkInputSize(net) * net->batch;
 
   NetworkState state;
