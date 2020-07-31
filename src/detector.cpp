@@ -163,8 +163,8 @@ void TrainDetector(Metadata const& md, std::string model_file,
         dim_h = max_dim_h;
       }
 
-      dim_w = std::max(dim_w, net->resize_step);
-      dim_h = std::max(dim_h, net->resize_step);
+      dim_w = max_val_cmp(dim_w, net->resize_step);
+      dim_h = max_val_cmp(dim_h, net->resize_step);
 
       args.w = dim_w;
       args.h = dim_h;
@@ -455,6 +455,8 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
     pr[i].resize(val_boxes.size());
   }
 
+  double recall, precision;
+
   std::vector<bool> gt_flags(num_gt, false);
   for (size_t i = 0; i < val_boxes.size(); ++i)
   {
@@ -508,8 +510,16 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
             num_pred_class[cid], tp + fp);
         return -1.0f;
       }
+
+      if (v.p > 0.5)
+      {
+        recall = pr[cid][i].recall * 100;
+        precision = pr[cid][i].precision * 100;
+      }
     }
   }
+
+  printf(" Recall: %2.2lf%%, Precision: %2.2lf%%\n", recall, precision);
 
   double map = 0.0;
   for (int cid = 0; cid < classes; ++cid)
@@ -521,7 +531,7 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
     {
       double delta_recall = last_recall - it->recall;
       last_recall = it->recall;
-      last_precision = std::max(last_precision, it->precision);
+      last_precision = max_val_cmp(last_precision, it->precision);
 
       ap += delta_recall * last_precision;
     }

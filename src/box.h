@@ -1,4 +1,6 @@
 #pragma once
+#include <vector>
+
 #include "libapi.h"
 
 typedef enum
@@ -82,6 +84,15 @@ typedef struct Detection
   int points;
 } Detection;
 
+typedef struct MostProbDet
+{
+  Box bbox;
+  int cid;
+  float prob;
+} MostProbDet;
+
 LIB_API void NmsSort(Detection* dets, int total, int classes, float thresh);
 LIB_API void DiouNmsSort(Detection* dets, int total, int classes, float thresh,
     NMS_KIND nms_kind, float beta);
+
+LIB_API std::vector<MostProbDet> GetMostProbDets(Detection* dets, int num_dets);

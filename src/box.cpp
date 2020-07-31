@@ -468,3 +468,32 @@ void DiouNmsSort(Detection* dets, int total, int classes, float thresh,
     }
   }
 }
+
+LIB_API std::vector<MostProbDet> GetMostProbDets(Detection* dets, int num_dets)
+{
+  std::vector<MostProbDet> most_prob_dets;
+  for (int i = 0; i < num_dets; i++)
+  {
+    int cid = -1;
+    float max_prob = 0.0f;
+    for (int j = 0; j < dets[i].classes; j++)
+    {
+      if (dets[i].prob[j] > max_prob)
+      {
+        cid = j;
+        max_prob = dets[i].prob[j];
+      }
+    }
+
+    if (cid != -1)
+    {
+      MostProbDet mpd;
+      mpd.bbox = dets[i].bbox;
+      mpd.cid = cid;
+      mpd.prob = max_prob;
+      most_prob_dets.push_back(mpd);
+    }
+  }
+
+  return most_prob_dets;
+}

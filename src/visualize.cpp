@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "utils.h"
+
 float GetRandColor(int c, int x, int max)
 {
   static float const colors[6][3] = {
@@ -54,63 +56,92 @@ void Mat2Image(cv::Mat const& mat, Image* image)
   }
 }
 
-void DrawYoloDetections(cv::Mat& img, Detection* dets, int num_boxes,
-    float thresh, Metadata const& md)
+void DrawYoloDetections(
+    cv::Mat& img, std::vector<MostProbDet> const& dets, Metadata const& md)
 {
   std::vector<std::string> name_list = md.NameList();
-  for (int i = 0; i < num_boxes; i++)
+
+  int font = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
+  char label[128];
+
+  for (size_t i = 0; i < dets.size(); i++)
   {
-    std::string label;
-    int class_id = -1;
-    for (int j = 0; j < md.NumClasses(); j++)
-    {
-      if (dets[i].prob[j] < thresh)
-        continue;
+    Box::AbsBox b(dets[i].bbox);
+    float left = b.left * img.cols;
+    float right = b.right * img.cols;
+    float top = b.top * img.rows;
+    float bottom = b.bottom * img.rows;
 
-      if (class_id < 0)
-      {
-        class_id = j;
-        label += name_list[j];
+    int cid = dets[i].cid;
+    float prob = dets[i].prob;
 
-        char prob[10];
-        sprintf(prob, "(%2.0f%%)", dets[i].prob[j] * 100);
-        label += prob;
-      }
-      else
-      {
-        label += ", " + name_list[j];
-      }
-    }
+    sprintf(label, "%s(%2.0f%%)", name_list[cid].c_str(), prob * 100);
 
-    if (class_id >= 0)
-    {
-      Box::AbsBox b(dets[i].bbox);
-      float left = b.left * img.cols;
-      float right = b.right * img.cols;
-      float top = b.top * img.rows;
-      float bottom = b.bottom * img.rows;
+    int baseline = 0;
+    cv::Size text_size = cv::getTextSize(label, font, 1, 1, &baseline);
 
-      int font = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
-      int baseline = 0;
-      cv::Size text_size = cv::getTextSize(label, font, 1, 1, &baseline);
+    cv::Point2f pt1(left, top);
+    cv::Point2f pt2(right, bottom);
+    cv::Point2f pt_text(left, top - baseline / 2);
+    cv::Point2f pt_text_bg1(left, top - baseline - text_size.height);
+    cv::Point2f pt_text_bg2(left + text_size.width, top);
 
-      cv::Point2f pt1(left, top);
-      cv::Point2f pt2(right, bottom);
-      cv::Point2f pt_text(left, top - baseline / 2);
-      cv::Point2f pt_text_bg1(left, top - baseline - text_size.height);
-      cv::Point2f pt_text_bg2(left + text_size.width, top);
+    int offset = cid * 123457 % md.NumClasses();
+    cv::Scalar color = GetRandColor(offset, md.NumClasses());
 
-      int offset = class_id * 123457 % md.NumClasses();
-      cv::Scalar color = GetRandColor(offset, md.NumClasses());
+    int width = max_val_cmp(1, img.cols / 640);
 
-      int width = std::max(1, img.cols / 640);
+    cv::rectangle(img, pt1, pt2, color, width);
+    cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1);
+    cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width);
+    cv::putText(img, label, pt_text, font, 1, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
+  }
+}
 
-      cv::rectangle(img, pt1, pt2, color, width);
-      cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1);
-      cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width);
-      cv::putText(
-          img, label, pt_text, font, 1, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
-    }
+void DrawYoloTrackings(cv::Mat& img, std::vector<yc::Track> const& tracks,
+    Metadata const& md, int max_idx)
+{
+  std::vector<std::string> name_list = md.NameList();
+
+  int font = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
+  char label[128];
+
+  for (size_t i = 0; i < tracks.size(); i++)
+  {
+    Box::AbsBox b(tracks[i].GetBox());
+    float left = b.left * img.cols;
+    float right = b.right * img.cols;
+    float top = b.top * img.rows;
+    float bottom = b.bottom * img.rows;
+
+    int cid = tracks[i].GetClassId();
+    int unique_idx = tracks[i].GetUniqueIndex();
+    float prob = tracks[i].GetClassProb();
+
+    sprintf(label, "%s(%d,%2.0f%%)", name_list[cid].c_str(), unique_idx,
+        prob * 100);
+
+    int baseline = 0;
+    cv::Size text_size = cv::getTextSize(label, font, 0.5, 1, &baseline);
+
+    cv::Point2f pt1(left, top);
+    cv::Point2f pt2(right, bottom);
+    cv::Point2f pt_text(left, top - baseline / 2);
+    cv::Point2f pt_text_bg1(left, top - baseline - text_size.height);
+    cv::Point2f pt_text_bg2(left + text_size.width, top);
+
+    int offset = unique_idx * 123457 % max_idx;
+    cv::Scalar color = GetRandColor(offset, max_idx);
+
+    int width = std::max(1, img.cols / 640);
+    if (tracks[i].GetStatus() == yc::STATIONARY)
+      width *= 2;
+
+    cv::rectangle(img, pt1, pt2, color, width);
+    cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1);
+    cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width);
+    cv::putText(
+        img, label, pt_text, font, 0.5, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
   }
 }
 
@@ -235,7 +266,7 @@ void DrawLossGraph(cv::Mat const& bg, std::vector<int> const& iter,
   for (size_t i = 0; i < avg_loss.size(); i++)
   {
     pt1.x = draw_size * (float)iter[i] / max_iter;
-    pt1.y = std::max(1.0f, draw_size * (1 - avg_loss[i] / max_loss));
+    pt1.y = max_val_cmp(1.0f, draw_size * (1 - avg_loss[i] / max_loss));
     cv::drawMarker(img, pt1 + offset, kBlue, cv::MARKER_CROSS, 2);
   }
 
