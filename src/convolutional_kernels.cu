@@ -462,14 +462,10 @@ void ForwardConvolutionalLayerGpu(layer* l, NetworkState state)
         l->dstTensorDesc, l->output_gpu));
 
     if (l->batch_normalize)
-    {
       ForwardBatchnormLayerGpu(l, state);
-    }
     else
-    {
       add_bias_gpu(
           l->output_gpu, l->biases_gpu, l->batch, l->n, l->out_w * l->out_h);
-    }
   }
 
 #else
@@ -508,14 +504,10 @@ void ForwardConvolutionalLayerGpu(layer* l, NetworkState state)
   }
 
   if (l->batch_normalize)
-  {
-    forward_batchnorm_layer_gpu(l, state);
-  }
+    ForwardBatchnormLayerGpu(l, state);
   else
-  {
     add_bias_gpu(
         l->output_gpu, l->biases_gpu, l->batch, l->n, l->out_w * l->out_h);
-  }
 #endif
 
   if (l->activation == SWISH)
@@ -755,9 +747,7 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
 
 #else  // CUDNN
   if (l->batch_normalize)
-  {
-    backward_batchnorm_layer_gpu(l, state);
-  }
+    BackwardBatchnormLayerGpu(l, state);
 
   int m = l->n / l->groups;
   int n = l->size * l->size * l->c / l->groups;
@@ -791,7 +781,8 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
       if (state.delta)
       {
         if (l->binary || l->xnor)
-          swap_binary(&l);
+          swap_binary(l);
+
         float* a = l->weights_gpu + j * l->nweights / l->groups;
         float* b = l->delta_gpu + (i * l->groups + j) * m * k;
         float* c = state.workspace;
@@ -811,9 +802,8 @@ void BackwardConvolutionalLayerGpu(layer* l, NetworkState state)
             delta);                                      // output (delta)
 
         if (l->binary || l->xnor)
-        {
-          swap_binary(&l);
-        }
+          swap_binary(l);
+
         if (l->xnor)
           gradient_array_ongpu(original_input + i * l->c * l->h * l->w,
               l->c * l->h * l->w, HARDTAN,
