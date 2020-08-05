@@ -429,9 +429,12 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
     FreeDetections(dets, num_boxes);
   }
 
-  delete buff, buff_resized;
+  delete buff;
+  delete buff_resized;
 
-  printf("\n # of pred: %d, # of GT: %d\n", val_boxes.size(), num_gt);
+  std::cout << std::endl
+            << " # of pred: " << val_boxes.size() << std::endl
+            << " # of GT: " << num_gt << std::endl;
 
   // calculating precision-recall curve
   std::sort(val_boxes.begin(), val_boxes.end(),
@@ -506,8 +509,8 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
 
       if (i == val_boxes.size() - 1 && num_pred_class[cid] != tp + fp)
       {
-        printf("# of predictions is not matched with tp + fp: %d != %d",
-            num_pred_class[cid], tp + fp);
+        std::cout << " # of pred is not matched with tp + fp: "
+                  << num_pred_class[cid] << " != " << tp + fp << std::endl;
         return -1.0f;
       }
 
@@ -519,7 +522,9 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
     }
   }
 
-  printf(" Recall: %2.2lf%%, Precision: %2.2lf%%\n", recall, precision);
+  std::cout.precision(4);
+  std::cout << " Recall: " << recall << "%" << std::endl
+            << " Precision: " << precision << "%" << std::endl;
 
   double map = 0.0;
   for (int cid = 0; cid < classes; ++cid)
@@ -536,15 +541,19 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
       ap += delta_recall * last_precision;
     }
 
-    printf(
-        " cid = %d, name = %s, ap = %2.2f%%\n", cid, name_list[cid], ap * 100);
+    std::cout << " cid = " << cid << ", name = " << name_list[cid]
+              << ", ap = " << ap * 100 << "%" << std::endl;
 
     map += ap;
   }
   map = map / classes;
 
-  printf(" mAP@%0.2f = %f, or %2.2f%%\n", iou_thresh, map, map * 100);
-  printf(" Spent time: %.2lf s\n", (GetTimePoint() - start) / 1e6);
+  double total_time = (GetTimePoint() - start) / 1e6;
+  double fps = val_img_list.size() / total_time;
+
+  std::cout << " mAP@" << iou_thresh << ": " << map * 100 << "%" << std::endl
+            << " Total time: " << total_time << "s" << std::endl
+            << " FPS: " << fps << std::endl;
 
   return map;
 }

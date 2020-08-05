@@ -179,7 +179,7 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
   int id = 0, sub = 0;
   float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
 
-  for (size_t i = 0; i < std::min(num_boxes, (int)annot.size()); ++i)
+  for (int i = 0; i < min_val_cmp(num_boxes, (int)annot.size()); ++i)
   {
     id = annot[i].id;
     x = annot[i].x;
@@ -193,11 +193,11 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
       printf(
           "\n Wrong annotation: class_id = %d. But class_id should be [from 0 "
           "to %d], file: %s \n",
-          id, (classes - 1), label_path);
+          id, (classes - 1), label_path.c_str());
       sprintf(buff,
           "echo %s \"Wrong annotation: class_id = %d. But class_id should "
           "be [from 0 to %d]\" >> bad_label.list",
-          label_path, id, (classes - 1));
+          label_path.c_str(), id, (classes - 1));
       system(buff);
       ++sub;
       continue;
@@ -212,38 +212,38 @@ int fill_truth_detection(const char* path, int num_boxes, float* truth,
     if (x == 999999 || y == 999999)
     {
       printf("\n Wrong annotation: x = 0, y = 0, < 0 or > 1, file: %s \n",
-          label_path);
+          label_path.c_str());
       sprintf(buff,
           "echo %s \"Wrong annotation: x = 0 or y = 0\" >> bad_label.list",
-          label_path);
+          label_path.c_str());
       system(buff);
       ++sub;
       continue;
     }
     if (x <= 0 || x > 1 || y <= 0 || y > 1)
     {
-      printf(
-          "\n Wrong annotation: x = %f, y = %f, file: %s \n", x, y, label_path);
+      printf("\n Wrong annotation: x = %f, y = %f, file: %s \n", x, y,
+          label_path.c_str());
       sprintf(buff,
           "echo %s \"Wrong annotation: x = %f, y = %f\" >> bad_label.list",
-          label_path, x, y);
+          label_path.c_str(), x, y);
       system(buff);
       ++sub;
       continue;
     }
     if (w > 1)
     {
-      printf("\n Wrong annotation: w = %f, file: %s \n", w, label_path);
+      printf("\n Wrong annotation: w = %f, file: %s \n", w, label_path.c_str());
       sprintf(buff, "echo %s \"Wrong annotation: w = %f\" >> bad_label.list",
-          label_path, w);
+          label_path.c_str(), w);
       system(buff);
       w = 1;
     }
     if (h > 1)
     {
-      printf("\n Wrong annotation: h = %f, file: %s \n", h, label_path);
+      printf("\n Wrong annotation: h = %f, file: %s \n", h, label_path.c_str());
       sprintf(buff, "echo %s \"Wrong annotation: h = %f\" >> bad_label.list",
-          label_path, h);
+          label_path.c_str(), h);
       system(buff);
       h = 1;
     }
