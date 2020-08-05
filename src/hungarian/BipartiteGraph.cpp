@@ -79,7 +79,7 @@ bool BipartiteGraph::CheckFeasibility(
   // check the size for args
   if (_m.size() != _agents.size() || _m[0].size() != _tasks.size())
   {
-    throw std::exception(
+    throw std::runtime_error(
         "[BipartiteGraph::CheckFeasibility] size discrepency found during "
         "feasibility checking");
   }
@@ -96,7 +96,7 @@ bool BipartiteGraph::CheckFeasibility(
       {
         if (_m[i][j].GetWeight() > _agents[i].GetLabel() + _tasks[j].GetLabel())
         {
-          throw std::exception(
+          throw std::runtime_error(
               "[BipartiteGraph::CheckFeasibility] abels are not feasible any "
               "more!");
           std::cout << "\tGetweight: " << _m[i][j].GetWeight() << std::endl;
@@ -114,7 +114,7 @@ bool BipartiteGraph::CheckFeasibility(void)
 {
   bool res = this->CheckFeasibility(bg_matrix, agents, tasks);
   if (!res)
-    throw std::exception(
+    throw std::runtime_error(
         "[BipartiteGraph::CheckFeasibility] bipartite graph is not feasible!");
 
   return res;
