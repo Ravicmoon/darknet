@@ -14,7 +14,7 @@ void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
     float** layers_delta, float** layers_output_gpu, float** layers_delta_gpu,
     ACTIVATION activation, int train)
 {
-  fprintf(stderr, "shortcut Layer: ");
+  fprintf(stderr, "shortcut layer: ");
   for (int i = 0; i < n; ++i)
   {
     fprintf(stderr, "%d, ", input_layers[i]);
@@ -144,9 +144,9 @@ void ResizeShortcutLayer(layer* l, int w, int h, Network* net)
 
 void ForwardShortcutLayer(layer* l, NetworkState state)
 {
-  int from_w = state.net->layers[l->index].w;
-  int from_h = state.net->layers[l->index].h;
-  int from_c = state.net->layers[l->index].c;
+  int from_w = state.net->layers[l->index].out_w;
+  int from_h = state.net->layers[l->index].out_h;
+  int from_c = state.net->layers[l->index].out_c;
 
   if (l->nweights == 0 && l->n == 1 && from_w == l->w && from_h == l->h &&
       from_c == l->c)
