@@ -357,7 +357,7 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
 
   std::vector<std::string> val_img_list = md.ValImgList();
 
-  double start = GetTimePoint();
+  double pred_time = 0.0;
   for (size_t i = 0; i < val_img_list.size(); i++)
   {
     printf("\rCalculating mAP for %d samples...", i);
@@ -366,7 +366,9 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
     pthread_t thr = load_data_in_thread(args);
     pthread_join(thr, nullptr);
 
+    double start = GetTimePoint();
     NetworkPredict(net, buff_resized->data);
+    pred_time += GetTimePoint() - start;
 
     free_image(*buff);
     free_image(*buff_resized);
@@ -523,7 +525,8 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
   }
 
   std::cout.precision(4);
-  std::cout << " Recall: " << recall << "%" << std::endl
+  std::cout << std::endl
+            << " Recall: " << recall << "%" << std::endl
             << " Precision: " << precision << "%" << std::endl;
 
   double map = 0.0;
@@ -541,19 +544,21 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
       ap += delta_recall * last_precision;
     }
 
-    std::cout << " cid = " << cid << ", name = " << name_list[cid]
+    std::cout << std::endl
+              << " cid = " << cid << ", name = " << name_list[cid]
               << ", ap = " << ap * 100 << "%" << std::endl;
 
     map += ap;
   }
   map = map / classes;
 
-  double total_time = (GetTimePoint() - start) / 1e6;
-  double fps = val_img_list.size() / total_time;
+  pred_time /= 1e6;
+  double pred_per_second = val_img_list.size() / pred_time;
 
-  std::cout << " mAP@" << iou_thresh << ": " << map * 100 << "%" << std::endl
-            << " Total time: " << total_time << "s" << std::endl
-            << " FPS: " << fps << std::endl;
+  std::cout << std::endl
+            << " mAP@" << iou_thresh << ": " << map * 100 << "%" << std::endl
+            << " Total prediction time: " << pred_time << "s" << std::endl
+            << " Prediction per second: " << pred_per_second << std::endl;
 
   return map;
 }
