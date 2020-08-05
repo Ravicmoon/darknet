@@ -3,8 +3,6 @@
 #include <exception>
 #include <iostream>
 
-using namespace std;
-
 Edge BipartiteGraph::GetMaxWeightEdge(Vertex& agent)
 {
   size_t row_num = agent.GetVID();
@@ -36,7 +34,7 @@ void BipartiteGraph::ConstructBG(Matrix& m)
 
   // assign task VID and assign label to be 0;
   int _vid = 0;
-  for (vector<Vertex>::iterator itr = tasks.begin(); itr != tasks.end(); itr++)
+  for (auto itr = tasks.begin(); itr != tasks.end(); itr++)
   {
     itr->SetVID(_vid++);
     itr->SetObj("TASK");
@@ -46,8 +44,7 @@ void BipartiteGraph::ConstructBG(Matrix& m)
 
   // assign agent VID and assign label to be max;
   _vid = 0;
-  for (vector<Vertex>::iterator itr = agents.begin(); itr != agents.end();
-       itr++)
+  for (auto itr = agents.begin(); itr != agents.end(); itr++)
   {
     itr->SetVID(_vid++);
     itr->SetObj("AGENT");
@@ -61,28 +58,28 @@ void BipartiteGraph::ConstructBG(Matrix& m)
       bg_matrix[i][j].SetEID(EID(i, j));
 }
 
-void BipartiteGraph::DisplayLabels(vector<Vertex>& v)
+void BipartiteGraph::DisplayLabels(std::vector<Vertex>& v)
 {
-  for (vector<Vertex>::iterator itr = v.begin(); itr != v.end(); itr++)
-    cout << itr->GetLabel() << " ";
-  cout << endl;
+  for (auto itr = v.begin(); itr != v.end(); itr++)
+    std::cout << itr->GetLabel() << " ";
+  std::cout << std::endl;
 }
 
 void BipartiteGraph::DisplayLabels(void)
 {
-  cout << "Labels for agents:" << endl;
+  std::cout << "Labels for agents:" << std::endl;
   this->DisplayLabels(this->agents);
-  cout << "Labels for tasks:" << endl;
+  std::cout << "Labels for tasks:" << std::endl;
   this->DisplayLabels(this->tasks);
 }
 
 bool BipartiteGraph::CheckFeasibility(
-    Matrix& _m, vector<Vertex>& _agents, vector<Vertex>& _tasks)
+    Matrix& _m, std::vector<Vertex>& _agents, std::vector<Vertex>& _tasks)
 {
   // check the size for args
   if (_m.size() != _agents.size() || _m[0].size() != _tasks.size())
   {
-    throw exception(
+    throw std::exception(
         "[BipartiteGraph::CheckFeasibility] size discrepency found during "
         "feasibility checking");
   }
@@ -99,12 +96,12 @@ bool BipartiteGraph::CheckFeasibility(
       {
         if (_m[i][j].GetWeight() > _agents[i].GetLabel() + _tasks[j].GetLabel())
         {
-          throw exception(
+          throw std::exception(
               "[BipartiteGraph::CheckFeasibility] abels are not feasible any "
               "more!");
-          cout << "\tGetweight: " << _m[i][j].GetWeight() << endl;
-          cout << "\tGetAlabel: " << _agents[i].GetLabel() << endl;
-          cout << "\tGetTlabel: " << _tasks[j].GetLabel() << endl;
+          std::cout << "\tGetweight: " << _m[i][j].GetWeight() << std::endl;
+          std::cout << "\tGetAlabel: " << _agents[i].GetLabel() << std::endl;
+          std::cout << "\tGetTlabel: " << _tasks[j].GetLabel() << std::endl;
         }
         result = false;
       }
@@ -117,7 +114,7 @@ bool BipartiteGraph::CheckFeasibility(void)
 {
   bool res = this->CheckFeasibility(bg_matrix, agents, tasks);
   if (!res)
-    throw exception(
+    throw std::exception(
         "[BipartiteGraph::CheckFeasibility] bipartite graph is not feasible!");
 
   return res;
