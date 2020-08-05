@@ -161,7 +161,7 @@ int main(int argc, char** argv)
       using namespace std::chrono;
       auto start = system_clock::now();
       ///
-      ProcImage(md, net, input, resize, display, image, false);
+      ProcImage(md, net, input, resize, display, image);
       ///
       auto end = system_clock::now();
 
