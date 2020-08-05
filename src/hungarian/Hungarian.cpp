@@ -1,6 +1,6 @@
 #include "Hungarian.h"
 
-#include <float.h>
+#include <math.h>
 
 #include <deque>
 #include <iostream>
