@@ -776,52 +776,6 @@ void BackwardYoloLayer(layer* l, NetworkState state)
   axpy_cpu(l->batch * l->inputs, 1, l->delta, 1, state.delta, 1);
 }
 
-// Converts output of the network to detection boxes
-// w,h: image width,height
-// netw,neth: network width,height
-// relative: 1 (all callers seems to pass TRUE)
-void CorrectYoloBoxes(
-    Detection* dets, int n, int w, int h, int netw, int neth, int relative)
-{
-  int i;
-  // network height (or width)
-  int new_w = netw;
-  // network height (or width)
-  int new_h = neth;
-  // difference between network width and "rotated" width
-  float deltaw = netw - new_w;
-  // difference between network height and "rotated" height
-  float deltah = neth - new_h;
-  // ratio between rotated network width and network width
-  float ratiow = (float)new_w / netw;
-  // ratio between rotated network width and network width
-  float ratioh = (float)new_h / neth;
-  for (i = 0; i < n; ++i)
-  {
-    Box b = dets[i].bbox;
-    // x = ( x - (deltaw/2)/netw ) / ratiow;
-    //   x - [(1/2 the difference of the network width and rotated width) /
-    //   (network width)]
-    b.x = (b.x - deltaw / 2. / netw) / ratiow;
-    b.y = (b.y - deltah / 2. / neth) / ratioh;
-    // scale to match rotation of incoming image
-    b.w *= 1 / ratiow;
-    b.h *= 1 / ratioh;
-
-    // relative seems to always be == 1, I don't think we hit this condition,
-    // ever.
-    if (!relative)
-    {
-      b.x *= w;
-      b.w *= w;
-      b.y *= h;
-      b.h *= h;
-    }
-
-    dets[i].bbox = b;
-  }
-}
-
 int YoloNumDetections(layer const* l, float thresh)
 {
   int count = 0;
@@ -837,38 +791,43 @@ int YoloNumDetections(layer const* l, float thresh)
   return count;
 }
 
-int GetYoloDetections(layer const* l, int w, int h, int netw, int neth,
-    float thresh, int relative, Detection* dets)
+int GetYoloDetections(
+    layer const* l, int net_w, int net_h, float thresh, Detection* dets)
 {
-  float const* predictions = l->output;
+  float const* pred = l->output;
 
   int count = 0;
-  for (int i = 0; i < l->w * l->h; ++i)
+  for (int n = 0; n < l->n; ++n)
   {
-    int row = i / l->w;
-    int col = i % l->w;
-    for (int n = 0; n < l->n; ++n)
+    for (int i = 0; i < l->w * l->h; ++i)
     {
-      int obj_index = EntryIndex(l, 0, n * l->w * l->h + i, 4);
-      float objectness = predictions[obj_index];
-      if (objectness > thresh)
+      int loc = n * l->w * l->h + i;
+      int obj_idx = EntryIndex(l, 0, loc, 4);
+
+      float objectness = pred[obj_idx];
+      if (objectness <= thresh)
+        continue;
+
+      int box_idx = EntryIndex(l, 0, loc, 0);
+      int col = i % l->w;
+      int row = i / l->w;
+
+      dets[count].bbox = GetYoloBox(pred, l->biases, l->mask[n], box_idx, col,
+          row, l->w, l->h, net_w, net_h, l->w * l->h);
+      dets[count].objectness = objectness;
+      dets[count].classes = l->classes;
+
+      for (int j = 0; j < l->classes; ++j)
       {
-        int box_index = EntryIndex(l, 0, n * l->w * l->h + i, 0);
-        dets[count].bbox = GetYoloBox(predictions, l->biases, l->mask[n],
-            box_index, col, row, l->w, l->h, netw, neth, l->w * l->h);
-        dets[count].objectness = objectness;
-        dets[count].classes = l->classes;
-        for (int j = 0; j < l->classes; ++j)
-        {
-          int class_index = EntryIndex(l, 0, n * l->w * l->h + i, 4 + 1 + j);
-          float prob = objectness * predictions[class_index];
-          dets[count].prob[j] = (prob > thresh) ? prob : 0;
-        }
-        ++count;
+        int class_idx = EntryIndex(l, 0, loc, 4 + 1 + j);
+
+        float prob = objectness * pred[class_idx];
+        dets[count].prob[j] = (prob > thresh) ? prob : 0;
       }
+      ++count;
     }
   }
-  CorrectYoloBoxes(dets, count, w, h, netw, neth, relative);
+
   return count;
 }
 

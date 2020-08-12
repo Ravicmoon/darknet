@@ -856,39 +856,6 @@ void BackwardGaussianYoloLayer(layer* l, NetworkState state)
   axpy_cpu(l->batch * l->inputs, 1, l->delta, 1, state.delta, 1);
 }
 
-void CorrectGaussianYoloBoxes(
-    Detection* dets, int n, int w, int h, int netw, int neth, int relative)
-{
-  int i;
-  int new_w = netw;
-  int new_h = neth;
-  /*
-  if (((float)netw/w) < ((float)neth/h)) {
-      new_w = netw;
-      new_h = (h * netw)/w;
-  } else {
-      new_h = neth;
-      new_w = (w * neth)/h;
-  }
-  */
-  for (i = 0; i < n; ++i)
-  {
-    Box b = dets[i].bbox;
-    b.x = (b.x - (netw - new_w) / 2. / netw) / ((float)new_w / netw);
-    b.y = (b.y - (neth - new_h) / 2. / neth) / ((float)new_h / neth);
-    b.w *= (float)netw / new_w;
-    b.h *= (float)neth / new_h;
-    if (!relative)
-    {
-      b.x *= w;
-      b.w *= w;
-      b.y *= h;
-      b.h *= h;
-    }
-    dets[i].bbox = b;
-  }
-}
-
 int GaussianYoloNumDetections(layer const* l, float thresh)
 {
   int count = 0;
@@ -906,59 +873,59 @@ int GaussianYoloNumDetections(layer const* l, float thresh)
   return count;
 }
 
-int GetGaussianYoloDetections(layer const* l, int w, int h, int netw, int neth,
-    float thresh, int relative, Detection* dets)
+int GetGaussianYoloDetections(
+    layer const* l, int net_w, int net_h, float thresh, Detection* dets)
 {
-  float const* predictions = l->output;
+  float const* pred = l->output;
+
   int count = 0;
-  for (int i = 0; i < l->w * l->h; ++i)
+  for (int n = 0; n < l->n; ++n)
   {
-    int row = i / l->w;
-    int col = i % l->w;
-    for (int n = 0; n < l->n; ++n)
+    for (int i = 0; i < l->w * l->h; ++i)
     {
-      int obj_index = EntryGaussianIndex(l, 0, n * l->w * l->h + i, 8);
-      float objectness = predictions[obj_index];
+      int loc = n * l->w * l->h + i;
+      int obj_idx = EntryGaussianIndex(l, 0, loc, 8);
+
+      float objectness = pred[obj_idx];
       if (objectness <= thresh)
         continue;  // incorrect behavior for Nan values
 
-      if (objectness > thresh)
+      int box_idx = EntryGaussianIndex(l, 0, loc, 0);
+      int col = i % l->w;
+      int row = i / l->w;
+
+      dets[count].bbox =
+          GetGaussianYoloBox(pred, l->biases, l->mask[n], box_idx, col, row,
+              l->w, l->h, net_w, net_h, l->w * l->h, l->yolo_point);
+      dets[count].objectness = objectness;
+      dets[count].classes = l->classes;
+
+      dets[count].uc[0] =
+          pred[EntryGaussianIndex(l, 0, loc, 1)];  // tx uncertainty
+      dets[count].uc[1] =
+          pred[EntryGaussianIndex(l, 0, loc, 3)];  // ty uncertainty
+      dets[count].uc[2] =
+          pred[EntryGaussianIndex(l, 0, loc, 5)];  // tw uncertainty
+      dets[count].uc[3] =
+          pred[EntryGaussianIndex(l, 0, loc, 7)];  // th uncertainty
+
+      dets[count].points = l->yolo_point;
+      // if (l->yolo_point != YOLO_CENTER) dets[count].objectness = objectness
+      // = 0;
+
+      for (int j = 0; j < l->classes; ++j)
       {
-        int box_index = EntryGaussianIndex(l, 0, n * l->w * l->h + i, 0);
-        dets[count].bbox =
-            GetGaussianYoloBox(predictions, l->biases, l->mask[n], box_index,
-                col, row, l->w, l->h, netw, neth, l->w * l->h, l->yolo_point);
-        dets[count].objectness = objectness;
-        dets[count].classes = l->classes;
-
-        dets[count].uc[0] = predictions[EntryGaussianIndex(
-            l, 0, n * l->w * l->h + i, 1)];  // tx uncertainty
-        dets[count].uc[1] = predictions[EntryGaussianIndex(
-            l, 0, n * l->w * l->h + i, 3)];  // ty uncertainty
-        dets[count].uc[2] = predictions[EntryGaussianIndex(
-            l, 0, n * l->w * l->h + i, 5)];  // tw uncertainty
-        dets[count].uc[3] = predictions[EntryGaussianIndex(
-            l, 0, n * l->w * l->h + i, 7)];  // th uncertainty
-
-        dets[count].points = l->yolo_point;
-        // if (l->yolo_point != YOLO_CENTER) dets[count].objectness = objectness
-        // = 0;
-
-        for (int j = 0; j < l->classes; ++j)
-        {
-          int class_index =
-              EntryGaussianIndex(l, 0, n * l->w * l->h + i, 9 + j);
-          float uc_aver = (dets[count].uc[0] + dets[count].uc[1] +
-                              dets[count].uc[2] + dets[count].uc[3]) /
-                          4.0;
-          float prob = objectness * predictions[class_index] * (1.0 - uc_aver);
-          dets[count].prob[j] = (prob > thresh) ? prob : 0;
-        }
-        ++count;
+        int class_idx = EntryGaussianIndex(l, 0, loc, 9 + j);
+        float uc_avg = (dets[count].uc[0] + dets[count].uc[1] +
+                           dets[count].uc[2] + dets[count].uc[3]) /
+                       4.0;
+        float prob = objectness * pred[class_idx] * (1.0 - uc_avg);
+        dets[count].prob[j] = (prob > thresh) ? prob : 0;
       }
+      ++count;
     }
   }
-  CorrectGaussianYoloBoxes(dets, count, w, h, netw, neth, relative);
+
   return count;
 }
 

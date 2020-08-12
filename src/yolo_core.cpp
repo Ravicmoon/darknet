@@ -24,6 +24,7 @@ DEFINE_bool(clear, false, "Clear weights in model");
 DEFINE_bool(show_imgs, false, "");
 DEFINE_bool(save_output, false, "Save output to image or video");
 DEFINE_bool(calc_map, true, "Calculate mAP during training");
+DEFINE_bool(disable_tracking, false, "Disable tracking while processing video");
 
 DEFINE_int32(benchmark_layers, 0, "Indexes of layers to be benchmarked");
 DEFINE_int32(num_gpus, 1, "Number of GPUs");
@@ -90,8 +91,7 @@ void ProcImage(Metadata const& md, Network* net, cv::Mat const& input,
   NetworkPredict(net, image.data);
 
   int num_dets = 0;
-  Detection* dets =
-      GetNetworkBoxes(net, net->w, net->h, FLAGS_thresh, 1, &num_dets);
+  Detection* dets = GetNetworkBoxes(net, FLAGS_thresh, &num_dets);
 
   layer* l = &net->layers[net->n - 1];
   if (l->nms_kind == DEFAULT_NMS)
@@ -203,7 +203,10 @@ int main(int argc, char** argv)
         using namespace std::chrono;
         auto start = system_clock::now();
         ///
-        ProcImage(md, net, input, resize, display, image, &track_manager);
+        if (FLAGS_disable_tracking)
+          ProcImage(md, net, input, resize, display, image);
+        else
+          ProcImage(md, net, input, resize, display, image, &track_manager);
         ///
         auto end = system_clock::now();
 

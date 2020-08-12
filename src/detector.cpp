@@ -374,7 +374,7 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
     free_image(*buff_resized);
 
     int num_boxes = 0;
-    Detection* dets = GetNetworkBoxes(net, 1, 1, thresh, 0, &num_boxes);
+    Detection* dets = GetNetworkBoxes(net, thresh, &num_boxes);
 
     if (l->nms_kind == DEFAULT_NMS)
       NmsSort(dets, num_boxes, l->classes, nms);
@@ -557,6 +557,7 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
 
   std::cout << std::endl
             << " mAP@" << iou_thresh << ": " << map * 100 << "%" << std::endl
+            << std::endl
             << " Total prediction time: " << pred_time << "s" << std::endl
             << " Prediction per second: " << pred_per_second << std::endl;
 

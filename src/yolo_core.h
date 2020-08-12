@@ -628,8 +628,7 @@ LIB_API void FreeNetwork(Network* net);
 
 // network.h
 LIB_API float* NetworkPredict(Network* net, float* input);
-LIB_API Detection* GetNetworkBoxes(
-    Network* net, int w, int h, float thresh, int relative, int* num);
+LIB_API Detection* GetNetworkBoxes(Network* net, float thresh, int* num);
 LIB_API void FreeDetections(Detection* dets, int n);
 LIB_API void FuseConvBatchNorm(Network* net);
 LIB_API void calculate_binary_weights(Network net);
