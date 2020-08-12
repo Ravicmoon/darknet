@@ -377,65 +377,12 @@ int NmsComparator(const void* pa, const void* pb)
     return 0;
 }
 
-void NmsSort(Detection* dets, int total, int classes, float thresh)
-{
-  int k = total - 1;
-  for (int i = 0; i <= k; ++i)
-  {
-    if (abs(dets[i].objectness) < FLT_EPSILON)
-    {
-      Detection swap = dets[i];
-      dets[i] = dets[k];
-      dets[k] = swap;
-      --k;
-      --i;
-    }
-  }
-  total = k + 1;
-
-  for (k = 0; k < classes; ++k)
-  {
-    for (int i = 0; i < total; ++i)
-    {
-      dets[i].sort_class = k;
-    }
-    qsort(dets, total, sizeof(Detection), NmsComparator);
-    for (int i = 0; i < total; ++i)
-    {
-      if (abs(dets[i].prob[k]) < FLT_EPSILON)
-        continue;
-
-      Box a = dets[i].bbox;
-      for (int j = i + 1; j < total; ++j)
-      {
-        Box b = dets[j].bbox;
-        if (Box::Iou(a, b) > thresh)
-          dets[j].prob[k] = 0.0f;
-      }
-    }
-  }
-}
-
 // https://github.com/Zzh-tju/DIoU-darknet
 // https://arxiv.org/abs/1911.08287
-void DiouNmsSort(Detection* dets, int total, int classes, float thresh,
+void NmsSort(Detection* dets, int total, int classes, float thresh,
     NMS_KIND nms_kind, float beta)
 {
-  int k = total - 1;
-  for (int i = 0; i <= k; ++i)
-  {
-    if (dets[i].objectness == 0)
-    {
-      Detection swap = dets[i];
-      dets[i] = dets[k];
-      dets[k] = swap;
-      --k;
-      --i;
-    }
-  }
-  total = k + 1;
-
-  for (k = 0; k < classes; ++k)
+  for (int k = 0; k < classes; ++k)
   {
     for (int i = 0; i < total; ++i)
     {
@@ -451,19 +398,10 @@ void DiouNmsSort(Detection* dets, int total, int classes, float thresh,
       for (int j = i + 1; j < total; ++j)
       {
         Box b = dets[j].bbox;
-        if (Box::Iou(a, b) > thresh && nms_kind == CORNERS_NMS)
-        {
+        if (nms_kind == GREEDY_NMS && Box::Iou(a, b) > thresh)
           dets[j].prob[k] = 0.0f;
-        }
-        else if (Box::Iou(a, b) > thresh && nms_kind == GREEDY_NMS)
-        {
+        else if (nms_kind == DIOU_NMS && Box::Diou(a, b, beta) > thresh)
           dets[j].prob[k] = 0.0f;
-        }
-        else
-        {
-          if (Box::Diou(a, b, beta) > thresh && nms_kind == DIOU_NMS)
-            dets[j].prob[k] = 0.0f;
-        }
       }
     }
   }

@@ -14,10 +14,8 @@ typedef enum
 
 typedef enum
 {
-  DEFAULT_NMS,
   GREEDY_NMS,
   DIOU_NMS,
-  CORNERS_NMS
 } NMS_KIND;
 
 typedef struct DxRep
@@ -91,8 +89,7 @@ typedef struct MostProbDet
   float prob;
 } MostProbDet;
 
-LIB_API void NmsSort(Detection* dets, int total, int classes, float thresh);
-LIB_API void DiouNmsSort(Detection* dets, int total, int classes, float thresh,
+LIB_API void NmsSort(Detection* dets, int total, int classes, float thresh,
     NMS_KIND nms_kind, float beta);
 
 LIB_API std::vector<MostProbDet> GetMostProbDets(Detection* dets, int num_dets);

@@ -376,10 +376,7 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
     int num_boxes = 0;
     Detection* dets = GetNetworkBoxes(net, thresh, &num_boxes);
 
-    if (l->nms_kind == DEFAULT_NMS)
-      NmsSort(dets, num_boxes, l->classes, nms);
-    else
-      DiouNmsSort(dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
+    NmsSort(dets, num_boxes, l->classes, nms, l->nms_kind, l->beta_nms);
 
     std::string label_path = ReplaceImage2Label(val_img_list[i]);
     std::vector<BoxLabel> gt = ReadBoxAnnot(label_path);

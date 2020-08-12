@@ -94,11 +94,8 @@ void ProcImage(Metadata const& md, Network* net, cv::Mat const& input,
   Detection* dets = GetNetworkBoxes(net, FLAGS_thresh, &num_dets);
 
   layer* l = &net->layers[net->n - 1];
-  if (l->nms_kind == DEFAULT_NMS)
-    NmsSort(dets, num_dets, l->classes, FLAGS_nms_thresh);
-  else
-    DiouNmsSort(
-        dets, num_dets, l->classes, FLAGS_nms_thresh, l->nms_kind, l->beta_nms);
+  NmsSort(
+      dets, num_dets, l->classes, FLAGS_nms_thresh, l->nms_kind, l->beta_nms);
 
   std::vector<MostProbDet> most_prob_dets = GetMostProbDets(dets, num_dets);
 

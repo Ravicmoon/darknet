@@ -373,20 +373,13 @@ void ParseYolo(layer* l, list* options, SizeParams params)
   }
 
   l->beta_nms = FindOptionFloatQuiet(options, "beta_nms", 0.6);
-  char* nms_kind = FindOptionStrQuiet(options, "nms_kind", "default");
-  if (strcmp(nms_kind, "default") == 0)
-  {
-    l->nms_kind = DEFAULT_NMS;
-  }
+  char* nms_kind = FindOptionStrQuiet(options, "nms_kind", "greedynms");
+  if (strcmp(nms_kind, "greedynms") == 0)
+    l->nms_kind = GREEDY_NMS;
+  else if (strcmp(nms_kind, "diounms") == 0)
+    l->nms_kind = DIOU_NMS;
   else
-  {
-    if (strcmp(nms_kind, "greedynms") == 0)
-      l->nms_kind = GREEDY_NMS;
-    else if (strcmp(nms_kind, "diounms") == 0)
-      l->nms_kind = DIOU_NMS;
-    else
-      l->nms_kind = DEFAULT_NMS;
-  }
+    l->nms_kind = GREEDY_NMS;
   printf("nms_kind: %s (%d), beta = %f \n", nms_kind, l->nms_kind, l->beta_nms);
 
   l->jitter = FindOptionFloat(options, "jitter", .2);
@@ -508,22 +501,13 @@ void ParseGaussianYolo(layer* l, list* options, SizeParams params)
   }
 
   l->beta_nms = FindOptionFloatQuiet(options, "beta_nms", 0.6);
-  char* nms_kind = FindOptionStrQuiet(options, "nms_kind", "default");
-  if (strcmp(nms_kind, "default") == 0)
-  {
-    l->nms_kind = DEFAULT_NMS;
-  }
+  char* nms_kind = FindOptionStrQuiet(options, "nms_kind", "greedynms");
+  if (strcmp(nms_kind, "greedynms") == 0)
+    l->nms_kind = GREEDY_NMS;
+  else if (strcmp(nms_kind, "diounms") == 0)
+    l->nms_kind = DIOU_NMS;
   else
-  {
-    if (strcmp(nms_kind, "greedynms") == 0)
-      l->nms_kind = GREEDY_NMS;
-    else if (strcmp(nms_kind, "diounms") == 0)
-      l->nms_kind = DIOU_NMS;
-    else if (strcmp(nms_kind, "cornersnms") == 0)
-      l->nms_kind = CORNERS_NMS;
-    else
-      l->nms_kind = DEFAULT_NMS;
-  }
+    l->nms_kind = GREEDY_NMS;
   printf("nms_kind: %s (%d), beta = %f \n", nms_kind, l->nms_kind, l->beta_nms);
 
   char* yolo_point = FindOptionStrQuiet(options, "yolo_point", "center");
