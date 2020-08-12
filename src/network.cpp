@@ -472,7 +472,6 @@ Detection* MakeNetworkBoxes(Network* net, float thresh, int* num)
 
 void FillNetworkBoxes(Network* net, float thresh, Detection* dets)
 {
-  int prev_classes = -1;
   for (int i = 0; i < net->n; ++i)
   {
     layer* l = &net->layers[i];
@@ -480,15 +479,6 @@ void FillNetworkBoxes(Network* net, float thresh, Detection* dets)
     {
       int count = GetYoloDetections(l, net->w, net->h, thresh, dets);
       dets += count;
-      if (prev_classes < 0)
-        prev_classes = l->classes;
-      else if (prev_classes != l->classes)
-      {
-        printf(
-            " Error: Different [yolo] layers have different number of classes "
-            "= %d and %d - check your cfg-file! \n",
-            prev_classes, l->classes);
-      }
     }
 
     if (l->type == GAUSSIAN_YOLO)
