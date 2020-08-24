@@ -37,6 +37,8 @@ class LIB_API Box
   Box(float _x, float _y, float _w, float _h);
   Box(float const* f, int stride = 1);
 
+  bool IsValid(float ratio = 0.1f);
+
   static float Overlap(float x1, float w1, float x2, float w2);
   static float Intersect(Box const& b1, Box const& b2);
   static float Union(Box const& b1, Box const& b2);

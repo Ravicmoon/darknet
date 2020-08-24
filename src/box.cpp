@@ -22,6 +22,17 @@ Box::Box(float const* f, int stride)
 {
 }
 
+bool Box::IsValid(float ratio)
+{
+  float lb = ratio;
+  float ub = 1.0f - ratio;
+
+  if (lb < x && x < ub && lb < y && y < ub)
+    return true;
+  else
+    return false;
+}
+
 float Box::Overlap(float x1, float w1, float x2, float w2)
 {
   float l1 = x1 - w1 / 2;

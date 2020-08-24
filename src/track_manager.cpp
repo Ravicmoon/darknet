@@ -297,7 +297,7 @@ void TrackManager::TrackManagerImpl::Track(std::vector<MostProbDet> const& dets)
 
   for (size_t i = 0; i < tracks_.size(); i++)
   {
-    if (tracks_[i].GetConfidence() > 0)
+    if (tracks_[i].GetConfidence() > 0 && tracks_[i].GetBox().IsValid())
     {
       remaining_tracks.push_back(tracks_[i]);
     }
