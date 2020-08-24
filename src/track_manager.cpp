@@ -230,8 +230,8 @@ class TrackManager::TrackManagerImpl
 TrackManager::TrackManagerImpl::TrackManagerImpl() {}
 
 TrackManager::TrackManagerImpl::TrackManagerImpl(
-    yc::ConfParam const& conf_param, double fps, double dist_thresh)
-    : conf_param_(conf_param), iou_thresh_(dist_thresh)
+    yc::ConfParam const& conf_param, double fps, double iou_thresh)
+    : conf_param_(conf_param), iou_thresh_(iou_thresh)
 {
   Track::SetFps(fps);
 }
@@ -426,8 +426,8 @@ bool TrackManager::TrackManagerImpl::ConstructSimMat(
 };
 
 TrackManager::TrackManager(
-    yc::ConfParam const& conf_param, double fps, double dist_thresh)
-    : impl_(new TrackManagerImpl(conf_param, fps, dist_thresh))
+    yc::ConfParam const& conf_param, double fps, double iou_thresh)
+    : impl_(new TrackManagerImpl(conf_param, fps, iou_thresh))
 {
 }
 
