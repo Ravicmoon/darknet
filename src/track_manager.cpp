@@ -56,7 +56,7 @@ Track::TrackImpl::TrackImpl() {}
 Track::TrackImpl::TrackImpl(
     yc::ConfParam const& conf_param, MostProbDet const& det)
     : status_(MOVING),
-      unique_idx_(shared_counter_++),
+      unique_idx_(-1),
       count_(1),
       conf_param_(conf_param),
       conf_(conf_param.init_conf_),
@@ -86,6 +86,8 @@ void Track::TrackImpl::Predict()
   }
 
   count_++;
+  if (count_ >= conf_param_.min_conf_ && unique_idx_ < 0)
+    unique_idx_ = shared_counter_++;
 }
 
 void Track::TrackImpl::Correct(MostProbDet const& det)
@@ -122,7 +124,7 @@ void Track::TrackImpl::Correct(MostProbDet const& det)
 
   Box bbox1 = pt_history_.front();
   Box bbox2 = pt_history_.back();
-  if (Box::Iou(bbox1, bbox2) > 0.7)
+  if (Box::Iou(bbox1, bbox2) > 0.7 && det_.prob > 0.9)
     status_ = STATIONARY;
   else
     status_ = MOVING;
@@ -297,7 +299,7 @@ void TrackManager::TrackManagerImpl::Track(std::vector<MostProbDet> const& dets)
 
   for (size_t i = 0; i < tracks_.size(); i++)
   {
-    if (tracks_[i].GetConfidence() > 0 && tracks_[i].GetBox().IsValid())
+    if (tracks_[i].GetConfidence() > 0)
     {
       remaining_tracks.push_back(tracks_[i]);
     }
