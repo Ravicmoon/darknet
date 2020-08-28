@@ -4,27 +4,24 @@
 
 #include "utils.h"
 
-float GetRandColor(int c, int x, int max)
-{
-  static float const colors[6][3] = {
-      {1, 0, 1}, {0, 0, 1}, {0, 1, 1}, {0, 1, 0}, {1, 1, 0}, {1, 0, 0}};
+std::vector<cv::Scalar> palette = {
+    CV_RGB(255, 0, 0),
+    CV_RGB(0, 255, 0),
+    CV_RGB(0, 0, 255),
+    CV_RGB(255, 255, 0),
+    CV_RGB(0, 255, 255),
+    CV_RGB(255, 0, 255),
+    CV_RGB(255, 255, 255),
+    CV_RGB(128, 0, 0),
+    CV_RGB(0, 128, 0),
+    CV_RGB(0, 0, 128),
+    CV_RGB(128, 128, 0),
+    CV_RGB(0, 128, 128),
+    CV_RGB(128, 0, 128),
+    CV_RGB(128, 128, 128),
+};
 
-  float ratio = ((float)x / max) * 5.0f;
-  int i = floor(ratio);
-  int j = ceil(ratio);
-  ratio -= i;
-
-  return (1 - ratio) * colors[i][c] + ratio * colors[j][c];
-}
-
-cv::Scalar GetRandColor(int offset, int max)
-{
-  float r = 256 * GetRandColor(2, offset, max);
-  float g = 256 * GetRandColor(1, offset, max);
-  float b = 256 * GetRandColor(0, offset, max);
-
-  return cv::Scalar(int(r), int(g), int(b));
-}
+cv::Scalar GetRandColor(int idx) { return palette[idx % palette.size()]; }
 
 void Mat2Image(cv::Mat const& mat, Image* image)
 {
@@ -86,8 +83,7 @@ void DrawYoloDetections(
     cv::Point2f pt_text_bg1(left, top - baseline - text_size.height);
     cv::Point2f pt_text_bg2(left + text_size.width, top);
 
-    int offset = cid * 123457 % md.NumClasses();
-    cv::Scalar color = GetRandColor(offset, md.NumClasses());
+    cv::Scalar color = GetRandColor(cid);
 
     int width = max_val_cmp(1, img.cols / 640);
 
@@ -98,8 +94,8 @@ void DrawYoloDetections(
   }
 }
 
-void DrawYoloTrackings(cv::Mat& img, std::vector<yc::Track> const& tracks,
-    Metadata const& md, int max_idx)
+void DrawYoloTrackings(
+    cv::Mat& img, std::vector<yc::Track> const& tracks, Metadata const& md)
 {
   std::vector<std::string> name_list = md.NameList();
 
@@ -130,8 +126,7 @@ void DrawYoloTrackings(cv::Mat& img, std::vector<yc::Track> const& tracks,
     cv::Point2f pt_text_bg1(left, top - baseline - text_size.height);
     cv::Point2f pt_text_bg2(left + text_size.width, top);
 
-    int offset = unique_idx * 123457 % max_idx;
-    cv::Scalar color = GetRandColor(offset, max_idx);
+    cv::Scalar color = GetRandColor(unique_idx);
 
     int width = std::max(1, img.cols / 640);
     if (tracks[i].GetStatus() == yc::STATIONARY)

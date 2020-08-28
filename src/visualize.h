@@ -11,8 +11,8 @@
 LIB_API void Mat2Image(cv::Mat const& mat, Image* image);
 LIB_API void DrawYoloDetections(
     cv::Mat& img, std::vector<MostProbDet> const& dets, Metadata const& md);
-LIB_API void DrawYoloTrackings(cv::Mat& img,
-    std::vector<yc::Track> const& tracks, Metadata const& md, int max_idx = 20);
+LIB_API void DrawYoloTrackings(
+    cv::Mat& img, std::vector<yc::Track> const& tracks, Metadata const& md);
 LIB_API void DrawProcTime(cv::Mat& img, int64_t millisec);
 LIB_API void DrawFrameInfo(cv::Mat& img, int64_t curr_frame, int64_t max_frame);
 
