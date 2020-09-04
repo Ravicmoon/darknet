@@ -1770,7 +1770,7 @@ void LoadShortcutWeights(layer* l, FILE* fp)
 #endif
 }
 
-void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
+bool LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
 {
 #ifdef GPU
   if (net->gpu_index >= 0)
@@ -1779,8 +1779,8 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
   fprintf(stderr, "Loading weights from %s...", filename);
   fflush(stdout);
   FILE* fp = fopen(filename, "rb");
-  if (!fp)
-    FileError(filename);
+  if (fp == nullptr)
+    return false;
 
   int major;
   int minor;
@@ -1834,17 +1834,20 @@ void LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
   }
   fprintf(stderr, "Done! Loaded %d layers from weights-file \n", num_layer);
   fclose(fp);
+
+  return true;
 }
 
-void LoadWeights(Network* net, char const* filename)
+bool LoadWeights(Network* net, char const* filename)
 {
-  LoadWeightsUpTo(net, filename, net->n);
+  return LoadWeightsUpTo(net, filename, net->n);
 }
 
 // load network & force - set batch size
-void LoadNetwork(Network* net, char const* model_file, char const* weights_file,
+bool LoadNetwork(Network* net, char const* model_file, char const* weights_file,
     bool train, bool clear)
 {
+  bool ret = false;
   printf(" Try to load model: %s, weights: %s, clear = %d \n", model_file,
       weights_file, clear);
 
@@ -1852,7 +1855,7 @@ void LoadNetwork(Network* net, char const* model_file, char const* weights_file,
   if (weights_file != nullptr)
   {
     printf(" Try to load weights: %s \n", weights_file);
-    LoadWeights(net, weights_file);
+    ret = LoadWeights(net, weights_file);
   }
 
   if (!train)
@@ -1863,4 +1866,6 @@ void LoadNetwork(Network* net, char const* model_file, char const* weights_file,
     net->seen = 0;
     net->curr_iter = 0;
   }
+
+  return ret;
 }

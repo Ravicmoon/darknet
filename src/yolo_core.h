@@ -622,7 +622,7 @@ typedef struct BoxLabel
 } BoxLabel;
 
 // parser.c
-LIB_API void LoadNetwork(Network* net, char const* model_file,
+LIB_API bool LoadNetwork(Network* net, char const* model_file,
     char const* weights_file, bool train = false, bool clear = false);
 LIB_API void FreeNetwork(Network* net);
 
