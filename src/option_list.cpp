@@ -16,7 +16,7 @@ class Metadata::MetadataImpl
   MetadataImpl();
   MetadataImpl(std::string filename);
 
-  void Get(std::string filename);
+  bool Get(std::string filename);
 
  public:
   int classes_;
@@ -35,9 +35,11 @@ Metadata::MetadataImpl::MetadataImpl() : classes_(0) {}
 
 Metadata::MetadataImpl::MetadataImpl(std::string filename) { Get(filename); }
 
-void Metadata::MetadataImpl::Get(std::string filename)
+bool Metadata::MetadataImpl::Get(std::string filename)
 {
   list* options = ReadDataCfg(filename.c_str());
+  if (options == nullptr)
+    return false;
 
   classes_ = FindOptionInt(options, "classes", 2);
 
@@ -55,13 +57,15 @@ void Metadata::MetadataImpl::Get(std::string filename)
   if (Exists(name_file_.c_str()))
     name_list_ = GetList(name_file_);
 
+  FreeList(options);
+
   if ((int)name_list_.size() != classes_)
   {
     printf("Invalid metadata file: %d != %d", (int)name_list_.size(), classes_);
-    exit(EXIT_FAILURE);
+    return false;
   }
 
-  FreeList(options);
+  return true;
 }
 
 Metadata::Metadata() : impl_(new MetadataImpl()) {}
@@ -70,7 +74,7 @@ Metadata::Metadata(std::string filename) : impl_(new MetadataImpl(filename)) {}
 
 Metadata::~Metadata() { delete impl_; }
 
-void Metadata::Get(std::string filename) { impl_->Get(filename); }
+bool Metadata::Get(std::string filename) { return impl_->Get(filename); }
 
 int Metadata::NumClasses() const { return impl_->classes_; }
 
@@ -96,7 +100,7 @@ list* ReadDataCfg(char const* filename)
 {
   FILE* file = fopen(filename, "r");
   if (file == nullptr)
-    FileError(filename);
+    return nullptr;
 
   char* line;
   int num_line = 0;

@@ -12,7 +12,7 @@ class LIB_API Metadata
   Metadata(std::string filename);
   ~Metadata();
 
-  void Get(std::string filename);
+  bool Get(std::string filename);
   int NumClasses() const;
 
   std::string TrainFile() const;
