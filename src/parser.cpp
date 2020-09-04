@@ -59,8 +59,8 @@ void FreeSection(Section* s)
 list* ReadSections(char const* filename)
 {
   FILE* file = fopen(filename, "r");
-  if (file == NULL)
-    FileError(filename);
+  if (file == nullptr)
+    return nullptr;
 
   char* line;
   int line_num = 0;
@@ -1073,9 +1073,12 @@ void SetTrainOnlyBn(Network* net)
   }
 }
 
-void ParseNetworkCfg(Network* net, char const* filename, bool train)
+bool ParseNetworkCfg(Network* net, char const* filename, bool train)
 {
   list* sections = ReadSections(filename);
+  if (sections == nullptr)
+    return false;
+
   node* n = sections->front;
   if (!n)
     error("Config file has no sections");
@@ -1511,6 +1514,8 @@ void ParseNetworkCfg(Network* net, char const* filename, bool train)
         "32 for default networks Yolo v1/v2/v3!!! \n\n",
         net->w, net->h);
   }
+
+  return true;
 }
 
 void SaveShortcutWeights(layer* l, FILE* fp)
@@ -1851,7 +1856,7 @@ bool LoadNetwork(Network* net, char const* model_file, char const* weights_file,
   printf(" Try to load model: %s, weights: %s, clear = %d \n", model_file,
       weights_file, clear);
 
-  ParseNetworkCfg(net, model_file, train);
+  ret = ParseNetworkCfg(net, model_file, train);
   if (weights_file != nullptr)
   {
     printf(" Try to load weights: %s \n", weights_file);
