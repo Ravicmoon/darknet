@@ -30,7 +30,7 @@ enum TRACK_STATUS
 class LIB_API Track
 {
  public:
-  Track(yc::ConfParam const& conf_param, MostProbDet const& det);
+  Track(MostProbDet const& det);
   Track(Track const& other);
   ~Track();
 
@@ -50,6 +50,7 @@ class LIB_API Track
   void Correct(MostProbDet const& det);
 
  public:
+  static void SetConfParam(yc::ConfParam const& conf_param);
   static void SetFps(double fps);
 
  private:

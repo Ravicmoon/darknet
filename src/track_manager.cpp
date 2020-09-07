@@ -13,9 +13,7 @@ class Track::TrackImpl
 {
  public:
   TrackImpl();
-  TrackImpl(yc::ConfParam const& conf_param, MostProbDet const& det);
-
-  static void SetFps(double fps);
+  TrackImpl(MostProbDet const& det);
 
   TRACK_STATUS GetStatus() const;
 
@@ -32,6 +30,7 @@ class Track::TrackImpl
   void InitKalmanFilter(cv::Point2f const& point);
 
  public:
+  static yc::ConfParam conf_param_;
   static double fps_;
   static int shared_counter_;
 
@@ -43,23 +42,21 @@ class Track::TrackImpl
   int unique_idx_;
   int count_;
 
-  yc::ConfParam conf_param_;
   int conf_;
 
   MostProbDet det_;
 };
 
+yc::ConfParam Track::TrackImpl::conf_param_;
 double Track::TrackImpl::fps_ = 0;
 int Track::TrackImpl::shared_counter_ = 0;
 
 Track::TrackImpl::TrackImpl() {}
-Track::TrackImpl::TrackImpl(
-    yc::ConfParam const& conf_param, MostProbDet const& det)
+Track::TrackImpl::TrackImpl(MostProbDet const& det)
     : status_(MOVING),
       unique_idx_(-1),
       count_(1),
-      conf_param_(conf_param),
-      conf_(conf_param.init_conf_),
+      conf_(conf_param_.init_conf_),
       det_(det)
 {
   InitKalmanFilter(cv::Point2f(det.bbox.x, det.bbox.y));
@@ -144,10 +141,7 @@ void Track::TrackImpl::InitKalmanFilter(cv::Point2f const& point)
 ///
 
 ///
-Track::Track(yc::ConfParam const& conf_param, MostProbDet const& det)
-    : impl_(new TrackImpl(conf_param, det))
-{
-}
+Track::Track(MostProbDet const& det) : impl_(new TrackImpl(det)) {}
 
 Track::Track(Track const& other) : impl_(new TrackImpl)
 {
@@ -158,7 +152,6 @@ Track::Track(Track const& other) : impl_(new TrackImpl)
 
   impl_->unique_idx_ = other.impl_->unique_idx_;
 
-  impl_->conf_param_ = other.impl_->conf_param_;
   impl_->conf_ = other.impl_->conf_;
 
   impl_->det_ = other.impl_->det_;
@@ -177,7 +170,6 @@ Track& Track::operator=(Track const& other)
 
     impl_->unique_idx_ = other.impl_->unique_idx_;
 
-    impl_->conf_param_ = other.impl_->conf_param_;
     impl_->conf_ = other.impl_->conf_;
 
     impl_->det_ = other.impl_->det_;
@@ -199,6 +191,10 @@ float Track::GetClassProb() const { return impl_->GetClassProb(); }
 void Track::Predict() { impl_->Predict(); }
 void Track::Correct(MostProbDet const& det) { impl_->Correct(det); }
 
+void Track::SetConfParam(yc::ConfParam const& conf_param)
+{
+  TrackImpl::conf_param_ = conf_param;
+}
 void Track::SetFps(double fps) { TrackImpl::fps_ = fps; }
 ///
 
@@ -233,6 +229,7 @@ TrackManager::TrackManagerImpl::TrackManagerImpl(
     yc::ConfParam const& conf_param, double fps, double iou_thresh)
     : conf_param_(conf_param), iou_thresh_(iou_thresh)
 {
+  Track::SetConfParam(conf_param);
   Track::SetFps(fps);
 }
 
@@ -281,7 +278,7 @@ void TrackManager::TrackManagerImpl::Track(std::vector<MostProbDet> const& dets)
         }
 
         if (!sum)
-          tracks_.push_back(yc::Track(conf_param_, dets[i]));
+          tracks_.push_back(yc::Track(dets[i]));
       }
     }
   }
@@ -290,7 +287,7 @@ void TrackManager::TrackManagerImpl::Track(std::vector<MostProbDet> const& dets)
     // launch new tracks
     for (int i = 0; i < (int)dets.size(); i++)
     {
-      tracks_.push_back(yc::Track(conf_param_, dets[i]));
+      tracks_.push_back(yc::Track(dets[i]));
     }
   }
 
