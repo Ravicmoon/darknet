@@ -17,6 +17,7 @@ class Track::TrackImpl
 
   TRACK_STATUS GetStatus() const;
 
+  void SetUniqueIndex(int unique_idx);
   int GetUniqueIndex() const;
   int GetCount() const;
   int GetConfidence() const;
@@ -64,6 +65,10 @@ Track::TrackImpl::TrackImpl(MostProbDet const& det)
 
 TRACK_STATUS Track::TrackImpl::GetStatus() const { return status_; }
 
+void Track::TrackImpl::SetUniqueIndex(int unique_idx)
+{
+  unique_idx_ = unique_idx;
+}
 int Track::TrackImpl::GetUniqueIndex() const { return unique_idx_; }
 int Track::TrackImpl::GetCount() const { return count_; }
 int Track::TrackImpl::GetConfidence() const { return conf_; }
@@ -180,6 +185,10 @@ Track& Track::operator=(Track const& other)
 
 TRACK_STATUS Track::GetStatus() const { return impl_->GetStatus(); }
 
+void Track::SetUniqueIndex(int unique_idx)
+{
+  impl_->SetUniqueIndex(unique_idx);
+}
 int Track::GetUniqueIndex() const { return impl_->GetUniqueIndex(); }
 int Track::GetCount() const { return impl_->GetCount(); }
 int Track::GetConfidence() const { return impl_->GetConfidence(); }
@@ -196,6 +205,7 @@ void Track::SetConfParam(yc::ConfParam const& conf_param)
   TrackImpl::conf_param_ = conf_param;
 }
 void Track::SetFps(double fps) { TrackImpl::fps_ = fps; }
+double Track::GetFps() { return TrackImpl::fps_; }
 ///
 
 ///

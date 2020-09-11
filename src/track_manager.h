@@ -38,6 +38,7 @@ class LIB_API Track
 
   TRACK_STATUS GetStatus() const;
 
+  void SetUniqueIndex(int unique_idx);
   int GetUniqueIndex() const;
   int GetCount() const;
   int GetConfidence() const;
@@ -52,6 +53,7 @@ class LIB_API Track
  public:
   static void SetConfParam(yc::ConfParam const& conf_param);
   static void SetFps(double fps);
+  static double GetFps();
 
  private:
   class TrackImpl;
