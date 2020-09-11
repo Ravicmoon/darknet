@@ -4,5 +4,6 @@ stb
 pthreads
 gflags
 opencv4[core]
+tinyxml2
 --triplet
 x64-windows

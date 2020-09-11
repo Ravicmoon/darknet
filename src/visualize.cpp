@@ -59,7 +59,7 @@ void DrawYoloDetections(
   std::vector<std::string> name_list = md.NameList();
 
   int font = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
-  char label[128];
+  char tag[128];
 
   for (size_t i = 0; i < dets.size(); i++)
   {
@@ -72,10 +72,10 @@ void DrawYoloDetections(
     int cid = dets[i].cid;
     float prob = dets[i].prob;
 
-    sprintf(label, "%s(%2.0f%%)", name_list[cid].c_str(), prob * 100);
+    sprintf(tag, "%s(%2.0f%%)", name_list[cid].c_str(), prob * 100);
 
     int baseline = 0;
-    cv::Size text_size = cv::getTextSize(label, font, 1, 1, &baseline);
+    cv::Size text_size = cv::getTextSize(tag, font, 1, 1, &baseline);
 
     cv::Point2f pt1(left, top);
     cv::Point2f pt2(right, bottom);
@@ -90,35 +90,34 @@ void DrawYoloDetections(
     cv::rectangle(img, pt1, pt2, color, width);
     cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1);
     cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width);
-    cv::putText(img, label, pt_text, font, 1, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
+    cv::putText(img, tag, pt_text, font, 1, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
   }
 }
 
 void DrawYoloTrackings(
-    cv::Mat& img, std::vector<yc::Track> const& tracks, Metadata const& md)
+    cv::Mat& img, std::vector<yc::Track*> const& tracks, Metadata const& md)
 {
   std::vector<std::string> name_list = md.NameList();
 
   int font = cv::HersheyFonts::FONT_HERSHEY_COMPLEX_SMALL;
-  char label[128];
+  char tag[128];
 
   for (size_t i = 0; i < tracks.size(); i++)
   {
-    Box::AbsBox b(tracks[i].GetBox());
+    Box::AbsBox b(tracks[i]->GetBox());
     float left = b.left * img.cols;
     float right = b.right * img.cols;
     float top = b.top * img.rows;
     float bottom = b.bottom * img.rows;
 
-    int cid = tracks[i].GetClassId();
-    int unique_idx = tracks[i].GetUniqueIndex();
-    float prob = tracks[i].GetClassProb();
+    int cid = tracks[i]->GetClassId();
+    int label = tracks[i]->GetLabel();
+    float prob = tracks[i]->GetClassProb();
 
-    sprintf(label, "%s(%d,%2.0f%%)", name_list[cid].c_str(), unique_idx,
-        prob * 100);
+    sprintf(tag, "%s(%d,%2.0f%%)", name_list[cid].c_str(), label, prob * 100);
 
     int baseline = 0;
-    cv::Size text_size = cv::getTextSize(label, font, 0.5, 1, &baseline);
+    cv::Size text_size = cv::getTextSize(tag, font, 0.5, 1, &baseline);
 
     cv::Point2f pt1(left, top);
     cv::Point2f pt2(right, bottom);
@@ -126,17 +125,16 @@ void DrawYoloTrackings(
     cv::Point2f pt_text_bg1(left, top - baseline - text_size.height);
     cv::Point2f pt_text_bg2(left + text_size.width, top);
 
-    cv::Scalar color = GetRandColor(unique_idx);
+    cv::Scalar color = GetRandColor(label);
 
     int width = std::max(1, img.cols / 640);
-    if (tracks[i].GetStatus() == yc::STATIONARY)
+    if (tracks[i]->GetStatus() == yc::STATIONARY)
       width *= 2;
 
     cv::rectangle(img, pt1, pt2, color, width);
     cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1);
     cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width);
-    cv::putText(
-        img, label, pt_text, font, 0.5, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
+    cv::putText(img, tag, pt_text, font, 0.5, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
   }
 }
 

@@ -40,6 +40,7 @@ set(INSTALL_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include CACHE PATH "Path where h
 set(INSTALL_CMAKE_DIR ${CMAKE_INSTALL_PREFIX}/share CACHE PATH "Path where cmake configs will be installed")
 
 find_package(gflags REQUIRED)
+find_package(tinyxml2 REQUIRED)
 
 if(${CMAKE_VERSION} VERSION_LESS "3.9.0")
   message(WARNING "To build with CUDA support you need CMake 3.9.0+")
@@ -180,7 +181,10 @@ if(ENABLE_CUDA)
   set_target_properties(lib_yolo_core PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
-add_executable(yolo_core ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp)
+add_executable(yolo_core 
+  ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/src/geo_info.cpp
+)
 add_dependencies(yolo_core lib_yolo_core)
 set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp PROPERTIES LANGUAGE CXX)
 set_target_properties(yolo_core PROPERTIES LINKER_LANGUAGE CXX)
@@ -201,6 +205,7 @@ target_link_libraries(yolo_core PRIVATE lib_yolo_core)
 
 target_include_directories(yolo_core PRIVATE ${GFLAGS_INCLUDE_DIRS})
 target_link_libraries(yolo_core PRIVATE ${GFLAGS_LIBRARIES})
+target_link_libraries(yolo_core PRIVATE tinyxml2::tinyxml2)
 
 if(CUDNN_FOUND)
   target_link_libraries(lib_yolo_core PRIVATE CuDNN::CuDNN)

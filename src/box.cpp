@@ -434,7 +434,7 @@ LIB_API std::vector<MostProbDet> GetMostProbDets(Detection* dets, int num_dets)
       }
     }
 
-    if (cid != -1 && dets[i].bbox.IsValid(0.05f))
+    if (cid != -1)  // && dets[i].bbox.IsValid(0.05f))
     {
       MostProbDet mpd;
       mpd.bbox = dets[i].bbox;

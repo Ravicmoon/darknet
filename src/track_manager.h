@@ -38,9 +38,10 @@ class LIB_API Track
 
   TRACK_STATUS GetStatus() const;
 
-  void SetUniqueIndex(int unique_idx);
-  int GetUniqueIndex() const;
+  void SetLabel(int label);
+
   int GetCount() const;
+  int GetLabel() const;
   int GetConfidence() const;
 
   Box GetBox() const;
@@ -72,8 +73,8 @@ class LIB_API TrackManager
   void Clear();
   void Track(std::vector<MostProbDet> const& dets);
 
-  void GetTracks(std::vector<yc::Track>& tracks);
-  void GetSavedTracks(std::vector<yc::Track>& tracks);
+  void GetTracks(std::vector<yc::Track*>& tracks);
+  void GetSavedTracks(std::vector<yc::Track*>& tracks);
 
  private:
   class TrackManagerImpl;

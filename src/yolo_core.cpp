@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "geo_info.h"
 #include "track_manager.h"
 #include "visualize.h"
 
@@ -37,7 +38,8 @@ DEFINE_string(mode, "video", "Either train/valid/image/video");
 DEFINE_string(data_file, "yolo.data", "Data file path");
 DEFINE_string(model_file, "yolo.cfg", "Model file path");
 DEFINE_string(weights_file, "yolo.weights", "Weights file path");
-DEFINE_string(input_file, "test.avi", "Input file path for image/video modes");
+DEFINE_string(input_file, "test.avi",
+    "Input file path for image/video modes; use comma to input multiple files");
 
 #ifdef GPU
 #define CUDA_ASSERT(x) CudaAssert((x), __FILE__, __LINE__)
@@ -80,12 +82,31 @@ void ShowCudaCudnnInfo()
 }
 #endif
 
+void SeparateInputFiles(std::vector<std::string>& files)
+{
+  int offset = 0;
+  while (1)
+  {
+    int idx = FLAGS_input_file.find(',', offset);
+    if (idx == std::string::npos)
+    {
+      std::string substr = FLAGS_input_file.substr(offset);
+      if (!substr.empty())
+        files.push_back(substr);
+      break;
+    }
+
+    files.push_back(FLAGS_input_file.substr(offset, idx - offset));
+    offset = idx + 1;
+  }
+}
+
 void ProcImage(Metadata const& md, Network* net, cv::Mat const& input,
     cv::Mat& resize, cv::Mat& display, Image& image,
     yc::TrackManager* track_manager = nullptr)
 {
   cv::resize(input, resize, cv::Size(net->w, net->h));
-  cv::resize(input, display, input.size() / 2);
+  cv::resize(input, display, display.size());
   cv::cvtColor(resize, resize, cv::COLOR_RGB2BGR);
   Mat2Image(resize, &image);
   NetworkPredict(net, image.data);
@@ -101,7 +122,7 @@ void ProcImage(Metadata const& md, Network* net, cv::Mat const& input,
 
   if (track_manager != nullptr)
   {
-    std::vector<yc::Track> tracks;
+    std::vector<yc::Track*> tracks;
     track_manager->Track(most_prob_dets);
     track_manager->GetTracks(tracks);
 
@@ -148,12 +169,35 @@ int main(int argc, char** argv)
 
     // calculate mAP@0.5
     if (FLAGS_mode == "valid")
+    {
       ValidateDetector(md, net, 0.5);
+      return 0;
+    }
+
+    std::vector<std::string> files;
+    SeparateInputFiles(files);
+
+    std::vector<yc::GeoInfo> geo_infos(files.size());
+    for (size_t i = 0; i < files.size(); i++)
+    {
+      std::string const& path = files[i];
+      std::cout << path << std::endl;
+
+      int start = path.find_last_of('_');
+      int end = path.find_last_of('.');
+
+      std::string xml_path = path.substr(start + 1, path.size() - end) + "xml";
+      geo_infos[i].Load(xml_path);
+    }
 
     // processing a single image
     if (FLAGS_mode == "image")
     {
+      if (files.size() > 1)
+        FLAGS_input_file = files.front();
+
       cv::Mat input = cv::imread(FLAGS_input_file);
+      display = cv::Mat::zeros(input.size(), CV_8UC3);
 
       using namespace std::chrono;
       auto start = system_clock::now();
@@ -168,6 +212,9 @@ int main(int argc, char** argv)
       cv::waitKey(0);
     }
 
+    if (files.size() > 1)
+      FLAGS_mode = "multi-video";
+
     // processing video stream
     if (FLAGS_mode == "video")
     {
@@ -180,19 +227,23 @@ int main(int argc, char** argv)
       int img_height = video_capture.get(cv::CAP_PROP_FRAME_HEIGHT);
       double fps = video_capture.get(cv::CAP_PROP_FPS);
 
+      display = cv::Mat::zeros(img_height / 2, img_width / 2, CV_8UC3);
+
       if (FLAGS_save_output)
       {
         int idx = FLAGS_input_file.find_last_of('.');
         std::string output_file = FLAGS_input_file.substr(0, idx) + "_out.mp4";
 
         writer.open(output_file, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
-            fps, cv::Size(img_width / 2, img_height / 2));
+            fps, display.size());
       }
 
       int64_t curr_frame = 0;
       int64_t max_frame = video_capture.get(cv::CAP_PROP_FRAME_COUNT);
 
-      yc::TrackManager track_manager(yc::ConfParam(), fps, 0.3);
+      int min_conf = (int)(fps / 5);
+      yc::ConfParam conf_param(1, min_conf, 2 * min_conf);
+      yc::TrackManager track_manager(conf_param, fps, 0.3);
 
       cv::Mat input;
       while (video_capture.isOpened() && video_capture.read(input))
@@ -219,7 +270,125 @@ int main(int argc, char** argv)
       }
 
       if (image.data != nullptr)
-        delete image.data;
+        delete[] image.data;
+    }
+
+    if (FLAGS_mode == "multi-video")
+    {
+      std::vector<cv::VideoCapture> video_captures(files.size());
+      for (size_t i = 0; i < files.size(); i++)
+      {
+        video_captures[i].open(files[i]);
+      }
+
+      int img_width = video_captures.front().get(cv::CAP_PROP_FRAME_WIDTH);
+      int img_height = video_captures.front().get(cv::CAP_PROP_FRAME_HEIGHT);
+      double fps = video_captures.front().get(cv::CAP_PROP_FPS);
+
+      display = cv::Mat::zeros(img_height / files.size(), img_width, CV_8UC3);
+
+      cv::VideoWriter writer;
+      if (FLAGS_save_output)
+      {
+        int idx = files.front().find_last_of('.');
+        std::string output_file = files.front().substr(0, idx) + "_out.mp4";
+
+        writer.open(output_file, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
+            fps, display.size());
+      }
+
+      int64_t curr_frame = 0;
+      int64_t max_frame = video_captures.front().get(cv::CAP_PROP_FRAME_COUNT);
+
+      int min_conf = (int)(fps / 5);
+      yc::ConfParam conf_param(1, min_conf, 2 * min_conf);
+
+      Image* images = new Image[files.size()];
+      std::vector<yc::TrackManager*> track_managers(files.size());
+      std::vector<cv::Mat> inputs(files.size());
+      std::vector<cv::Mat> resizes(files.size());
+      std::vector<cv::Mat> displays(files.size());
+      for (size_t i = 0; i < track_managers.size(); i++)
+      {
+        images[i].data = nullptr;
+        displays[i] = cv::Mat::zeros(
+            img_height / files.size(), img_width / files.size(), CV_8UC3);
+        track_managers[i] = new yc::TrackManager(conf_param, fps, 0.3);
+      }
+
+      bool run = true;
+      while (1)
+      {
+        for (size_t i = 0; i < video_captures.size(); i++)
+        {
+          if (video_captures[i].isOpened())
+            video_captures[i].read(inputs[i]);
+          else
+            run = false;
+        }
+
+        if (!run)
+          break;
+
+        // if (curr_frame++ % files.size() != 0)
+        //   continue;
+        curr_frame++;
+
+        using namespace std::chrono;
+        auto start = system_clock::now();
+        ///
+        for (size_t i = 0; i < inputs.size(); i++)
+        {
+          if (FLAGS_disable_tracking)
+            ProcImage(md, net, inputs[i], resizes[i], displays[i], images[i]);
+          else
+            ProcImage(md, net, inputs[i], resizes[i], displays[i], images[i],
+                track_managers[i]);
+
+          std::vector<yc::Track*> tracks;
+          track_managers[i]->GetTracks(tracks);
+
+          geo_infos[i].Proc(tracks);
+          geo_infos[i].Draw(displays[i]);
+        }
+        yc::Handover* h1 = geo_infos[1].GetHandoverRegion(0);
+        yc::Handover* h2 = geo_infos[0].GetHandoverRegion(1);
+        yc::Handover::Crosstalk(h1, h2);
+        ///
+        auto end = system_clock::now();
+
+        for (size_t i = 0; i < displays.size(); i++)
+        {
+          for (int y = 0; y < displays[i].rows; y++)
+          {
+            for (int x = 0; x < displays[i].cols; x++)
+            {
+              display.at<cv::Vec3b>(y, x + displays[i].cols * i) =
+                  displays[i].at<cv::Vec3b>(y, x);
+            }
+          }
+        }
+
+        if (FLAGS_save_output)
+          writer << display;
+
+        DrawProcTime(display, duration_cast<milliseconds>(end - start).count());
+        DrawFrameInfo(display, curr_frame, max_frame);
+
+        cv::imshow(FLAGS_mode, display);
+        if (cv::waitKey(1) == 27)
+          break;
+      }
+
+      for (size_t i = 0; i < files.size(); i++)
+      {
+        if (images[i].data != nullptr)
+          delete[] images[i].data;
+      }
+      delete[] images;
+
+      if (image.data != nullptr)
+        delete[] image.data;
     }
 
     FreeNetwork(net);

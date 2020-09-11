@@ -17,9 +17,10 @@ class Track::TrackImpl
 
   TRACK_STATUS GetStatus() const;
 
-  void SetUniqueIndex(int unique_idx);
-  int GetUniqueIndex() const;
+  void SetLabel(int label);
+
   int GetCount() const;
+  int GetLabel() const;
   int GetConfidence() const;
 
   Box GetBox() const;
@@ -33,16 +34,16 @@ class Track::TrackImpl
  public:
   static yc::ConfParam conf_param_;
   static double fps_;
-  static int shared_counter_;
+  static int shared_label_;
 
   TRACK_STATUS status_;
   std::deque<Box> pt_history_;
 
   cv::KalmanFilter kf_;
 
-  int unique_idx_;
   int count_;
 
+  int label_;
   int conf_;
 
   MostProbDet det_;
@@ -50,13 +51,13 @@ class Track::TrackImpl
 
 yc::ConfParam Track::TrackImpl::conf_param_;
 double Track::TrackImpl::fps_ = 0;
-int Track::TrackImpl::shared_counter_ = 0;
+int Track::TrackImpl::shared_label_ = 0;
 
 Track::TrackImpl::TrackImpl() {}
 Track::TrackImpl::TrackImpl(MostProbDet const& det)
     : status_(MOVING),
-      unique_idx_(-1),
       count_(1),
+      label_(-1),
       conf_(conf_param_.init_conf_),
       det_(det)
 {
@@ -65,12 +66,10 @@ Track::TrackImpl::TrackImpl(MostProbDet const& det)
 
 TRACK_STATUS Track::TrackImpl::GetStatus() const { return status_; }
 
-void Track::TrackImpl::SetUniqueIndex(int unique_idx)
-{
-  unique_idx_ = unique_idx;
-}
-int Track::TrackImpl::GetUniqueIndex() const { return unique_idx_; }
+void Track::TrackImpl::SetLabel(int label) { label_ = label; }
+
 int Track::TrackImpl::GetCount() const { return count_; }
+int Track::TrackImpl::GetLabel() const { return label_; }
 int Track::TrackImpl::GetConfidence() const { return conf_; }
 
 Box Track::TrackImpl::GetBox() const { return det_.bbox; }
@@ -88,8 +87,8 @@ void Track::TrackImpl::Predict()
   }
 
   count_++;
-  if (count_ >= conf_param_.min_conf_ && unique_idx_ < 0)
-    unique_idx_ = shared_counter_++;
+  if (count_ >= conf_param_.min_conf_ && label_ < 0)
+    label_ = shared_label_++;
 }
 
 void Track::TrackImpl::Correct(MostProbDet const& det)
@@ -155,8 +154,9 @@ Track::Track(Track const& other) : impl_(new TrackImpl)
 
   impl_->kf_ = other.impl_->kf_;
 
-  impl_->unique_idx_ = other.impl_->unique_idx_;
+  impl_->count_ = other.impl_->count_;
 
+  impl_->label_ = other.impl_->label_;
   impl_->conf_ = other.impl_->conf_;
 
   impl_->det_ = other.impl_->det_;
@@ -173,8 +173,9 @@ Track& Track::operator=(Track const& other)
 
     impl_->kf_ = other.impl_->kf_;
 
-    impl_->unique_idx_ = other.impl_->unique_idx_;
+    impl_->count_ = other.impl_->count_;
 
+    impl_->label_ = other.impl_->label_;
     impl_->conf_ = other.impl_->conf_;
 
     impl_->det_ = other.impl_->det_;
@@ -185,12 +186,10 @@ Track& Track::operator=(Track const& other)
 
 TRACK_STATUS Track::GetStatus() const { return impl_->GetStatus(); }
 
-void Track::SetUniqueIndex(int unique_idx)
-{
-  impl_->SetUniqueIndex(unique_idx);
-}
-int Track::GetUniqueIndex() const { return impl_->GetUniqueIndex(); }
+void Track::SetLabel(int label) { impl_->SetLabel(label); }
+
 int Track::GetCount() const { return impl_->GetCount(); }
+int Track::GetLabel() const { return impl_->GetLabel(); }
 int Track::GetConfidence() const { return impl_->GetConfidence(); }
 
 Box Track::GetBox() const { return impl_->GetBox(); }
@@ -219,8 +218,8 @@ class TrackManager::TrackManagerImpl
   void Clear();
   void Track(std::vector<MostProbDet> const& dets);
 
-  void GetTracks(std::vector<yc::Track>& tracks);
-  void GetSavedTracks(std::vector<yc::Track>& tracks);
+  void GetTracks(std::vector<yc::Track*>& tracks);
+  void GetSavedTracks(std::vector<yc::Track*>& tracks);
 
   cv::Mat Associate(std::vector<MostProbDet> const& dets);
   bool ConstructSimMat(Matrix& sim_mat, std::vector<MostProbDet> const& dets);
@@ -229,8 +228,8 @@ class TrackManager::TrackManagerImpl
   yc::ConfParam conf_param_;
   double iou_thresh_;
 
-  std::vector<yc::Track> tracks_;
-  std::vector<yc::Track> saved_tracks_;
+  std::vector<yc::Track*> tracks_;
+  std::vector<yc::Track*> saved_tracks_;
 };
 
 TrackManager::TrackManagerImpl::TrackManagerImpl() {}
@@ -256,7 +255,7 @@ void TrackManager::TrackManagerImpl::Track(std::vector<MostProbDet> const& dets)
     // predict existing tracks
     for (size_t i = 0; i < tracks_.size(); i++)
     {
-      tracks_[i].Predict();
+      tracks_[i]->Predict();
     }
 
     if (dets.size() != 0)
@@ -271,7 +270,7 @@ void TrackManager::TrackManagerImpl::Track(std::vector<MostProbDet> const& dets)
           if (!table.at<int>(i, j))
             continue;
 
-          tracks_[i].Correct(dets[j]);
+          tracks_[i]->Correct(dets[j]);
         }
       }
 
@@ -288,7 +287,7 @@ void TrackManager::TrackManagerImpl::Track(std::vector<MostProbDet> const& dets)
         }
 
         if (!sum)
-          tracks_.push_back(yc::Track(dets[i]));
+          tracks_.push_back(new yc::Track(dets[i]));
       }
     }
   }
@@ -297,41 +296,49 @@ void TrackManager::TrackManagerImpl::Track(std::vector<MostProbDet> const& dets)
     // launch new tracks
     for (int i = 0; i < (int)dets.size(); i++)
     {
-      tracks_.push_back(yc::Track(dets[i]));
+      tracks_.push_back(new yc::Track(dets[i]));
     }
   }
 
   // delete tracks
-  std::vector<yc::Track> remaining_tracks;
+  std::vector<yc::Track*> remaining_tracks;
+  std::vector<yc::Track*> dumped_tracks;
 
   for (size_t i = 0; i < tracks_.size(); i++)
   {
-    if (tracks_[i].GetConfidence() > 0)
+    if (tracks_[i]->GetConfidence() > 0)
     {
       remaining_tracks.push_back(tracks_[i]);
     }
     else
     {
-      if (tracks_[i].GetCount() > 30)
+      if (tracks_[i]->GetCount() > 30)
         saved_tracks_.push_back(tracks_[i]);
+      else
+        dumped_tracks.push_back(tracks_[i]);
     }
+  }
+
+  for (size_t i = 0; i < dumped_tracks.size(); i++)
+  {
+    delete dumped_tracks[i];
   }
 
   tracks_ = remaining_tracks;
 }
 
-void TrackManager::TrackManagerImpl::GetTracks(std::vector<yc::Track>& tracks)
+void TrackManager::TrackManagerImpl::GetTracks(std::vector<yc::Track*>& tracks)
 {
   tracks.clear();
   for (size_t i = 0; i < tracks_.size(); i++)
   {
-    if (tracks_[i].GetConfidence() >= conf_param_.min_conf_)
+    if (tracks_[i]->GetConfidence() >= conf_param_.min_conf_)
       tracks.push_back(tracks_[i]);
   }
 }
 
 void TrackManager::TrackManagerImpl::GetSavedTracks(
-    std::vector<yc::Track>& tracks)
+    std::vector<yc::Track*>& tracks)
 {
   tracks = saved_tracks_;
 }
@@ -393,7 +400,7 @@ bool TrackManager::TrackManagerImpl::ConstructSimMat(
   {
     for (size_t i = 0; i < tracks_.size(); i++)
     {
-      agents.push_back(tracks_[i].GetBox());
+      agents.push_back(tracks_[i]->GetBox());
     }
   }
 
@@ -403,7 +410,7 @@ bool TrackManager::TrackManagerImpl::ConstructSimMat(
   {
     for (size_t i = 0; i < tracks_.size(); i++)
     {
-      tasks.push_back(tracks_[i].GetBox());
+      tasks.push_back(tracks_[i]->GetBox());
     }
   }
   else
@@ -470,11 +477,11 @@ void TrackManager::Track(std::vector<MostProbDet> const& dets)
   impl_->Track(dets);
 }
 
-void TrackManager::GetTracks(std::vector<yc::Track>& tracks)
+void TrackManager::GetTracks(std::vector<yc::Track*>& tracks)
 {
   impl_->GetTracks(tracks);
 }
-void TrackManager::GetSavedTracks(std::vector<yc::Track>& tracks)
+void TrackManager::GetSavedTracks(std::vector<yc::Track*>& tracks)
 {
   impl_->GetSavedTracks(tracks);
 }
