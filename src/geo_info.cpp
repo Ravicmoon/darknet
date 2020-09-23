@@ -180,9 +180,10 @@ void Handover::Proc(std::vector<yc::Track*>& tracks)
     float area_i = Box::Intersect(bbox_, box);
     if (area_i / (box.w * box.h) > 0.5f)
     {
-      if (tracks[i]->GetCount() < Track::GetFps() * 2)
+      if (!tracks[i]->GetEnterStatus() &&
+          tracks[i]->GetCount() < Track::GetFps() * 2)
         UniquePushBack(enter_, tracks[i]);
-      else
+      else if (!tracks[i]->GetExitStatus())
         UniquePushBack(exit_, tracks[i]);
     }
   }
@@ -196,6 +197,8 @@ void Handover::Crosstalk(Handover* h1, Handover* h2)
     if (label != -1)
     {
       h2->enter_.front()->SetLabel(label);
+      h2->enter_.front()->SetEnterStatus(true);
+      h1->exit_.front()->SetExitStatus(true);
 
       h1->exit_.pop_front();
       h2->enter_.pop_front();
@@ -208,6 +211,8 @@ void Handover::Crosstalk(Handover* h1, Handover* h2)
     if (label != -1)
     {
       h1->enter_.front()->SetLabel(label);
+      h1->enter_.front()->SetEnterStatus(true);
+      h2->exit_.front()->SetExitStatus(true);
 
       h2->exit_.pop_front();
       h1->enter_.pop_front();

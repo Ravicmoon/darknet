@@ -15,18 +15,6 @@ class Track::TrackImpl
   TrackImpl();
   TrackImpl(MostProbDet const& det);
 
-  TRACK_STATUS GetStatus() const;
-
-  void SetLabel(int label);
-
-  int GetCount() const;
-  int GetLabel() const;
-  int GetConfidence() const;
-
-  Box GetBox() const;
-  int GetClassId() const;
-  float GetClassProb() const;
-
   void Predict();
   void Correct(MostProbDet const& det);
   void InitKalmanFilter(cv::Point2f const& point);
@@ -46,6 +34,9 @@ class Track::TrackImpl
   int label_;
   int conf_;
 
+  bool enter_status_;
+  bool exit_status_;
+
   MostProbDet det_;
 };
 
@@ -59,6 +50,8 @@ Track::TrackImpl::TrackImpl(MostProbDet const& det)
       count_(1),
       label_(-1),
       conf_(conf_param_.init_conf_),
+      enter_status_(false),
+      exit_status_(false),
       det_(det)
 {
   InitKalmanFilter(cv::Point2f(det.bbox.x, det.bbox.y));
@@ -159,6 +152,9 @@ Track::Track(Track const& other) : impl_(new TrackImpl)
   impl_->label_ = other.impl_->label_;
   impl_->conf_ = other.impl_->conf_;
 
+  impl_->enter_status_ = other.impl_->enter_status_;
+  impl_->exit_status_ = other.impl_->exit_status_;
+
   impl_->det_ = other.impl_->det_;
 }
 
@@ -178,23 +174,14 @@ Track& Track::operator=(Track const& other)
     impl_->label_ = other.impl_->label_;
     impl_->conf_ = other.impl_->conf_;
 
+    impl_->enter_status_ = other.impl_->enter_status_;
+    impl_->exit_status_ = other.impl_->exit_status_;
+
     impl_->det_ = other.impl_->det_;
   }
 
   return *this;
 }
-
-TRACK_STATUS Track::GetStatus() const { return impl_->GetStatus(); }
-
-void Track::SetLabel(int label) { impl_->SetLabel(label); }
-
-int Track::GetCount() const { return impl_->GetCount(); }
-int Track::GetLabel() const { return impl_->GetLabel(); }
-int Track::GetConfidence() const { return impl_->GetConfidence(); }
-
-Box Track::GetBox() const { return impl_->GetBox(); }
-int Track::GetClassId() const { return impl_->GetClassId(); }
-float Track::GetClassProb() const { return impl_->GetClassProb(); }
 
 void Track::Predict() { impl_->Predict(); }
 void Track::Correct(MostProbDet const& det) { impl_->Correct(det); }

@@ -39,10 +39,14 @@ class LIB_API Track
   TRACK_STATUS GetStatus() const;
 
   void SetLabel(int label);
+  void SetEnterStatus(bool status);
+  void SetExitStatus(bool status);
 
   int GetCount() const;
   int GetLabel() const;
   int GetConfidence() const;
+  bool GetEnterStatus() const;
+  bool GetExitStatus() const;
 
   Box GetBox() const;
   int GetClassId() const;
