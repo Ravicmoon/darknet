@@ -266,12 +266,12 @@ set_target_properties(lib_yolo_core PROPERTIES PUBLIC_HEADER "${SRC_DIR}/yolo_co
 set_target_properties(lib_yolo_core PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
 install(TARGETS yolo_core
-  DESTINATION ${INSTALL_BIN_DIR}
+  DESTINATION ${INSTALL_BIN_DIR}/$<CONFIG>
 )
 install(TARGETS lib_yolo_core EXPORT YoloCoreTargets
-  RUNTIME DESTINATION ${INSTALL_BIN_DIR}
-  LIBRARY DESTINATION ${INSTALL_LIB_DIR}
-  ARCHIVE DESTINATION ${INSTALL_LIB_DIR}
+  RUNTIME DESTINATION ${INSTALL_BIN_DIR}/$<CONFIG>
+  LIBRARY DESTINATION ${INSTALL_LIB_DIR}/$<CONFIG>
+  ARCHIVE DESTINATION ${INSTALL_LIB_DIR}/$<CONFIG>
   PUBLIC_HEADER DESTINATION ${INSTALL_INCLUDE_DIR}
   COMPONENT dev
 )
@@ -280,6 +280,13 @@ install(EXPORT YoloCoreTargets
   NAMESPACE yolo_core::
   DESTINATION ${INSTALL_CMAKE_DIR}
 )
+if(MSVC)
+add_custom_command(
+  TARGET lib_yolo_core POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      ${CMAKE_BINARY_DIR}/yolo_core/$<CONFIG>
+      ${INSTALL_BIN_DIR}/$<CONFIG>)
+endif()
 
 # Export the package for use from the build-tree (this registers the build-tree with a global CMake-registry)
 export(PACKAGE yolo_core)
