@@ -32,7 +32,7 @@ enable_language(CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake/ ${CMAKE_MODULE_PATH})
-set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/install CACHE PATH "Install prefix" FORCE)
+set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install CACHE PATH "Install prefix" FORCE)
 
 set(INSTALL_BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin CACHE PATH "Path where exe and dll will be installed")
 set(INSTALL_LIB_DIR ${CMAKE_INSTALL_PREFIX}/lib CACHE PATH "Path where lib will be installed")
@@ -149,6 +149,9 @@ configure_file(
 
 #look for all *.h files in src folder
 file(GLOB headers ${CMAKE_CURRENT_LIST_DIR}/src/*.h ${CMAKE_CURRENT_LIST_DIR}/src/*/*.h)
+list(REMOVE_ITEM headers
+  ${CMAKE_CURRENT_LIST_DIR}/src/geo_info.h
+)
 #remove windows only files
 if(NOT WIN32)
   list(REMOVE_ITEM headers
@@ -160,7 +163,10 @@ endif()
 #look for all *.c and *.cpp files in src folder
 file(GLOB sources ${CMAKE_CURRENT_LIST_DIR}/src/*.c ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp ${CMAKE_CURRENT_LIST_DIR}/src/*/*.cpp)
 #remove yolo_core.cpp file which is necessary only for the executable, not for the lib
-list(REMOVE_ITEM sources ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp)
+list(REMOVE_ITEM sources
+  ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/src/geo_info.cpp
+)
 #remove windows only files
 if(NOT WIN32)
   list(REMOVE_ITEM sources
