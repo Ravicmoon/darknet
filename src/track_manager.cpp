@@ -57,18 +57,6 @@ Track::TrackImpl::TrackImpl(MostProbDet const& det)
   InitKalmanFilter(cv::Point2f(det.bbox.x, det.bbox.y));
 }
 
-TRACK_STATUS Track::TrackImpl::GetStatus() const { return status_; }
-
-void Track::TrackImpl::SetLabel(int label) { label_ = label; }
-
-int Track::TrackImpl::GetCount() const { return count_; }
-int Track::TrackImpl::GetLabel() const { return label_; }
-int Track::TrackImpl::GetConfidence() const { return conf_; }
-
-Box Track::TrackImpl::GetBox() const { return det_.bbox; }
-int Track::TrackImpl::GetClassId() const { return det_.cid; }
-float Track::TrackImpl::GetClassProb() const { return det_.prob; }
-
 void Track::TrackImpl::Predict()
 {
   if (status_ == MOVING)
@@ -182,6 +170,22 @@ Track& Track::operator=(Track const& other)
 
   return *this;
 }
+
+TRACK_STATUS Track::GetStatus() const { return impl_->status_; }
+
+void Track::SetLabel(int label) { impl_->label_ = label; }
+void Track::SetEnterStatus(bool status) { impl_->enter_status_ = status; }
+void Track::SetExitStatus(bool status) { impl_->exit_status_ = status; }
+
+int Track::GetCount() const { return impl_->count_; }
+int Track::GetLabel() const { return impl_->label_; }
+int Track::GetConfidence() const { return impl_->conf_; }
+bool Track::GetEnterStatus() const { return impl_->enter_status_; }
+bool Track::GetExitStatus() const { return impl_->exit_status_; }
+
+Box Track::GetBox() const { return impl_->det_.bbox; }
+int Track::GetClassId() const { return impl_->det_.cid; }
+float Track::GetClassProb() const { return impl_->det_.prob; }
 
 void Track::Predict() { impl_->Predict(); }
 void Track::Correct(MostProbDet const& det) { impl_->Correct(det); }
