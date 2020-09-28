@@ -284,7 +284,7 @@ if(MSVC)
 add_custom_command(
   TARGET lib_yolo_core POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-      ${CMAKE_BINARY_DIR}/yolo_core/$<CONFIG>
+      ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>
       ${INSTALL_BIN_DIR}/$<CONFIG>)
 endif()
 
