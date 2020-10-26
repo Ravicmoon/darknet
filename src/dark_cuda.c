@@ -33,11 +33,18 @@ int cuda_debug_sync = 0;
 #error "If you set CUDNN_HALF=1 then you must set CUDNN=1"
 #endif
 
+int CudaGetDeviceCount()
+{
+  int device_count = 0;
+  cudaError_t status = cudaGetDeviceCount(&device_count);
+  CHECK_CUDA(status);
+  return device_count;
+}
+
 void cuda_set_device(int n)
 {
   cudaError_t status = cudaSetDevice(n);
-  if (status != cudaSuccess)
-    CHECK_CUDA(status);
+  CHECK_CUDA(status);
 }
 
 int cuda_get_device()

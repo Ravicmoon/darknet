@@ -657,6 +657,7 @@ LIB_API void* load_thread(void* ptr);
 LIB_API void cuda_pull_array(float* x_gpu, float* x, size_t n);
 LIB_API void cuda_pull_array_async(float* x_gpu, float* x, size_t n);
 LIB_API void cuda_set_device(int n);
+LIB_API int CudaGetDeviceCount();
 
 // gemm.h
 LIB_API void init_cpu();
