@@ -149,6 +149,9 @@ configure_file(
 
 #look for all *.h files in src folder
 file(GLOB headers ${CMAKE_CURRENT_LIST_DIR}/src/*.h ${CMAKE_CURRENT_LIST_DIR}/src/*/*.h)
+list(REMOVE_ITEM headers
+  ${CMAKE_CURRENT_LIST_DIR}/src/geo_info.h
+)
 #remove windows only files
 if(NOT WIN32)
   list(REMOVE_ITEM headers
@@ -162,6 +165,7 @@ file(GLOB sources ${CMAKE_CURRENT_LIST_DIR}/src/*.c ${CMAKE_CURRENT_LIST_DIR}/sr
 #remove yolo_core.cpp file which is necessary only for the executable, not for the lib
 list(REMOVE_ITEM sources
   ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/src/geo_info.cpp
 )
 #remove windows only files
 if(NOT WIN32)
@@ -185,6 +189,7 @@ endif()
 
 add_executable(yolo_core 
   ${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/src/geo_info.cpp
 )
 add_dependencies(yolo_core lib_yolo_core)
 set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/src/yolo_core.cpp PROPERTIES LANGUAGE CXX)
@@ -257,7 +262,7 @@ if(USE_INTEGRATED_LIBS)
 endif()
 
 set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
-set_target_properties(lib_yolo_core PROPERTIES PUBLIC_HEADER "${SRC_DIR}/yolo_core.h;${SRC_DIR}/box.h;${SRC_DIR}/image.h;${SRC_DIR}/libapi.h;${SRC_DIR}/option_list.h;${SRC_DIR}/list.h;${SRC_DIR}/visualize.h;${SRC_DIR}/track_manager.h;${SRC_DIR}/geo_info.h")
+set_target_properties(lib_yolo_core PROPERTIES PUBLIC_HEADER "${SRC_DIR}/yolo_core.h;${SRC_DIR}/box.h;${SRC_DIR}/image.h;${SRC_DIR}/libapi.h;${SRC_DIR}/option_list.h;${SRC_DIR}/list.h;${SRC_DIR}/visualize.h;${SRC_DIR}/track_manager.h")
 set_target_properties(lib_yolo_core PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
 install(TARGETS yolo_core
