@@ -7,7 +7,7 @@
 namespace yc
 {
 int const kFont = cv::FONT_HERSHEY_COMPLEX_SMALL;
-float const kFontSz = 0.7;
+float const kFontSz = 0.7f;
 
 cv::Scalar const kRed = CV_RGB(255, 0, 0);
 cv::Scalar const kWhite = CV_RGB(255, 255, 255);
@@ -43,8 +43,8 @@ Polygon PolygonIntersection(Polygon const& p1, Polygon const& p2)
   {
     for (size_t j = 0; j < p2.size(); j++)
     {
-      int ii = (i + 1) % p1.size();
-      int jj = (j + 1) % p2.size();
+      size_t ii = (i + 1) % p1.size();
+      size_t jj = (j + 1) % p2.size();
       cv::Point2f pt_i;
       if (GetIntersectLineSeg(p1[i], p1[ii], p2[j], p2[jj], pt_i))
         ret.push_back(pt_i);
@@ -72,7 +72,7 @@ bool IsInPolygon(Polygon const& poly, cv::Point2f pt)
 {
   bool is_inside = false;
 
-  int j = poly.size() - 1;
+  int j = (int)poly.size() - 1;
   for (int i = 0; i < (int)poly.size(); i++)
   {
     if ((poly[i].y > pt.y != poly[j].y > pt.y) &&
@@ -193,9 +193,11 @@ void Handover::Crosstalk(Handover* h1, Handover* h2)
 {
   if (!h1->exit_.empty() && !h2->enter_.empty())
   {
+    std::string lp = h1->exit_.front()->GetLicensePlate();
     int label = h1->exit_.front()->GetLabel();
     if (label != -1)
     {
+      h2->enter_.front()->SetLicensePlate(lp);
       h2->enter_.front()->SetLabel(label);
       h2->enter_.front()->SetEnterStatus(true);
       h1->exit_.front()->SetExitStatus(true);
@@ -207,9 +209,11 @@ void Handover::Crosstalk(Handover* h1, Handover* h2)
 
   if (!h2->exit_.empty() && !h1->enter_.empty())
   {
+    std::string lp = h2->exit_.front()->GetLicensePlate();
     int label = h2->exit_.front()->GetLabel();
     if (label != -1)
     {
+      h1->enter_.front()->SetLicensePlate(lp);
       h1->enter_.front()->SetLabel(label);
       h1->enter_.front()->SetEnterStatus(true);
       h2->exit_.front()->SetExitStatus(true);
@@ -321,10 +325,10 @@ void GeoInfo::Load(std::string xml_path)
     Polygon poly(num);
     for (size_t i = 0; i < poly.size(); i++)
     {
-      sprintf(buff, "x%d", i);
+      sprintf(buff, "x%zd", i);
       float x = polygon->FirstChildElement(buff)->FloatText();
 
-      sprintf(buff, "y%d", i);
+      sprintf(buff, "y%zd", i);
       float y = polygon->FirstChildElement(buff)->FloatText();
 
       poly[i] = cv::Point2f(x, y);

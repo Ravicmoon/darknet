@@ -29,6 +29,8 @@ class Track::TrackImpl
 
   cv::KalmanFilter kf_;
 
+  std::string lp_;
+
   int count_;
 
   int label_;
@@ -173,10 +175,12 @@ Track& Track::operator=(Track const& other)
 
 TRACK_STATUS Track::GetStatus() const { return impl_->status_; }
 
+void Track::SetLicensePlate(std::string lp) { impl_->lp_ = lp; }
 void Track::SetLabel(int label) { impl_->label_ = label; }
 void Track::SetEnterStatus(bool status) { impl_->enter_status_ = status; }
 void Track::SetExitStatus(bool status) { impl_->exit_status_ = status; }
 
+std::string Track::GetLicensePlate() const { return impl_->lp_; }
 int Track::GetCount() const { return impl_->count_; }
 int Track::GetLabel() const { return impl_->label_; }
 int Track::GetConfidence() const { return impl_->conf_; }

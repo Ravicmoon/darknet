@@ -38,10 +38,12 @@ class LIB_API Track
 
   TRACK_STATUS GetStatus() const;
 
+  void SetLicensePlate(std::string lp);
   void SetLabel(int label);
   void SetEnterStatus(bool status);
   void SetExitStatus(bool status);
 
+  std::string GetLicensePlate() const;
   int GetCount() const;
   int GetLabel() const;
   int GetConfidence() const;
