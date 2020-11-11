@@ -180,11 +180,16 @@ void Handover::Proc(std::vector<yc::Track*>& tracks)
     float area_i = Box::Intersect(bbox_, box);
     if (area_i / (box.w * box.h) > 0.5f)
     {
-      if (!tracks[i]->GetEnterStatus() &&
-          tracks[i]->GetCount() < Track::GetFps() * 2)
-        UniquePushBack(enter_, tracks[i]);
-      else if (!tracks[i]->GetExitStatus())
-        UniquePushBack(exit_, tracks[i]);
+      if (tracks[i]->GetCount() < Track::GetFps() * 2)
+      {
+        if (!tracks[i]->GetEnterStatus())
+          UniquePushBack(enter_, tracks[i]);
+      }
+      else
+      {
+        if (!tracks[i]->GetExitStatus())
+          UniquePushBack(exit_, tracks[i]);
+      }
     }
   }
 }
