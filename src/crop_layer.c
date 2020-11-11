@@ -11,8 +11,8 @@ void BackwardCropLayerGpu(layer* l, NetworkState state) {}
 void FillCropLayer(layer* l, int batch, int h, int w, int c, int crop_height,
     int crop_width, int flip, float angle, float saturation, float exposure)
 {
-  fprintf(stderr, "Crop layer: %d x %d -> %d x %d x %d image\n", h, w,
-      crop_height, crop_width, c);
+  printf("Crop layer: %d x %d -> %d x %d x %d image\n", h, w, crop_height,
+      crop_width, c);
 
   l->type = CROP;
   l->batch = batch;

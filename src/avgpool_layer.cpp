@@ -7,8 +7,7 @@
 
 void FillAvgpoolLayer(layer* l, int batch, int w, int h, int c)
 {
-  fprintf(stderr, "avg                          %4d x%4d x%4d ->   %4d\n", w, h,
-      c, c);
+  printf("avg                          %4d x%4d x%4d ->   %4d\n", w, h, c, c);
 
   l->type = AVGPOOL;
   l->batch = batch;

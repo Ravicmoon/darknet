@@ -98,17 +98,17 @@ void FillMaxpoolLayer(layer* l, int batch, int h, int w, int c, int size,
   l->bflops = (l->size * l->size * l->c * l->out_h * l->out_w) / 1000000000.;
 
   if (maxpool_depth)
-    fprintf(stderr,
+    printf(
         "max-depth         %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
         "%5.3f BF\n",
         size, size, stride_x, w, h, c, l->out_w, l->out_h, l->out_c, l->bflops);
   else if (stride_x == stride_y)
-    fprintf(stderr,
+    printf(
         "max               %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d "
         "%5.3f BF\n",
         size, size, stride_x, w, h, c, l->out_w, l->out_h, l->out_c, l->bflops);
   else
-    fprintf(stderr,
+    printf(
         "max              %2dx%2d/%2dx%2d %4d x%4d x%4d -> %4d x%4d x%4d "
         "%5.3f BF\n",
         size, size, stride_x, stride_y, w, h, c, l->out_w, l->out_h, l->out_c,

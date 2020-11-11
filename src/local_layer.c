@@ -93,9 +93,8 @@ void FillLocalLayer(layer* l, int batch, int h, int w, int c, int n, int size,
 #endif
   l->activation = activation;
 
-  fprintf(stderr,
-      "Local Layer: %d x %d x %d image, %d filters -> %d x %d x %d image\n", h,
-      w, c, n, out_h, out_w, n);
+  printf("Local Layer: %d x %d x %d image, %d filters -> %d x %d x %d image\n",
+      h, w, c, n, out_h, out_w, n);
 }
 
 void ForwardLocalLayer(layer* l, NetworkState state)

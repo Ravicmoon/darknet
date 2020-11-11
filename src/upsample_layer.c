@@ -39,12 +39,10 @@ void FillUpsampleLayer(layer* l, int batch, int w, int h, int c, int stride)
   l->output_gpu = cuda_make_array(l->output, l->outputs * batch);
 #endif
   if (l->reverse)
-    fprintf(stderr,
-        "downsample              %2dx  %4d x%4d x%4d -> %4d x%4d x%4d\n",
+    printf("downsample              %2dx  %4d x%4d x%4d -> %4d x%4d x%4d\n",
         stride, w, h, c, l->out_w, l->out_h, l->out_c);
   else
-    fprintf(stderr,
-        "upsample                %2dx  %4d x%4d x%4d -> %4d x%4d x%4d\n",
+    printf("upsample                %2dx  %4d x%4d x%4d -> %4d x%4d x%4d\n",
         stride, w, h, c, l->out_w, l->out_h, l->out_c);
 }
 

@@ -318,7 +318,7 @@ void pre_allocate_pinned_memory(size_t const size)
           (void**)&pinned_ptr[k], pinned_block_size, cudaHostRegisterMapped);
 
       if (e != cudaSuccess)
-        fprintf(stderr, " Can't pre-allocate CUDA-pinned buffer on CPU-RAM \n");
+        printf(" Can't pre-allocate CUDA-pinned buffer on CPU-RAM \n");
 
       CHECK_CUDA(e);
 
@@ -373,7 +373,7 @@ float* cuda_make_array_pinned_preallocated(float* x, size_t n)
       cudaError_t e =
           cudaHostAlloc((void**)&x_cpu, size, cudaHostRegisterMapped);
       if (e != cudaSuccess)
-        fprintf(stderr,
+        printf(
             " Can't allocate CUDA-pinned memory on CPU-RAM (pre-allocated "
             "memory is over too) \n");
       CHECK_CUDA(e);
@@ -390,7 +390,7 @@ float* cuda_make_array_pinned_preallocated(float* x, size_t n)
       cudaError_t e = cudaHostAlloc((void**)&pinned_ptr[pinned_block_id],
           pinned_block_size, cudaHostRegisterMapped);
       if (e != cudaSuccess)
-        fprintf(stderr, " Can't pre-allocate CUDA-pinned buffer on CPU-RAM \n");
+        printf(" Can't pre-allocate CUDA-pinned buffer on CPU-RAM \n");
       CHECK_CUDA(e);
       x_cpu = pinned_ptr[pinned_block_id];
     }
@@ -413,7 +413,7 @@ float* cuda_make_array_pinned(float* x, size_t n)
   size_t size = sizeof(float) * n;
   cudaError_t e = cudaHostAlloc((void**)&x_gpu, size, cudaHostRegisterMapped);
   if (e != cudaSuccess)
-    fprintf(stderr, " Can't allocate CUDA-pinned memory on CPU-RAM \n");
+    printf(" Can't allocate CUDA-pinned memory on CPU-RAM \n");
   CHECK_CUDA(e);
   if (x)
   {
@@ -431,7 +431,7 @@ float* cuda_make_array(float* x, size_t n)
   size_t size = sizeof(float) * n;
   cudaError_t e = cudaMalloc((void**)&x_gpu, size);
   if (e != cudaSuccess)
-    fprintf(stderr, " Try to set subdivisions=64 in your cfg-file. \n");
+    printf(" Try to set subdivisions=64 in your cfg-file. \n");
   CHECK_CUDA(e);
   if (x)
   {
@@ -449,7 +449,7 @@ void** cuda_make_array_pointers(void** x, size_t n)
   size_t size = sizeof(void*) * n;
   cudaError_t e = cudaMalloc((void**)&x_gpu, size);
   if (e != cudaSuccess)
-    fprintf(stderr, " Try to set subdivisions=64 in your cfg-file. \n");
+    printf(" Try to set subdivisions=64 in your cfg-file. \n");
   CHECK_CUDA(e);
   if (x)
   {
@@ -495,7 +495,7 @@ int* cuda_make_int_array(size_t n)
   size_t size = sizeof(int) * n;
   cudaError_t e = cudaMalloc((void**)&x_gpu, size);
   if (e != cudaSuccess)
-    fprintf(stderr, " Try to set subdivisions=64 in your cfg-file. \n");
+    printf(" Try to set subdivisions=64 in your cfg-file. \n");
   CHECK_CUDA(e);
   return x_gpu;
 }
@@ -567,27 +567,6 @@ int get_gpu_compute_capability(int i)
   CHECK_CUDA(e);
   int cc = prop.major * 100 + prop.minor * 10;  // __CUDA_ARCH__ format
   return cc;
-}
-
-void show_cuda_cudnn_info()
-{
-  int cuda_version = 0, cuda_driver_version = 0, device_count = 0;
-  CHECK_CUDA(cudaRuntimeGetVersion(&cuda_version));
-  CHECK_CUDA(cudaDriverGetVersion(&cuda_driver_version));
-  fprintf(stderr, " CUDA-version: %d (%d)", cuda_version, cuda_driver_version);
-  if (cuda_version > cuda_driver_version)
-    fprintf(
-        stderr, "\n Warning: CUDA-version is higher than Driver-version! \n");
-#ifdef CUDNN
-  fprintf(
-      stderr, ", cuDNN: %d.%d.%d", CUDNN_MAJOR, CUDNN_MINOR, CUDNN_PATCHLEVEL);
-#endif  // CUDNN
-#ifdef CUDNN_HALF
-  fprintf(stderr, ", CUDNN_HALF=1");
-#endif  // CUDNN_HALF
-  CHECK_CUDA(cudaGetDeviceCount(&device_count));
-  fprintf(stderr, ", GPU count: %d ", device_count);
-  fprintf(stderr, " \n");
 }
 
 #else  // GPU

@@ -202,7 +202,7 @@ void save_image_options(Image im, const char* name, IMTYPE f, int quality)
     success = stbi_write_jpg(buff, im.w, im.h, im.c, data, quality);
   free(data);
   if (!success)
-    fprintf(stderr, "Failed to write image %s\n", buff);
+    printf("Failed to write image %s\n", buff);
 }
 
 void save_image(Image im, const char* name)
@@ -644,8 +644,8 @@ Image load_image_stb(char const* filename, int channels)
       sprintf(shrinked_filename, "name is too long");
     else
       sprintf(shrinked_filename, "%s", filename);
-    fprintf(stderr, "Cannot load image \"%s\"\nSTB Reason: %s\n",
-        shrinked_filename, stbi_failure_reason());
+    printf("Cannot load image \"%s\"\nSTB Reason: %s\n", shrinked_filename,
+        stbi_failure_reason());
     FILE* fw = fopen("bad.list", "a");
     fwrite(shrinked_filename, sizeof(char), strlen(shrinked_filename), fw);
     char* new_line = "\n";

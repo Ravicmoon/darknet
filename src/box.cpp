@@ -406,14 +406,39 @@ void NmsSort(Detection* dets, int total, int classes, float thresh,
         continue;
 
       Box a = dets[i].bbox;
+      std::vector<Detection> candidates({dets[i]});
       for (int j = i + 1; j < total; ++j)
       {
         Box b = dets[j].bbox;
         if (nms_kind == GREEDY_NMS && Box::Iou(a, b) > thresh)
+        {
+          candidates.push_back(dets[j]);
           dets[j].prob[k] = 0.0f;
+        }
         else if (nms_kind == DIOU_NMS && Box::Diou(a, b, beta) > thresh)
           dets[j].prob[k] = 0.0f;
       }
+
+      Box nms_box = Box();
+      float total_prob = 0;
+      for (size_t j = 0; j < candidates.size(); j++)
+      {
+        float prob = candidates[j].prob[k];
+
+        nms_box.x += prob * candidates[j].bbox.x;
+        nms_box.y += prob * candidates[j].bbox.y;
+        nms_box.w += prob * candidates[j].bbox.w;
+        nms_box.h += prob * candidates[j].bbox.h;
+
+        total_prob += prob;
+      }
+
+      nms_box.x /= total_prob;
+      nms_box.y /= total_prob;
+      nms_box.w /= total_prob;
+      nms_box.h /= total_prob;
+
+      dets[i].bbox = nms_box;
     }
   }
 }

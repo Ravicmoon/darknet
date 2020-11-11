@@ -17,10 +17,10 @@ char* optarg; /* argument associated with option */
 
 static void _vwarnx(const char* fmt, va_list ap)
 {
-  (void)fprintf(stderr, "%s: ", __progname);
+  (void)printf("%s: ", __progname);
   if (fmt != NULL)
-    (void)vfprintf(stderr, fmt, ap);
-  (void)fprintf(stderr, "\n");
+    (void)vprintf(fmt, ap);
+  (void)printf("\n");
 }
 
 static void warnx(const char* fmt, ...)

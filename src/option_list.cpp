@@ -183,7 +183,7 @@ char* FindOptionStr(list* l, char* key, char* def)
   if (v)
     return v;
   if (def)
-    fprintf(stderr, "%s: Using default '%s'\n", key, def);
+    printf("%s: Using default '%s'\n", key, def);
   return def;
 }
 
@@ -200,7 +200,7 @@ int FindOptionInt(list* l, char* key, int def)
   char* v = FindOption(l, key);
   if (v)
     return atoi(v);
-  fprintf(stderr, "%s: Using default '%d'\n", key, def);
+  printf("%s: Using default '%d'\n", key, def);
   return def;
 }
 
@@ -225,7 +225,7 @@ float FindOptionFloat(list* l, char* key, float def)
   char* v = FindOption(l, key);
   if (v)
     return atof(v);
-  fprintf(stderr, "%s: Using default '%lf'\n", key, def);
+  printf("%s: Using default '%lf'\n", key, def);
   return def;
 }
 
@@ -237,7 +237,7 @@ void UnusedOption(list* l)
     kvp* p = (kvp*)n->val;
     if (!p->used)
     {
-      fprintf(stderr, "Unused field: '%s = %s'\n", p->key, p->val);
+      printf("Unused field: '%s = %s'\n", p->key, p->val);
     }
     n = n->next;
   }

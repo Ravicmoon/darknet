@@ -127,8 +127,8 @@ void FillConnectedLayer(layer* l, int batch, int steps, int inputs, int outputs,
 #endif  // CUDNN
 #endif  // GPU
 
-  fprintf(stderr, "connected                            %4d  ->  %4d\n", inputs,
-      outputs);
+  printf(
+      "connected                            %4d  ->  %4d\n", inputs, outputs);
 }
 
 void UpdateConnectedLayer(

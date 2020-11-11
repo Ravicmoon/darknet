@@ -50,20 +50,20 @@ void FillDropoutLayer(layer* l, int batch, int inputs, float probability,
   if (l->dropblock)
   {
     if (l->dropblock_size_abs)
-      fprintf(stderr,
+      printf(
           "dropblock    p = %.3f   l->dropblock_size_abs = %d    %4d  ->   "
           "%4d\n",
           probability, l->dropblock_size_abs, inputs, inputs);
     else
-      fprintf(stderr,
+      printf(
           "dropblock    p = %.3f   l->dropblock_size_rel = %.2f    %4d  ->   "
           "%4d\n",
           probability, l->dropblock_size_rel, inputs, inputs);
   }
   else
   {
-    fprintf(stderr, "dropout    p = %.3f        %4d  ->   %4d\n", probability,
-        inputs, inputs);
+    printf("dropout    p = %.3f        %4d  ->   %4d\n", probability, inputs,
+        inputs);
   }
 }
 

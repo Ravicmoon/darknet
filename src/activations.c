@@ -90,7 +90,7 @@ ACTIVATION get_activation(char* s)
     return TANH;
   if (strcmp(s, "stair") == 0)
     return STAIR;
-  fprintf(stderr, "Couldn't find activation function %s, going with ReLU\n", s);
+  printf("Couldn't find activation function %s, going with ReLU\n", s);
   return RELU;
 }
 

@@ -8,7 +8,7 @@
 
 void FillBatchnormLayer(layer* l, int batch, int w, int h, int c, int train)
 {
-  fprintf(stderr, "Batch Normalization Layer: %d x %d x %d image\n", w, h, c);
+  printf("Batch Normalization Layer: %d x %d x %d image\n", w, h, c);
 
   l->type = BATCHNORM;
   l->batch = batch;

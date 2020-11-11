@@ -14,10 +14,10 @@ void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
     float** layers_delta, float** layers_output_gpu, float** layers_delta_gpu,
     ACTIVATION activation, int train)
 {
-  fprintf(stderr, "shortcut layer: ");
+  printf("shortcut layer: ");
   for (int i = 0; i < n; ++i)
   {
-    fprintf(stderr, "%d, ", input_layers[i]);
+    printf("%d, ", input_layers[i]);
   }
 
   l->train = train;
@@ -74,8 +74,8 @@ void FillShortcutLayer(layer* l, int batch, int n, int* input_layers,
 
   l->bflops = l->out_w * l->out_h * l->out_c * l->n / 1000000000.;
 
-  fprintf(stderr, " outputs:%4d x%4d x%4d %5.3f BF\n", l->out_w, l->out_h,
-      l->out_c, l->bflops);
+  printf(" outputs:%4d x%4d x%4d %5.3f BF\n", l->out_w, l->out_h, l->out_c,
+      l->bflops);
 }
 
 void ResizeShortcutLayer(layer* l, int w, int h, Network* net)

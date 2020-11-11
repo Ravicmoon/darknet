@@ -31,7 +31,7 @@ void FillActivationLayer(layer* l, int batch, int inputs, ACTIVATION activation)
 #endif
   l->activation = activation;
 
-  fprintf(stderr, "Activation layer: %d inputs\n", inputs);
+  printf("Activation layer: %d inputs\n", inputs);
 }
 
 void ForwardActivationLayer(layer* l, NetworkState state)

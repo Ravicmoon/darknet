@@ -40,7 +40,7 @@ void FillDetectionLayer(layer* l, int batch, int inputs, int n, int side,
   l->delta_gpu = cuda_make_array(l->delta, batch * l->outputs);
 #endif
 
-  fprintf(stderr, "detection_layer\n");
+  printf("detection_layer\n");
   srand(time(0));
 }
 

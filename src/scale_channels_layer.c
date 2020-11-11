@@ -11,7 +11,7 @@
 void FillScaleChannelsLayer(layer* l, int batch, int index, int w, int h, int c,
     int w2, int h2, int c2, int scale_wh)
 {
-  fprintf(stderr, "scale Layer: %d\n", index);
+  printf("scale Layer: %d\n", index);
 
   l->type = SCALE_CHANNELS;
   l->batch = batch;

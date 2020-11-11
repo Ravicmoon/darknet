@@ -17,14 +17,13 @@ COST_TYPE GetCostType(char* s)
     return MASKED;
   if (strcmp(s, "smooth") == 0)
     return SMOOTH;
-  fprintf(stderr, "Couldn't find cost type %s, going with SSE\n", s);
+  printf("Couldn't find cost type %s, going with SSE\n", s);
   return SSE;
 }
 
 void FillCostLayer(layer* l, int batch, int inputs, char* type_str, float scale)
 {
-  fprintf(
-      stderr, "cost                                           %4d\n", inputs);
+  printf("cost                                           %4d\n", inputs);
 
   l->type = COST;
   l->scale = scale;

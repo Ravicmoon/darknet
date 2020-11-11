@@ -363,7 +363,7 @@ void ResizeNetwork(Network* net, int w, int h)
     }
     else
     {
-      fprintf(stderr, "Resizing type %d \n", (int)l->type);
+      printf("Resizing type %d \n", (int)l->type);
       error("Cannot resize this type of layer");
     }
 

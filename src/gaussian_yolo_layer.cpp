@@ -95,7 +95,7 @@ void FillGaussianYoloLayer(layer* l, int batch, int w, int h, int n, int total,
 
 #endif
 
-  fprintf(stderr, "gaussian_yolo\n");
+  printf("gaussian_yolo\n");
   srand(time(0));
 }
 
@@ -842,7 +842,7 @@ void ForwardGaussianYoloLayer(layer* l, NetworkState state)
   uc_loss /= l->batch;
   iou_loss /= l->batch;
 
-  fprintf(stderr,
+  printf(
       "Region %d Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, .5R: %f, "
       ".75R: %f,  count: %d, class_loss = %.2f, iou_loss = %.2f, uc_loss = "
       "%.2f, total_loss = %.2f \n",

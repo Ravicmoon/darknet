@@ -82,7 +82,7 @@ void FillYoloLayer(layer* l, int batch, int w, int h, int n, int total,
   }
 #endif
 
-  fprintf(stderr, "yolo\n");
+  printf("yolo\n");
   srand(time(0));
 }
 

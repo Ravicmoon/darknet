@@ -87,8 +87,8 @@ list* ReadSections(char const* filename)
       default:
         if (!ReadOption(line, current->options))
         {
-          fprintf(stderr, "Config file error line %d, could parse: %s\n",
-              line_num, line);
+          printf(
+              "Config file error line %d, could parse: %s\n", line_num, line);
           free(line);
         }
         break;
@@ -350,7 +350,7 @@ void ParseYolo(layer* l, list* options, SizeParams params)
     l->iou_loss = CIOU;
   else
     l->iou_loss = IOU;
-  fprintf(stderr,
+  printf(
       "[yolo] params: iou loss: %s (%d), iou_norm: %2.2f, cls_norm: %2.2f, "
       "scale_x_y: %2.2f\n",
       iou_loss, l->iou_loss, l->iou_normalizer, l->cls_normalizer,
@@ -368,7 +368,7 @@ void ParseYolo(layer* l, list* options, SizeParams params)
     l->iou_thresh_kind = CIOU;
   else
   {
-    fprintf(stderr, " Wrong iou_thresh_kind = %s \n", iou_thresh_kind_str);
+    printf(" Wrong iou_thresh_kind = %s \n", iou_thresh_kind_str);
     l->iou_thresh_kind = IOU;
   }
 
@@ -496,7 +496,7 @@ void ParseGaussianYolo(layer* l, list* options, SizeParams params)
     l->iou_thresh_kind = CIOU;
   else
   {
-    fprintf(stderr, " Wrong iou_thresh_kind = %s \n", iou_thresh_kind_str);
+    printf(" Wrong iou_thresh_kind = %s \n", iou_thresh_kind_str);
     l->iou_thresh_kind = IOU;
   }
 
@@ -518,7 +518,7 @@ void ParseGaussianYolo(layer* l, list* options, SizeParams params)
   else
     l->yolo_point = YOLO_CENTER;
 
-  fprintf(stderr,
+  printf(
       "[Gaussian_yolo] iou loss: %s (%d), iou_norm: %2.2f, cls_norm: "
       "%2.2f, scale: %2.2f, point: %d\n",
       iou_loss, l->iou_loss, l->iou_normalizer, l->cls_normalizer, l->scale_x_y,
@@ -772,8 +772,8 @@ void ParseShortcut(layer* l, list* options, SizeParams params, Network* net)
     if (params.w != net->layers[idx].out_w ||
         params.h != net->layers[idx].out_h ||
         params.c != net->layers[idx].out_c)
-      fprintf(stderr, " (%4d x%4d x%4d) + (%4d x%4d x%4d) \n", params.w,
-          params.h, params.c, net->layers[idx].out_w, net->layers[idx].out_h,
+      printf(" (%4d x%4d x%4d) + (%4d x%4d x%4d) \n", params.w, params.h,
+          params.c, net->layers[idx].out_w, net->layers[idx].out_h,
           params.net->layers[idx].out_c);
   }
 }
@@ -869,8 +869,7 @@ void ParseRoute(layer* l, list* options, SizeParams params)
     }
     else
     {
-      fprintf(stderr,
-          " The width and height of the input layers are different. \n");
+      printf(" The width and height of the input layers are different. \n");
       l->out_h = l->out_w = l->out_c = 0;
     }
   }
@@ -881,18 +880,18 @@ void ParseRoute(layer* l, list* options, SizeParams params)
   l->c = l->out_c;
 
   if (n > 3)
-    fprintf(stderr, " \t    ");
+    printf(" \t    ");
   else if (n > 1)
-    fprintf(stderr, " \t            ");
+    printf(" \t            ");
   else
-    fprintf(stderr, " \t\t            ");
+    printf(" \t\t            ");
 
-  fprintf(stderr, "           ");
+  printf("           ");
   if (l->groups > 1)
-    fprintf(stderr, "%d/%d", l->group_id, l->groups);
+    printf("%d/%d", l->group_id, l->groups);
   else
-    fprintf(stderr, "   ");
-  fprintf(stderr, " -> %4d x%4d x%4d \n", l->out_w, l->out_h, l->out_c);
+    printf("   ");
+  printf(" -> %4d x%4d x%4d \n", l->out_w, l->out_h, l->out_c);
 }
 
 LearningRatePolicy GetPolicy(char* s)
@@ -914,7 +913,7 @@ LearningRatePolicy GetPolicy(char* s)
   if (strcmp(s, "sgdr") == 0)
     return SGDR;
 
-  fprintf(stderr, "Couldn't find policy %s, going with constant\n", s);
+  printf("Couldn't find policy %s, going with constant\n", s);
   return CONSTANT;
 }
 
@@ -1044,12 +1043,12 @@ void ParseNetOptions(list* options, Network* net)
     else
       net->cudnn_half = 0;
 #endif  // CUDNN_HALF
-    fprintf(stderr, " compute_capability = %d, cudnn_half = %d \n",
-        compute_capability, net->cudnn_half);
+    printf("Compute capability: %d\n", compute_capability);
+    printf("cuDNN half-precision: %d\n", net->cudnn_half);
   }
   else
   {
-    fprintf(stderr, " GPU isn't used \n");
+    printf(" GPU isn't used \n");
   }
 #endif  // GPU
 }
@@ -1081,7 +1080,10 @@ bool ParseNetworkCfg(Network* net, char const* filename, bool train)
 
   node* n = sections->front;
   if (!n)
-    error("Config file has no sections");
+  {
+    printf("Config file has no sections\n");
+    return false;
+  }
 
   AllocateNetwork(net, sections->size - 1);
 #ifdef GPU
@@ -1093,13 +1095,17 @@ bool ParseNetworkCfg(Network* net, char const* filename, bool train)
 
   Section* s = (Section*)n->val;
   if (!IsNetwork(s))
-    error("First section must be [net] or [network]");
+  {
+    printf("First section must be [net] or [network]\n");
+    return false;
+  }
 
   list* options = s->options;
   ParseNetOptions(options, net);
 
+  printf("==================================\n");
 #ifdef GPU
-  printf("net->optimized_memory = %d \n", net->optimized_memory);
+  printf("Optimized memory: %d \n", net->optimized_memory);
   if (net->optimized_memory >= 2 && params.train)
   {
     // pre-allocate 8 GB CPU-RAM for pinned memory
@@ -1115,7 +1121,9 @@ bool ParseNetworkCfg(Network* net, char const* filename, bool train)
     net->batch = 1;
   params.batch = net->batch;
   params.net = net;
-  printf("batch = %d, train = %d \n", net->batch * net->subdiv, params.train);
+  printf("Batch size: %d\n", net->batch * net->subdiv);
+  printf("Train: %d\n", params.train);
+  printf("==================================\n");
 
   int avg_outputs = 0;
   int avg_counter = 0;
@@ -1131,12 +1139,13 @@ bool ParseNetworkCfg(Network* net, char const* filename, bool train)
   n = n->next;
   int count = 0;
   FreeSection(s);
-  fprintf(stderr,
+  printf("Model details\n\n");
+  printf(
       "   layer   filters  size/strd(dil)      input                output\n");
   while (n)
   {
     params.index = count;
-    fprintf(stderr, "%4d ", count);
+    printf("%4d ", count);
 
     s = (Section*)n->val;
     options = s->options;
@@ -1254,7 +1263,7 @@ bool ParseNetworkCfg(Network* net, char const* filename, bool train)
     }
     else
     {
-      fprintf(stderr, "Type is not recognized: %s\n", s->type);
+      printf("Type is not recognized: %s\n", s->type);
     }
 
     // calculate receptive field
@@ -1310,8 +1319,8 @@ bool ParseNetworkCfg(Network* net, char const* filename, bool train)
       int cur_receptive_w = receptive_w;
       int cur_receptive_h = receptive_h;
 
-      fprintf(stderr, "%4d - receptive field: %d x %d \n", count,
-          cur_receptive_w, cur_receptive_h);
+      printf("%4d - receptive field: %d x %d \n", count, cur_receptive_w,
+          cur_receptive_h);
     }
 
 #ifdef GPU
@@ -1458,8 +1467,10 @@ bool ParseNetworkCfg(Network* net, char const* filename, bool train)
   net->outputs = GetNetworkOutputSize(net);
   net->output = GetNetworkOutput(net);
   avg_outputs = avg_outputs / avg_counter;
-  fprintf(stderr, "Total BFLOPS %5.3f \n", bflops);
-  fprintf(stderr, "avg_outputs = %d \n", avg_outputs);
+
+  printf("==================================\n");
+  printf("Total BFLOPS: %5.3f \n", bflops);
+  printf("Average outputs: %d \n", avg_outputs);
 
 #ifdef GPU
   get_cuda_stream();
@@ -1492,7 +1503,7 @@ bool ParseNetworkCfg(Network* net, char const* filename, bool train)
 
     if (workspace_size)
     {
-      fprintf(stderr, " Allocate additional workspace_size = %1.2f MB \n",
+      printf("Allocate %1.2f MB additional workspace size\n",
           (float)workspace_size / 1000000);
       net->workspace = cuda_make_array(0, workspace_size / sizeof(float) + 1);
     }
@@ -1594,7 +1605,7 @@ void SaveWeightsUpto(Network* net, char const* filename, int cutoff)
     cuda_set_device(net->gpu_index);
 #endif
 
-  fprintf(stderr, "Saving weights to %s\n", filename);
+  printf("Saving weights to %s\n", filename);
   FILE* fp = fopen(filename, "wb");
   if (!fp)
     FileError(filename);
@@ -1781,7 +1792,7 @@ bool LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
   if (net->gpu_index >= 0)
     cuda_set_device(net->gpu_index);
 #endif
-  fprintf(stderr, "Loading weights from %s...", filename);
+  printf("Loading weights from %s...", filename);
   fflush(stdout);
   FILE* fp = fopen(filename, "rb");
   if (fp == nullptr)
@@ -1837,7 +1848,6 @@ bool LoadWeightsUpTo(Network* net, char const* filename, int cutoff)
     if (feof(fp))
       break;
   }
-  fprintf(stderr, "Done! Loaded %d layers from weights-file \n", num_layer);
   fclose(fp);
 
   return true;
@@ -1853,15 +1863,23 @@ bool LoadNetwork(Network* net, char const* model_file, char const* weights_file,
     bool train, bool clear)
 {
   bool ret = false;
-  printf(" Try to load model: %s, weights: %s, clear = %d \n", model_file,
-      weights_file, clear);
+  printf("==================================\n");
+  printf("Model: %s\n", model_file);
+  printf("Weights: %s\n", weights_file);
+  printf("Clear: %d\n", clear);
+  printf("==================================\n");
 
-  ret = ParseNetworkCfg(net, model_file, train);
-  if (weights_file != nullptr)
-  {
-    printf(" Try to load weights: %s \n", weights_file);
-    ret = LoadWeights(net, weights_file);
-  }
+  if (ParseNetworkCfg(net, model_file, train))
+    printf("Loaded model\n");
+  else
+    return false;
+
+  printf("==================================\n");
+  if (weights_file != nullptr && LoadWeights(net, weights_file))
+    printf("Loaded %d layers from weights file \n", net->n);
+  else
+    return false;
+  printf("==================================\n");
 
   if (!train)
     FuseConvBatchNorm(net);

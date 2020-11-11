@@ -360,7 +360,7 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
   double pred_time = 0.0;
   for (size_t i = 0; i < val_img_list.size(); i++)
   {
-    printf("\rCalculating mAP for %d samples...", i);
+    printf("\rCalculating mAP for %d samples...", i + 1);
 
     args.path = val_img_list[i].c_str();
     pthread_t thr = load_data_in_thread(args);
@@ -432,6 +432,7 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
   delete buff_resized;
 
   std::cout << std::endl
+            << "==================================" << std::endl
             << " # of pred: " << val_boxes.size() << std::endl
             << " # of GT: " << num_gt << std::endl;
 
@@ -556,7 +557,8 @@ float ValidateDetector(Metadata const& md, Network* net, float const iou_thresh)
             << " mAP@" << iou_thresh << ": " << map * 100 << "%" << std::endl
             << std::endl
             << " Total prediction time: " << pred_time << "s" << std::endl
-            << " Prediction per second: " << pred_per_second << std::endl;
+            << " Prediction per second: " << pred_per_second << std::endl
+            << "==================================" << std::endl;
 
   return map;
 }

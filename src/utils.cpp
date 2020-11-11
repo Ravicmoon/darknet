@@ -41,7 +41,7 @@ void* xmalloc(size_t size)
   void* ptr = malloc(size);
   if (!ptr)
   {
-    fprintf(stderr, "xmalloc error\n");
+    printf("xmalloc error\n");
     exit(EXIT_FAILURE);
   }
   return ptr;
@@ -52,7 +52,7 @@ void* xcalloc(size_t nmemb, size_t size)
   void* ptr = calloc(nmemb, size);
   if (!ptr)
   {
-    fprintf(stderr, "xcalloc error\n");
+    printf("xcalloc error\n");
     exit(EXIT_FAILURE);
   }
   return ptr;
@@ -63,7 +63,7 @@ void* xrealloc(void* ptr, size_t size)
   ptr = realloc(ptr, size);
   if (!ptr)
   {
-    fprintf(stderr, "xrealloc error\n");
+    printf("xrealloc error\n");
     exit(EXIT_FAILURE);
   }
   return ptr;
@@ -126,7 +126,7 @@ void error(const char* s)
 
 void FileError(char const* s)
 {
-  fprintf(stderr, "Couldn't open file: %s\n", s);
+  printf("Couldn't open file: %s\n", s);
   exit(EXIT_FAILURE);
 }
 
