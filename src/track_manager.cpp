@@ -121,8 +121,8 @@ void Track::TrackImpl::InitKalmanFilter(cv::Point2f const& point)
       (cv::Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
 
   setIdentity(kf_.measurementMatrix);
-  setIdentity(kf_.processNoiseCov, cv::Scalar::all(1e-4f));
-  setIdentity(kf_.measurementNoiseCov, cv::Scalar::all(2e-4f));
+  setIdentity(kf_.processNoiseCov, cv::Scalar::all(5e-4f));
+  setIdentity(kf_.measurementNoiseCov, cv::Scalar::all(1e-4f));
   kf_.statePost = (cv::Mat_<float>(4, 1) << point.x, point.y, 0.0f, 0.0f);
 }
 ///
