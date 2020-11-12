@@ -2,6 +2,8 @@
 
 #include <tinyxml2.h>
 
+#include <fstream>
+
 #include "utils.h"
 
 namespace yc
@@ -165,13 +167,13 @@ void PolyInfo::Draw(cv::Mat& img, char const* msg) const
   cv::putText(img, msg, center, kFont, kFontSz, kRed, 1, cv::LINE_AA);
 }
 
-void PolyInfo::Proc(std::vector<yc::Track*>& tracks) {}
+void PolyInfo::Proc(std::vector<yc::Track*>& tracks, void* data) {}
 
 Handover::Handover(std::string name, Polygon const& poly) : PolyInfo(name, poly)
 {
 }
 
-void Handover::Proc(std::vector<yc::Track*>& tracks)
+void Handover::Proc(std::vector<yc::Track*>& tracks, void* data)
 {
   for (size_t i = 0; i < tracks.size(); i++)
   {
@@ -268,7 +270,7 @@ void ParkingLot::Draw(cv::Mat& img, char const* msg) const
   PolyInfo::Draw(img, buff);
 }
 
-void ParkingLot::Proc(std::vector<yc::Track*>& tracks)
+void ParkingLot::Proc(std::vector<yc::Track*>& tracks, void* data)
 {
   bool matched = false;
   for (size_t i = 0; i < tracks.size(); i++)
@@ -282,6 +284,8 @@ void ParkingLot::Proc(std::vector<yc::Track*>& tracks)
     if (curr_occ_.start == 0 && tracks[i]->GetStatus() == STATIONARY)
     {
       curr_occ_.label = tracks[i]->GetLabel();
+      if (data != nullptr)
+        curr_occ_.sframe = *(int*)data;
       time(&curr_occ_.start);
       matched = true;
     }
@@ -291,12 +295,42 @@ void ParkingLot::Proc(std::vector<yc::Track*>& tracks)
     }
   }
 
-  if (!matched)
+  if (!matched && curr_occ_.start != 0)
   {
+    if (data != nullptr)
+      curr_occ_.eframe = *(int*)data;
     time(&curr_occ_.end);
     occupations_.push_back(curr_occ_);
     curr_occ_ = Occ();
   }
+}
+
+void ParkingLot::SaveHistory(std::string path)
+{
+  std::ofstream ofs(path + '_' + name_ + ".txt");
+  if (!ofs.is_open())
+    return;
+
+  ofs << occupations_.size() << std::endl;
+  for (size_t i = 0; i < occupations_.size(); i++)
+  {
+    ofs << occupations_[i].label << std::endl
+        << occupations_[i].sframe << std::endl
+        << occupations_[i].eframe << std::endl;
+  }
+
+  if (curr_occ_.start != 0)
+  {
+    ofs << "true" << std::endl
+        << curr_occ_.label << std::endl
+        << curr_occ_.sframe << std::endl;
+  }
+  else
+  {
+    ofs << "false" << std::endl;
+  }
+
+  ofs.close();
 }
 
 GeoInfo::~GeoInfo()
@@ -361,19 +395,27 @@ void GeoInfo::Draw(cv::Mat& img) const
   }
 }
 
-void GeoInfo::Proc(std::vector<yc::Track*>& tracks)
+void GeoInfo::Proc(std::vector<yc::Track*>& tracks, void* data)
 {
   for (size_t i = 0; i < parking_lots.size(); i++)
   {
-    parking_lots[i]->Proc(tracks);
+    parking_lots[i]->Proc(tracks, data);
   }
 
   for (size_t i = 0; i < handovers.size(); i++)
   {
-    handovers[i]->Proc(tracks);
+    handovers[i]->Proc(tracks, data);
   }
 }
 
 int GeoInfo::NumHandoverRegions() const { return (int)handovers.size(); }
 Handover* GeoInfo::GetHandoverRegion(int idx) { return handovers[idx]; }
+
+void GeoInfo::SaveParkingLotHistory(std::string path)
+{
+  for (size_t i = 0; i < parking_lots.size(); i++)
+  {
+    parking_lots[i]->SaveHistory(path);
+  }
+}
 }  // namespace yc

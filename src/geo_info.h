@@ -19,6 +19,8 @@ float PolygonArea(Polygon const& poly);
 struct Occ
 {
   int label;
+  int sframe;
+  int eframe;
   time_t start;
   time_t end;
 };
@@ -32,7 +34,7 @@ class PolyInfo
 
   bool IsInPolygon(cv::Point2f pt) const;
   virtual void Draw(cv::Mat& img, char const* msg = nullptr) const;
-  virtual void Proc(std::vector<yc::Track*>& tracks);
+  virtual void Proc(std::vector<yc::Track*>& tracks, void* data = nullptr);
 
  protected:
   std::string name_;
@@ -45,7 +47,7 @@ class Handover : public PolyInfo
  public:
   Handover(std::string name, Polygon const& poly);
 
-  virtual void Proc(std::vector<yc::Track*>& tracks);
+  virtual void Proc(std::vector<yc::Track*>& tracks, void* data = nullptr);
 
   static void Crosstalk(Handover* h1, Handover* h2);
 
@@ -62,7 +64,10 @@ class ParkingLot : public PolyInfo
   ParkingLot(std::string name, Polygon const& poly);
 
   virtual void Draw(cv::Mat& img, char const* msg = nullptr) const;
-  virtual void Proc(std::vector<yc::Track*>& tracks);
+  virtual void Proc(std::vector<yc::Track*>& tracks, void* data = nullptr);
+
+  // for performance evaluation
+  void SaveHistory(std::string path);
 
  protected:
   Occ curr_occ_;
@@ -77,10 +82,13 @@ class GeoInfo
   void Load(std::string xml_path);
 
   void Draw(cv::Mat& img) const;
-  void Proc(std::vector<yc::Track*>& tracks);
+  void Proc(std::vector<yc::Track*>& tracks, void* data = nullptr);
 
   int NumHandoverRegions() const;
   Handover* GetHandoverRegion(int idx);
+
+  // for performance evaluation
+  void SaveParkingLotHistory(std::string path);
 
  private:
   std::vector<ParkingLot*> parking_lots;
