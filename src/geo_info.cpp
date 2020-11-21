@@ -266,10 +266,7 @@ void Handover::UniquePushBack(std::deque<HandoverInfo>& q, yc::Track* track)
   }
 
   if (!exist)
-  {
-    HandoverInfo info = {track, 0};
-    q.push_back(info);
-  }
+    q.push_back(HandoverInfo{track, 0});
 }
 
 ParkingLot::ParkingLot(std::string name, Polygon const& poly)
