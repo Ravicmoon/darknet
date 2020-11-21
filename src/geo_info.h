@@ -25,10 +25,10 @@ struct Occ
   time_t end;
 };
 
-class PolyInfo
+class PolyRegion
 {
  public:
-  PolyInfo(std::string name, Polygon const& poly);
+  PolyRegion(std::string name, Polygon const& poly);
 
   std::string Name() const;
 
@@ -42,7 +42,13 @@ class PolyInfo
   Box bbox_;
 };
 
-class Handover : public PolyInfo
+struct HandoverInfo
+{
+  yc::Track* track;
+  int duration;
+};
+
+class Handover : public PolyRegion
 {
  public:
   Handover(std::string name, Polygon const& poly);
@@ -52,13 +58,14 @@ class Handover : public PolyInfo
   static void Crosstalk(Handover* h1, Handover* h2);
 
  protected:
-  void UniquePushBack(std::deque<yc::Track*>& q, yc::Track* track);
+  void ManageQueue(std::deque<HandoverInfo>& q);
+  void UniquePushBack(std::deque<HandoverInfo>& q, yc::Track* track);
 
-  std::deque<yc::Track*> enter_;
-  std::deque<yc::Track*> exit_;
+  std::deque<HandoverInfo> enter_;
+  std::deque<HandoverInfo> exit_;
 };
 
-class ParkingLot : public PolyInfo
+class ParkingLot : public PolyRegion
 {
  public:
   ParkingLot(std::string name, Polygon const& poly);

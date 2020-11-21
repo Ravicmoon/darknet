@@ -105,7 +105,7 @@ float PolygonArea(Polygon const& poly)
   return abs(area / 2.0f);
 }
 
-PolyInfo::PolyInfo(std::string name, Polygon const& poly)
+PolyRegion::PolyRegion(std::string name, Polygon const& poly)
     : name_(name), poly_(poly)
 {
   float x_min = FLT_MAX, x_max = 0;
@@ -124,14 +124,14 @@ PolyInfo::PolyInfo(std::string name, Polygon const& poly)
   bbox_.h = y_max - y_min;
 }
 
-std::string PolyInfo::Name() const { return name_; }
+std::string PolyRegion::Name() const { return name_; }
 
-bool PolyInfo::IsInPolygon(cv::Point2f pt) const
+bool PolyRegion::IsInPolygon(cv::Point2f pt) const
 {
   return yc::IsInPolygon(poly_, pt);
 }
 
-void PolyInfo::Draw(cv::Mat& img, char const* msg) const
+void PolyRegion::Draw(cv::Mat& img, char const* msg) const
 {
   int width = img.cols;
   int height = img.rows;
@@ -167,14 +167,18 @@ void PolyInfo::Draw(cv::Mat& img, char const* msg) const
   cv::putText(img, msg, center, kFont, kFontSz, kRed, 1, cv::LINE_AA);
 }
 
-void PolyInfo::Proc(std::vector<yc::Track*>& tracks, void* data) {}
+void PolyRegion::Proc(std::vector<yc::Track*>& tracks, void* data) {}
 
-Handover::Handover(std::string name, Polygon const& poly) : PolyInfo(name, poly)
+Handover::Handover(std::string name, Polygon const& poly)
+    : PolyRegion(name, poly)
 {
 }
 
 void Handover::Proc(std::vector<yc::Track*>& tracks, void* data)
 {
+  ManageQueue(enter_);
+  ManageQueue(exit_);
+
   for (size_t i = 0; i < tracks.size(); i++)
   {
     Box box = tracks[i]->GetBox();
@@ -200,14 +204,14 @@ void Handover::Crosstalk(Handover* h1, Handover* h2)
 {
   if (!h1->exit_.empty() && !h2->enter_.empty())
   {
-    std::string lp = h1->exit_.front()->GetLicensePlate();
-    int label = h1->exit_.front()->GetLabel();
+    std::string lp = h1->exit_.front().track->GetLicensePlate();
+    int label = h1->exit_.front().track->GetLabel();
     if (label != -1)
     {
-      h2->enter_.front()->SetLicensePlate(lp);
-      h2->enter_.front()->SetLabel(label);
-      h2->enter_.front()->SetEnterStatus(true);
-      h1->exit_.front()->SetExitStatus(true);
+      h2->enter_.front().track->SetLicensePlate(lp);
+      h2->enter_.front().track->SetLabel(label);
+      h2->enter_.front().track->SetEnterStatus(true);
+      h1->exit_.front().track->SetExitStatus(true);
 
       h1->exit_.pop_front();
       h2->enter_.pop_front();
@@ -216,14 +220,14 @@ void Handover::Crosstalk(Handover* h1, Handover* h2)
 
   if (!h2->exit_.empty() && !h1->enter_.empty())
   {
-    std::string lp = h2->exit_.front()->GetLicensePlate();
-    int label = h2->exit_.front()->GetLabel();
+    std::string lp = h2->exit_.front().track->GetLicensePlate();
+    int label = h2->exit_.front().track->GetLabel();
     if (label != -1)
     {
-      h1->enter_.front()->SetLicensePlate(lp);
-      h1->enter_.front()->SetLabel(label);
-      h1->enter_.front()->SetEnterStatus(true);
-      h2->exit_.front()->SetExitStatus(true);
+      h1->enter_.front().track->SetLicensePlate(lp);
+      h1->enter_.front().track->SetLabel(label);
+      h1->enter_.front().track->SetEnterStatus(true);
+      h2->exit_.front().track->SetExitStatus(true);
 
       h2->exit_.pop_front();
       h1->enter_.pop_front();
@@ -231,12 +235,30 @@ void Handover::Crosstalk(Handover* h1, Handover* h2)
   }
 }
 
-void Handover::UniquePushBack(std::deque<yc::Track*>& q, yc::Track* track)
+void Handover::ManageQueue(std::deque<HandoverInfo>& q)
+{
+  // remove objects from the queue if they stay too long
+  auto new_end = std::remove_if(q.begin(), q.end(), [](HandoverInfo& info) {
+    if (info.duration > Track::GetFps() * 10)
+      return true;
+    else
+      return false;
+  });
+
+  q.erase(new_end, q.end());
+
+  for (auto it = q.begin(); it != q.end(); it++)
+  {
+    it->duration++;
+  }
+}
+
+void Handover::UniquePushBack(std::deque<HandoverInfo>& q, yc::Track* track)
 {
   bool exist = false;
   for (size_t i = 0; i < q.size(); i++)
   {
-    if (q[i] == track)
+    if (q[i].track == track)
     {
       exist = true;
       break;
@@ -244,11 +266,14 @@ void Handover::UniquePushBack(std::deque<yc::Track*>& q, yc::Track* track)
   }
 
   if (!exist)
-    q.push_back(track);
+  {
+    HandoverInfo info = {track, 0};
+    q.push_back(info);
+  }
 }
 
 ParkingLot::ParkingLot(std::string name, Polygon const& poly)
-    : PolyInfo(name, poly), curr_occ_(Occ())
+    : PolyRegion(name, poly), curr_occ_(Occ())
 {
 }
 
@@ -267,7 +292,7 @@ void ParkingLot::Draw(cv::Mat& img, char const* msg) const
     sprintf(buff, "%02d:%02d:%02d", h, m, s);
   }
 
-  PolyInfo::Draw(img, buff);
+  PolyRegion::Draw(img, buff);
 }
 
 void ParkingLot::Proc(std::vector<yc::Track*>& tracks, void* data)
