@@ -331,6 +331,9 @@ void ParkingLot::SaveHistory(std::string path)
   }
 
   ofs.close();
+
+  occupations_.clear();
+  curr_occ_.sframe = 0;
 }
 
 GeoInfo::~GeoInfo()
