@@ -87,7 +87,7 @@ void DrawYoloDetections(
 
     int width = max_val_cmp(1, img.cols / 640);
 
-    cv::rectangle(img, pt1, pt2, color, width);
+    cv::rectangle(img, pt1, pt2, color, width, cv::LINE_AA);
     cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1);
     cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width);
     cv::putText(img, tag, pt_text, font, 1, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
@@ -131,7 +131,7 @@ void DrawYoloTrackings(
     if (tracks[i]->GetStatus() == yc::STATIONARY)
       width *= 2;
 
-    cv::rectangle(img, pt1, pt2, color, width);
+    cv::rectangle(img, pt1, pt2, color, width, cv::LINE_AA);
     cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, -1);
     cv::rectangle(img, pt_text_bg1, pt_text_bg2, color, width);
     cv::putText(img, tag, pt_text, font, 0.5, CV_RGB(0, 0, 0), 1, cv::LINE_AA);

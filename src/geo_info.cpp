@@ -144,7 +144,7 @@ void PolyRegion::Draw(cv::Mat& img, char const* msg) const
     scaled[i].y = int(poly_[i].y * height + 0.5f);
   }
 
-  cv::polylines(img, scaled, true, kRed);
+  cv::polylines(img, scaled, true, kRed, 2, cv::LINE_AA);
 
   // draw message
   cv::Point2f center;
